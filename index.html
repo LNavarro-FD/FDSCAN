@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v4.4</title>
+<title>FD Door Scanner v4.5</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v4.4</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v4.5</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -1477,7 +1477,18 @@ function closeDrawer(e) {
 // ═══════════════════════════════════════════
 //  CAMERA
 // ═══════════════════════════════════════════
+function isTouchDevice() {
+  return ('ontouchstart' in window) || 
+         (navigator.maxTouchPoints > 0) || 
+         /iPad|iPhone|iPod|Android|Mobile|Tablet/i.test(navigator.userAgent);
+}
+
 function initCamera() {
+  if (!isTouchDevice()) {
+    console.log('Desktop detected — camera disabled. Use manual entry or guest list.');
+    document.querySelector('.cam-wrap').style.display = 'none';
+    return;
+  }
   const videoEl = document.getElementById('qr-video');
   const codeReader = new ZXing.BrowserMultiFormatReader();
   scanner = codeReader;
