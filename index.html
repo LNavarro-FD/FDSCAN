@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v3.0</title>
+<title>FD Door Scanner v3.1</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v3.0</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v3.1</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -783,6 +783,7 @@ async function fetchUpcomingEvents() {
         const events = Array.isArray(data) ? data : (data.events || data.data || data.results || []);
         if (events.length > 0) {
           upcomingEventNames = events.map(e => (e.title || e.name || e.post_title || '').toLowerCase());
+          upcomingEvents = events; // ← THIS was missing — needed for fetchMecAttendees
           console.log('Upcoming events found:', upcomingEventNames.length, upcomingEventNames);
           return;
         }
@@ -942,14 +943,18 @@ async function loadGuestList() {
       if (g.email) emailMap[g.email] = g;
     });
 
-    // 4. Add WC guests — these are comps/manual entries not in MEC
+    // 4. Add WC guests — only those NOT already covered by MEC (comps, TM, Remenham Farm)
+    // A WC order is "already in MEC" if its order number matches an MEC invoice ID
+    const mecInvoiceIds = new Set(Object.values(bookingMap).map(b => String(b.invoiceId)));
     wcGuests.forEach(g => {
+      // Skip if this WC order is already represented by an MEC booking
+      if (mecInvoiceIds.has(String(g.orderNumber))) return;
       g._source = 'wc';
       guestMap[`wc-${g.orderNumber}`] = g;
       if (g.email && !emailMap[g.email]) emailMap[g.email] = g;
       if (g.id) idMap[g.id] = g;
 
-      // Add to bookingMap if not already there from MEC
+      // Add to bookingMap
       const wcKey = `wc-${g.orderNumber}`;
       if (!bookingMap[wcKey]) {
         bookingMap[wcKey] = {
