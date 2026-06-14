@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v1.3</title>
+<title>FD Door Scanner v1.4</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -382,7 +382,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v1.3</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v1.4</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -1014,7 +1014,9 @@ function initCamera() {
       if (result) {
         const code = result.getText();
         const now = Date.now();
-        if (code === lastCode && now - lastAt < 3000) return;
+        // Block if same code within 8 seconds OR if currently processing
+        if (isScanning) return;
+        if (code === lastCode && now - lastAt < 8000) return;
         lastCode = code; lastAt = now;
         lookupTicket(code);
       }
@@ -1126,6 +1128,8 @@ async function lookupTicket(code) {
     setResult('err','⚠️','Connection error', err.message || 'Check connection');
   } finally {
     isScanning = false;
+    // After 8 seconds reset lastCode so same ticket CAN be scanned again if needed
+    setTimeout(() => { lastCode = ''; }, 8000);
   }
 }
 
