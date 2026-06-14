@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v2.0</title>
+<title>FD Door Scanner v2.1</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v2.0</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v2.1</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -645,7 +645,7 @@ async function syncCheckedIn() {
   try {
     const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
     const r = await fetch(
-      `${cfg.siteUrl}/wp-json/wc/v3/orders?status=completed&per_page=100&meta_key=${META_KEY}&meta_value=1&_fields=id,number,meta_data`,
+      `${cfg.siteUrl}/wp-json/wc/v3/orders?status=completed,processing,on-hold&per_page=100&meta_key=${META_KEY}&meta_value=1&_fields=id,number,meta_data`,
       { headers: { 'Authorization': `Basic ${creds}` } }
     );
     if (!r.ok) throw new Error(`Sync ${r.status}`);
@@ -774,7 +774,7 @@ async function fetchWooOrders() {
   const hdrs  = { 'Authorization': `Basic ${creds}` };
   let page = 1, all = [];
   while (true) {
-    const r = await fetch(`${base}?status=completed&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data`, { headers: hdrs });
+    const r = await fetch(`${base}?status=completed,processing,on-hold&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data`, { headers: hdrs });
     if (!r.ok) throw new Error(`WooCommerce API ${r.status} — check credentials`);
     const orders = await r.json();
     if (!orders.length) break;
@@ -828,7 +828,7 @@ async function fetchSingleOrder(code) {
   const clean = code.replace(/^#/,'').trim();
   const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
   const r = await fetch(
-    `${cfg.siteUrl}/wp-json/wc/v3/orders?number=${encodeURIComponent(clean)}&status=completed&_fields=id,number,status,billing,line_items,total,meta_data`,
+    `${cfg.siteUrl}/wp-json/wc/v3/orders?number=${encodeURIComponent(clean)}&status=completed,processing,on-hold&_fields=id,number,status,billing,line_items,total,meta_data`,
     { headers: { 'Authorization': `Basic ${creds}` } }
   );
   if (!r.ok) throw new Error(`WC API ${r.status}`);
@@ -1372,7 +1372,7 @@ async function wcExternalTicketLookup(barcode) {
   try {
     const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
     const r = await fetch(
-      `${cfg.siteUrl}/wp-json/wc/v3/orders?status=completed&meta_key=_fd_external_ticket&meta_value=${encodeURIComponent(barcode)}&_fields=id,number,status,billing,line_items,total,meta_data`,
+      `${cfg.siteUrl}/wp-json/wc/v3/orders?status=completed,processing,on-hold&meta_key=_fd_external_ticket&meta_value=${encodeURIComponent(barcode)}&_fields=id,number,status,billing,line_items,total,meta_data`,
       { headers: { 'Authorization': `Basic ${creds}` } }
     );
     if (!r.ok) return null;
