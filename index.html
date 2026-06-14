@@ -107,7 +107,7 @@ input::placeholder { color: #999; }
 .nav-icon { font-size: 20px; line-height: 1; }
 
 /* ── Camera ── */
-.cam-wrap { position: relative; flex-shrink: 0; height: 44vw; max-height: 280px; overflow: hidden; background: #000; }
+.cam-wrap { position: relative; flex-shrink: 0; height: 70vw; max-height: 380px; overflow: hidden; background: #000; }
 #qr-reader { width: 100%; height: 100%; position: absolute; inset: 0; }
 #qr-reader video { width: 100%!important; height: 100%!important; object-fit: cover; display: block; }
 #qr-reader img { display: none!important; }
@@ -253,7 +253,7 @@ input::placeholder { color: #999; }
 }
 .gl-search {
   flex: 1; background: var(--bg); border: 2px solid var(--border);
-  border-radius: 9px; padding: 11px 13px; font-size: 15px; color: var(--text);
+  border-radius: 9px; padding: 14px 15px; font-size: 18px; color: var(--text);
   font-family: inherit; outline: none; -webkit-appearance: none;
 }
 .gl-search:focus { border-color: var(--pink); }
@@ -281,7 +281,7 @@ input::placeholder { color: #999; }
 .gl-count { padding: 8px 16px; font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--white); }
 .gl-item {
   display: flex; align-items: center; gap: 13px;
-  padding: 13px 16px; border-bottom: 1px solid var(--border);
+  padding: 16px 16px; border-bottom: 1px solid var(--border);
   cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .1s;
   background: var(--white);
 }
@@ -297,7 +297,7 @@ input::placeholder { color: #999; }
 .gl-avatar.checked { background: #C8F5E0; color: #006B38; font-size: 20px; }
 .gl-avatar.tm      { background: #D6E8FF; color: #0050B3; }
 .gl-info  { flex: 1; min-width: 0; }
-.gl-name  { font-size: 15px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gl-name  { font-size: 17px; font-weight: 800; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gl-ticket { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gl-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
 .badge {
@@ -341,11 +341,14 @@ input::placeholder { color: #999; }
 .drawer-order { font-size: 12px; color: #999; letter-spacing: .04em; }
 .drawer-close { background: var(--bg); border: 2px solid var(--border); border-radius: 10px; padding: 15px; font-size: 14px; font-weight: 700; color: var(--text); font-family: inherit; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; width: 100%; }
 .drawer-admit {
-  background: var(--ok); color: #fff; border: none; border-radius: 10px;
-  padding: 16px; font-size: 14px; font-weight: 800; letter-spacing: .08em;
+  background: var(--ok); color: #fff; border: none; border-radius: 16px;
+  padding: 22px; font-size: 22px; font-weight: 900; letter-spacing: .12em;
   text-transform: uppercase; cursor: pointer; font-family: inherit; width: 100%;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 4px 20px rgba(0,168,90,.35);
+  transition: transform .1s, box-shadow .1s;
 }
+.drawer-admit:active { transform: scale(.97); box-shadow: 0 2px 8px rgba(0,168,90,.2); }
 
 /* ── Stats ── */
 #stats-screen { overflow-y: auto; background: var(--bg); }
@@ -465,7 +468,7 @@ input::placeholder { color: #999; }
     </div>
   </div>
   <nav class="bottom-nav">
-    <button class="nav-btn active" onclick="showTab('scan')"><span class="nav-icon">📷</span>Scan</button>
+    <button class="nav-btn" onclick="showTab('scan')"><span class="nav-icon">📷</span>Scan</button>
     <button class="nav-btn" onclick="showTab('guests')"><span class="nav-icon">👥</span>Guests</button>
     <button class="nav-btn" onclick="showTab('stats')"><span class="nav-icon">📊</span>Stats</button>
     <button class="nav-btn" onclick="showTab('settings')"><span class="nav-icon">⚙️</span>Settings</button>
@@ -475,7 +478,7 @@ input::placeholder { color: #999; }
 <!-- GUEST LIST TAB -->
 <div id="guests-screen" class="screen hidden">
   <div class="gl-toolbar">
-    <input class="gl-search" type="text" id="gl-search" placeholder="Search name, order, email…" oninput="renderGuestList()" autocomplete="off" autocorrect="off" autocapitalize="none">
+    <input class="gl-search" type="text" id="gl-search" placeholder="Search by name…" oninput="renderGuestList()" autocomplete="off" autocorrect="off" autocapitalize="none">
     <button class="gl-refresh" onclick="refreshGuests()" title="Refresh">↻</button>
   </div>
   <div class="gl-filter-bar">
@@ -483,6 +486,9 @@ input::placeholder { color: #999; }
     <button class="filter-pill" onclick="setFilter('vip',this)">⭐ VIP</button>
     <button class="filter-pill" onclick="setFilter('comp',this)">🎁 Comp</button>
     <button class="filter-pill" onclick="setFilter('tm',this)">🎫 Ticketmaster</button>
+    <button class="filter-pill" onclick="setFilter('artist',this)">🎵 Artist</button>
+    <button class="filter-pill" onclick="setFilter('sponsor',this)">🤝 Sponsor</button>
+    <button class="filter-pill" onclick="setFilter('influencer',this)">📱 Influencer</button>
     <button class="filter-pill" onclick="setFilter('in',this)">✓ In</button>
     <button class="filter-pill" onclick="setFilter('pending',this)">⏳ Not yet</button>
   </div>
@@ -505,13 +511,18 @@ input::placeholder { color: #999; }
     <div>
       <div class="drawer-name" id="dr-name"></div>
       <div class="drawer-ticket" id="dr-ticket"></div>
+      <div id="dr-guest-of" class="hidden" style="margin-top:8px;padding:10px 14px;background:#F0F4FF;border-radius:10px;border-left:4px solid #0050B3;font-size:13px;color:#0050B3;font-weight:700;"></div>
     </div>
     <div class="drawer-ent std" id="dr-ent">
       <div class="drawer-ent-title" id="dr-ent-title"></div>
       <div id="dr-ent-rows"></div>
     </div>
     <div class="drawer-order" id="dr-order"></div>
-    <button class="drawer-admit hidden" id="dr-admit-btn" onclick="admitFromDrawer()">✓ Mark as Admitted</button>
+    <button class="drawer-admit hidden" id="dr-admit-btn" onclick="admitFromDrawer()">
+      <span style="font-size:28px;display:block;margin-bottom:4px;">✓</span>
+      ADMIT
+    </button>
+    <div id="dr-already-in" class="hidden" style="text-align:center;padding:16px;background:#E6F9EF;border-radius:12px;border:2px solid #00A85A;color:#00A85A;font-size:15px;font-weight:800;letter-spacing:.05em;">✓ Already checked in</div>
     <button class="drawer-close" onclick="closeDrawer()">Close</button>
   </div>
 </div>
@@ -683,7 +694,7 @@ function useDemoMode() { cfg = { siteUrl:'', wcKey:'', wcSecret:'', demo:true };
 function launch() {
   document.getElementById('setup-screen').classList.add('hidden');
   document.getElementById('main-header').classList.remove('hidden');
-  showTab('scan');
+  showTab('guests');
   loadGuestList().then(() => startSync());
   initCamera();
 }
@@ -750,8 +761,14 @@ function parseOrder(o) {
   const tableMeta  = allMeta.find(m => /table/i.test(m.key));
   const table      = tableMeta ? tableMeta.value : null;
   const name       = [o.billing.first_name, o.billing.last_name].filter(Boolean).join(' ') || 'Guest';
-  const checkedIn = !!(o.meta_data && o.meta_data.find(m => m.key === META_KEY && m.value === '1'));
-  const guest = { id:o.id, orderNumber:String(o.number), name, email:(o.billing.email||'').toLowerCase(), ticketName, isVip, isTM, isComp, table, checkedIn };
+  const checkedIn     = !!(o.meta_data && o.meta_data.find(m => m.key === META_KEY && m.value === '1'));
+  const guestOfMeta   = allMeta.find(m => m.key === '_fd_guest_of');
+  const hostCatMeta   = allMeta.find(m => m.key === '_fd_host_category');
+  const notesMeta     = allMeta.find(m => m.key === '_fd_notes');
+  const guestOf       = guestOfMeta ? guestOfMeta.value : null;
+  const hostCategory  = hostCatMeta ? hostCatMeta.value : null;
+  const guestNotes    = notesMeta   ? notesMeta.value   : null;
+  const guest = { id:o.id, orderNumber:String(o.number), name, email:(o.billing.email||'').toLowerCase(), ticketName, isVip, isTM, isComp, table, guestOf, hostCategory, guestNotes, checkedIn };
   idMap[o.id] = guest;
   return guest;
 }
@@ -791,11 +808,14 @@ function renderGuestList() {
   const filtered = all.filter(g => {
     const mq = !q || g.name.toLowerCase().includes(q) || g.orderNumber.includes(q) || g.email.includes(q) || g.ticketName.toLowerCase().includes(q);
     if (!mq) return false;
-    if (glFilter === 'vip')     return g.isVip;
-    if (glFilter === 'comp')    return g.isComp;
-    if (glFilter === 'tm')      return g.isTM;
-    if (glFilter === 'in')      return g.checkedIn;
-    if (glFilter === 'pending') return !g.checkedIn;
+    if (glFilter === 'vip')        return g.isVip;
+    if (glFilter === 'comp')       return g.isComp;
+    if (glFilter === 'tm')         return g.isTM;
+    if (glFilter === 'artist')     return (g.hostCategory||'').toLowerCase() === 'artist';
+    if (glFilter === 'sponsor')    return (g.hostCategory||'').toLowerCase() === 'sponsor';
+    if (glFilter === 'influencer') return (g.hostCategory||'').toLowerCase() === 'influencer';
+    if (glFilter === 'in')         return g.checkedIn;
+    if (glFilter === 'pending')    return !g.checkedIn;
     return true;
   }).sort((a,b) => {
     if (a.isVip && !b.isVip) return -1;
@@ -824,7 +844,7 @@ function renderGuestList() {
       <div class="gl-avatar ${avCls}">${avTxt}</div>
       <div class="gl-info">
         <div class="gl-name">${g.name}</div>
-        <div class="gl-ticket">${g.ticketName}${g.table?' · Table '+g.table:''}</div>
+        <div class="gl-ticket">${g.ticketName}${g.table?' · Table '+g.table:''}${g.guestOf?' · Guest of '+g.guestOf:''}</div>
       </div>
       <div class="gl-badges">${badges}</div>
     </div>`;
@@ -844,6 +864,16 @@ function openDrawer(orderNum) {
   document.getElementById('dr-name').textContent   = g.name;
   document.getElementById('dr-ticket').textContent = g.ticketName + (g.checkedIn ? ' · Checked in ✓' : '');
   document.getElementById('dr-order').textContent  = `Order #${g.orderNumber}${g.email?' · '+g.email:''}`;
+
+  // Guest of
+  const goEl = document.getElementById('dr-guest-of');
+  if (g.guestOf) {
+    const catLabel = g.hostCategory ? ` (${g.hostCategory})` : '';
+    goEl.innerHTML = `🎟 Guest of: <strong>${g.guestOf}</strong>${catLabel}${g.guestNotes?' · '+g.guestNotes:''}`;
+    goEl.classList.remove('hidden');
+  } else {
+    goEl.classList.add('hidden');
+  }
 
   const entEl   = document.getElementById('dr-ent');
   const titleEl = document.getElementById('dr-ent-title');
@@ -875,12 +905,14 @@ function openDrawer(orderNum) {
     `;
   }
 
-  // Show manual admit button if not yet checked in
+  // Show admit button or already-in state
+  const alreadyIn = document.getElementById('dr-already-in');
   if (!g.checkedIn) {
     admitBtn.classList.remove('hidden');
-    admitBtn.textContent = '✓ Mark as Admitted';
+    alreadyIn.classList.add('hidden');
   } else {
     admitBtn.classList.add('hidden');
+    alreadyIn.classList.remove('hidden');
   }
 
   document.getElementById('guest-drawer').classList.remove('hidden');
@@ -896,6 +928,7 @@ function admitFromDrawer() {
   document.getElementById('hdr-count').textContent = stats.admitted;
   updateStats(); updateGLStats(); renderGuestList();
   document.getElementById('dr-admit-btn').classList.add('hidden');
+  document.getElementById('dr-already-in').classList.remove('hidden');
   document.getElementById('dr-ticket').textContent = g.ticketName + ' · Checked in ✓';
   vibrate([80]);
 }
@@ -917,8 +950,24 @@ function initCamera() {
     lastCode = code; lastAt = now;
     lookupTicket(code);
   };
-  scanner.start({ facingMode:'environment' }, { fps:10, qrbox:{width:200,height:200}, aspectRatio:1 }, onCode, ()=>{})
-    .catch(() => scanner.start({ facingMode:'environment' }, { fps:10 }, onCode, ()=>{}).catch(e => console.warn('Camera:', e)));
+  // Try high-res first for better QR detection
+  const config = {
+    fps: 15,
+    qrbox: { width: 320, height: 320 },
+    aspectRatio: 1.0,
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    videoConstraints: {
+      facingMode: { ideal: 'environment' },
+      width: { ideal: 1920 },
+      height: { ideal: 1080 }
+    }
+  };
+  scanner.start({ facingMode: 'environment' }, config, onCode, ()=>{})
+    .catch(() => {
+      // Fallback to basic config
+      scanner.start({ facingMode:'environment' }, { fps:15, qrbox:{width:300,height:300} }, onCode, ()=>{})
+        .catch(e => console.warn('Camera:', e));
+    });
 }
 
 // ═══════════════════════════════════════════
