@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v4.0</title>
+<title>FD Door Scanner v4.2</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v4.0</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v4.2</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -961,26 +961,19 @@ async function loadGuestList() {
       // Skip if this WC order is already represented by an MEC booking
       if (mecInvoiceIds.has(String(g.orderNumber))) return;
 
-      // Only include WC orders that are:
-      // 1. Comps, Ticketmaster, or manual guest entries (always show)
-      // 2. Paid tickets NOT already in MEC (safety net for guests without QR)
-      // Paid tickets already in MEC are deduplicated by invoice ID above
-      // If MEC is loaded and this is a paid non-comp order, only show if
-      // the order number is NOT in MEC (i.e. it's a genuine WC-only entry)
-      const isPaidNonComp = !g.isComp && !g.isTM && !g.guestOf;
-      if (isPaidNonComp && upcomingEvents.length > 0) {
-        // Check if this WC order's number matches any MEC invoice
-        // If it does, it's already shown via MEC — skip it
-        // If it doesn't, it might be a comp or manual entry added directly to WC
-        // Keep it so staff can find the guest by name
-        // But filter out if the ticket name doesn't relate to any upcoming event
+      // Universal rule: only show WC orders whose ticket name matches an upcoming MEC event
+      // This applies to ALL orders — paid, comp, TM, manual
+      // If no MEC events loaded, show everything (fallback)
+      if (upcomingEvents.length > 0) {
         const ticketLower = (g.ticketName || '').toLowerCase();
         const mecEventTitles = upcomingEvents.map(e => (e.title || '').toLowerCase());
         const relatesToUpcoming = mecEventTitles.some(title => {
+          // Get significant words (5+ chars) from the MEC event title
           const words = title.split(' ').filter(w => w.length > 4);
-          return words.filter(w => ticketLower.includes(w)).length >= 3;
+          // Need at least 2 significant words to match
+          return words.filter(w => ticketLower.includes(w)).length >= 2;
         });
-        if (!relatesToUpcoming) return; // skip historical paid orders
+        if (!relatesToUpcoming) return; // skip orders not related to upcoming events
       }
       g._source = 'wc';
       guestMap[`wc-${g.orderNumber}`] = g;
@@ -1129,6 +1122,31 @@ async function refreshGuests() {
 // ═══════════════════════════════════════════
 let showAll = false;
 
+function admitSpecific(bookingId, attendeeKey) {
+  const b = bookingMap[bookingId];
+  if (!b) return;
+  const ticket = b.tickets.find(t => String(t.attendeeKey) === String(attendeeKey));
+  if (!ticket || ticket.checkedIn) return;
+
+  ticket.checkedIn = true;
+  const admitted = getBookingAdmittedCount(b);
+
+  if (b.source === 'mec') {
+    fetch(`${cfg.siteUrl}/wp-json/mec-utility/v1/attendees/${b.bookingId}/${attendeeKey}/checkin`, {
+      method: 'POST', headers: { 'X-MEC-KEY': cfg.mecKey }
+    }).catch(e => console.warn('MEC checkin failed:', e));
+  } else {
+    const wcGuest = guestMap[`wc-${b.invoiceId}`];
+    if (wcGuest) { wcGuest.checkedInTickets.push(ticket.key); writeCheckIn(wcGuest.id, ticket.key, wcGuest.checkedInTickets); }
+  }
+
+  addLog({ name: ticket.name || b.name, ticket: `${ticket.ticketName} (${admitted} of ${b.tickets.length})`, status:'ok', note:'Individual' });
+  stats.admitted++; stats.total++;
+  document.getElementById('hdr-count').textContent = stats.admitted;
+  updateStats(); updateGLStats(); renderGuestList();
+  vibrate([80]);
+}
+
 function quickAdmit(bookingId) {
   const b = bookingMap[bookingId];
   if (!b) return;
@@ -1273,13 +1291,16 @@ function renderGuestList() {
       admitted > 0  ? `<span class="badge in">${admitted}/${total} ✓</span>` : '',
     ].filter(Boolean).join('');
 
-    // Attendee sub-rows (expandable)
-    const subRows = b.tickets.map(t => `
+    // Attendee sub-rows (expandable) with individual admit buttons
+    const subRows = b.tickets.map((t, i) => `
       <div class="gl-attendee ${t.checkedIn?'gl-attendee-in':''}">
         <span class="gl-att-dot ${t.checkedIn?'ok':''}"></span>
         <span class="gl-att-name">${t.name || b.name}</span>
         <span class="gl-att-ticket">${t.ticketName}</span>
-        ${t.checkedIn ? '<span class="gl-att-in">✓</span>' : ''}
+        ${t.checkedIn 
+          ? '<span class="gl-att-in">✓ In</span>' 
+          : `<button onclick="event.stopPropagation();admitSpecific('${b.bookingId}','${t.attendeeKey}')" style="background:var(--ok);color:#fff;border:none;border-radius:16px;padding:4px 12px;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;font-family:inherit;flex-shrink:0;-webkit-tap-highlight-color:transparent;">✓</button>`
+        }
       </div>`).join('');
 
     const admitBtnHtml = allIn 
