@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v3.9</title>
+<title>FD Door Scanner v4.0</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v3.9</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v4.0</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -961,19 +961,26 @@ async function loadGuestList() {
       // Skip if this WC order is already represented by an MEC booking
       if (mecInvoiceIds.has(String(g.orderNumber))) return;
 
-      // If MEC events are loaded, only include WC orders whose ticket name
-      // matches an upcoming event — this filters out historical orders on test systems
-      if (upcomingEventNames.length > 0) {
+      // Only include WC orders that are:
+      // 1. Comps, Ticketmaster, or manual guest entries (always show)
+      // 2. Paid tickets NOT already in MEC (safety net for guests without QR)
+      // Paid tickets already in MEC are deduplicated by invoice ID above
+      // If MEC is loaded and this is a paid non-comp order, only show if
+      // the order number is NOT in MEC (i.e. it's a genuine WC-only entry)
+      const isPaidNonComp = !g.isComp && !g.isTM && !g.guestOf;
+      if (isPaidNonComp && upcomingEvents.length > 0) {
+        // Check if this WC order's number matches any MEC invoice
+        // If it does, it's already shown via MEC — skip it
+        // If it doesn't, it might be a comp or manual entry added directly to WC
+        // Keep it so staff can find the guest by name
+        // But filter out if the ticket name doesn't relate to any upcoming event
         const ticketLower = (g.ticketName || '').toLowerCase();
-        const matchesEvent = upcomingEventNames.some(evName => {
-          if (!evName || evName.length < 5) return false;
-          // Check significant words from event name appear in ticket name
-          const words = evName.split(' ').filter(w => w.length > 4);
-          const matchCount = words.filter(w => ticketLower.includes(w)).length;
-          return matchCount >= 2; // at least 2 significant words must match
+        const mecEventTitles = upcomingEvents.map(e => (e.title || '').toLowerCase());
+        const relatesToUpcoming = mecEventTitles.some(title => {
+          const words = title.split(' ').filter(w => w.length > 4);
+          return words.filter(w => ticketLower.includes(w)).length >= 3;
         });
-        // Always include comp/TM/manual orders regardless of event name
-        if (!matchesEvent && !g.isComp && !g.isTM && !g.guestOf) return;
+        if (!relatesToUpcoming) return; // skip historical paid orders
       }
       g._source = 'wc';
       guestMap[`wc-${g.orderNumber}`] = g;
