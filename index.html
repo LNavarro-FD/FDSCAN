@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v3.3</title>
+<title>FD Door Scanner v3.5</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v3.3</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v3.5</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -1007,23 +1007,42 @@ async function fetchWooOrders() {
   const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
   const hdrs  = { 'Authorization': `Basic ${creds}` };
   let page = 1, all = [];
+
+  // Build date filter from upcoming MEC event dates
+  // Orders for an event can be placed up to a year in advance
+  // so we fetch from 1 year before the earliest event to the latest event date
+  let dateParams = '';
+  if (upcomingEvents.length > 0) {
+    const eventDates = upcomingEvents
+      .map(e => e.mec_data ? e.mec_data.start_date : null)
+      .filter(Boolean)
+      .sort();
+    if (eventDates.length > 0) {
+      const earliest = new Date(eventDates[0]);
+      const latest   = new Date(eventDates[eventDates.length - 1]);
+      earliest.setFullYear(earliest.getFullYear() - 1); // 1 year before earliest event
+      latest.setDate(latest.getDate() + 1); // day after latest event
+      const fmt = d => d.toISOString().split('T')[0];
+      dateParams = `&after=${fmt(earliest)}&before=${fmt(latest)}`;
+      console.log(`WC date filter: ${fmt(earliest)} to ${fmt(latest)}`);
+    }
+  }
+
   while (true) {
-    const url = `${base}?status=completed,processing,on-hold&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data,date_created`;
-    console.log(`Fetching WC orders page ${page}:`, url);
+    const url = `${base}?status=completed,processing,on-hold&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data,date_created${dateParams}`;
+    console.log(`Fetching WC orders page ${page}`);
     const r = await fetch(url, { headers: hdrs });
     if (!r.ok) throw new Error(`WooCommerce API ${r.status} — check credentials`);
     const orders = await r.json();
-    console.log(`WC page ${page}: got ${orders.length} orders`);
     if (!orders.length) break;
     all = all.concat(orders);
-    // Check total pages from headers
     const totalPages = parseInt(r.headers.get('X-WP-TotalPages') || r.headers.get('x-wp-totalpages') || '1');
     const total      = parseInt(r.headers.get('X-WP-Total')      || r.headers.get('x-wp-total')      || '0');
-    console.log(`WC total: ${total} orders, ${totalPages} pages`);
+    console.log(`WC page ${page}: got ${orders.length} orders (total: ${total})`);
     if (page >= totalPages || !total || all.length >= total) break;
     page++;
   }
-  console.log(`WC fetch complete: ${all.length} total orders`);
+  console.log(`WC fetch complete: ${all.length} orders`);
   return all.map(parseOrder);
 }
 
