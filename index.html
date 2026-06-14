@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v2.6</title>
+<title>FD Door Scanner v3.0</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v2.6</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v3.0</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -597,9 +597,10 @@ input::placeholder { color: #999; }
 //  STATE
 // ═══════════════════════════════════════════
 let cfg      = { siteUrl:'', wcKey:'', wcSecret:'', mecKey:'', demo:false };
-let guestMap = {};   // orderNumber → guest
-let emailMap = {};   // email lower → guest
-let idMap    = {};   // wc order id → guest
+let guestMap   = {};  // orderNumber/mec-key → guest (individual)
+let bookingMap = {};  // bookingId → { name, email, tickets:[], source }
+let emailMap   = {};  // email lower → guest
+let idMap      = {};  // wc order id → guest
 let scanLog  = [];
 let stats    = { admitted:0, total:0, dupe:0, invalid:0 };
 let glFilter = 'all';
@@ -756,6 +757,7 @@ function disconnectReset() {
 // ═══════════════════════════════════════════
 // Upcoming MEC event names for filtering
 let upcomingEventNames = [];
+let upcomingEvents = [];
 
 async function fetchUpcomingEvents() {
   if (!cfg.mecKey || !cfg.siteUrl || cfg.demo) return;
@@ -763,15 +765,32 @@ async function fetchUpcomingEvents() {
     const now  = new Date();
     const in10 = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
     const fmt  = d => d.toISOString().split('T')[0];
-    const r = await fetch(
+
+    // Try multiple endpoint formats MEC Utility supports
+    const endpoints = [
       `${cfg.siteUrl}/wp-json/mec-utility/v1/events?date_filter=upcoming&start_date=${fmt(now)}&end_date=${fmt(in10)}&per_page=50&status=publish`,
-      { headers: { 'X-MEC-KEY': cfg.mecKey } }
-    );
-    if (!r.ok) return;
-    const data = await r.json();
-    const events = Array.isArray(data) ? data : (data.events || data.data || []);
-    upcomingEventNames = events.map(e => (e.title || e.name || '').toLowerCase());
-    console.log('Upcoming events found:', upcomingEventNames.length, upcomingEventNames);
+      `${cfg.siteUrl}/wp-json/mec-utility/v1/event-list?date_filter=upcoming&start_date=${fmt(now)}&end_date=${fmt(in10)}&per_page=50&status=publish`,
+      `${cfg.siteUrl}/wp-json/mec-utility/v1/events?start_date=${fmt(now)}&end_date=${fmt(in10)}&per_page=50`,
+    ];
+
+    for (const url of endpoints) {
+      try {
+        const r = await fetch(url, { headers: { 'X-MEC-KEY': cfg.mecKey } });
+        console.log('MEC events endpoint:', url, 'status:', r.status);
+        if (!r.ok) continue;
+        const data = await r.json();
+        console.log('MEC events raw response:', JSON.stringify(data).substring(0, 200));
+        const events = Array.isArray(data) ? data : (data.events || data.data || data.results || []);
+        if (events.length > 0) {
+          upcomingEventNames = events.map(e => (e.title || e.name || e.post_title || '').toLowerCase());
+          console.log('Upcoming events found:', upcomingEventNames.length, upcomingEventNames);
+          return;
+        }
+      } catch(e) {
+        console.warn('Endpoint failed:', url, e.message);
+      }
+    }
+    console.warn('No upcoming events found from any endpoint');
   } catch(e) {
     console.warn('Could not fetch upcoming events:', e.message);
   }
@@ -779,31 +798,186 @@ async function fetchUpcomingEvents() {
 
 function isUpcomingGuest(g) {
   if (showAll) return true;
-  if (upcomingEventNames.length === 0) return true; // no filter if MEC unavailable
-  const ticketLower = (g.ticketName || '').toLowerCase();
-  return upcomingEventNames.some(evName => {
-    const words = evName.split(' ').filter(w => w.length > 3);
-    return words.some(w => ticketLower.includes(w));
+  // MEC guests are already from upcoming events — always show
+  if (g._source === 'mec') return true;
+  // WC comp guests — show if no upcoming events loaded (fallback) or always show comps
+  if (g.isComp || g._source === 'wc') return true;
+  return true;
+}
+
+async function fetchMecAttendees(events) {
+  // For each upcoming event, fetch attendees from each occurrence
+  const mecGuests = {};
+  for (const ev of events) {
+    try {
+      const occurrences = ev.occurrences || [];
+      for (const occ of occurrences) {
+        // Use attendees already embedded in the occurrence if available
+        if (occ.attendees && occ.attendees.attendees && occ.attendees.attendees.length > 0) {
+          for (const a of occ.attendees.attendees) {
+            const key = `mec-${a.booking_id}-${a.attendee_key}`;
+            const ticketId = String(a.ticket_id || '1');
+            const ticket   = ev.tickets ? ev.tickets.find(t => String(t.id) === ticketId) : null;
+            const ticketName = ticket ? ticket.name : (a.ticket_name || ev.title || 'MEC Ticket');
+            mecGuests[key] = {
+              id:              `${a.booking_id}-${a.attendee_key}`,
+              orderNumber:     String(a.invoice_id || a.booking_id),
+              name:            a.name || [a.first_name, a.last_name].filter(Boolean).join(' ') || 'Guest',
+              email:           (a.email || '').toLowerCase(),
+              ticketName,
+              isVip:           /vip/i.test(ticketName),
+              isTM:            false,
+              isComp:          false,
+              table:           null,
+              guestOf:         null,
+              hostCategory:    null,
+              guestNotes:      null,
+              qty:             1,
+              checkedInTickets: a.checkin_status ? [`${a.booking_id}-${a.attendee_key}`] : [],
+              checkedIn:       !!a.checkin_status,
+              eventDay:        detectDay(ev.title || ''),
+              orderDate:       ev.mec_data ? ev.mec_data.start_date : null,
+              _mecTicket:      true,
+              _bookingId:      String(a.booking_id),
+              _attendeeKey:    String(a.attendee_key),
+              _invoiceId:      String(a.invoice_id || a.booking_id),
+              _eventId:        String(ev.id),
+              _eventTitle:     ev.title || '',
+              _source:         'mec'
+            };
+          }
+        } else {
+          // Fetch attendees for this occurrence from API
+          const r = await fetch(
+            `${cfg.siteUrl}/wp-json/mec-utility/v1/events/${ev.id}/occurrences/${occ.start_timestamp}/attendees?include_details=true`,
+            { headers: { 'X-MEC-KEY': cfg.mecKey } }
+          );
+          if (!r.ok) continue;
+          const data = await r.json();
+          const attendees = Array.isArray(data) ? data : (data.attendees || []);
+          for (const a of attendees) {
+            const key = `mec-${a.booking_id}-${a.attendee_key}`;
+            const ticketId   = String(a.ticket_id || '1');
+            const ticket     = ev.tickets ? ev.tickets.find(t => String(t.id) === ticketId) : null;
+            const ticketName = ticket ? ticket.name : (a.ticket_name || ev.title || 'MEC Ticket');
+            mecGuests[key] = {
+              id:              `${a.booking_id}-${a.attendee_key}`,
+              orderNumber:     String(a.invoice_id || a.booking_id),
+              name:            a.name || [a.first_name, a.last_name].filter(Boolean).join(' ') || 'Guest',
+              email:           (a.email || '').toLowerCase(),
+              ticketName,
+              isVip:           /vip/i.test(ticketName),
+              isTM:            false,
+              isComp:          false,
+              table:           null,
+              guestOf:         null,
+              hostCategory:    null,
+              guestNotes:      null,
+              qty:             1,
+              checkedInTickets: a.checkin_status ? [`${a.booking_id}-${a.attendee_key}`] : [],
+              checkedIn:       !!a.checkin_status,
+              eventDay:        detectDay(ev.title || ''),
+              orderDate:       ev.mec_data ? ev.mec_data.start_date : null,
+              _mecTicket:      true,
+              _bookingId:      String(a.booking_id),
+              _attendeeKey:    String(a.attendee_key),
+              _invoiceId:      String(a.invoice_id || a.booking_id),
+              _eventId:        String(ev.id),
+              _eventTitle:     ev.title || '',
+              _source:         'mec'
+            };
+          }
+        }
+      }
+    } catch(e) {
+      console.warn('MEC attendee fetch failed for event', ev.id, e.message);
+    }
+  }
+  // Build bookingMap from MEC guests
+  Object.values(mecGuests).forEach(g => {
+    const bid = g._bookingId;
+    if (!bookingMap[bid]) {
+      bookingMap[bid] = {
+        bookingId:   bid,
+        invoiceId:   g._invoiceId,
+        name:        g.name,
+        email:       g.email,
+        eventTitle:  g._eventTitle,
+        eventDay:    g.eventDay,
+        tickets:     [],
+        source:      'mec'
+      };
+    }
+    bookingMap[bid].tickets.push({
+      key:          `${bid}-${g._attendeeKey}`,
+      attendeeKey:  g._attendeeKey,
+      name:         g.name,
+      ticketName:   g.ticketName,
+      isVip:        g.isVip,
+      checkedIn:    g.checkedIn
+    });
   });
+
+  console.log(`MEC attendees fetched: ${Object.keys(mecGuests).length}, bookings: ${Object.keys(bookingMap).length}`);
+  return mecGuests;
 }
 
 async function loadGuestList() {
   document.getElementById('gl-list').innerHTML = '<div class="gl-loading"><span class="spin"></span>&nbsp; Loading…</div>';
-  guestMap = {}; emailMap = {}; idMap = {};
+  guestMap = {}; bookingMap = {}; emailMap = {}; idMap = {};
   if (cfg.demo) { loadDemoGuests(); renderGuestList(); updateGLStats(); return; }
   try {
-    await Promise.all([
-      fetchUpcomingEvents(),
-      fetchWooOrders().then(guests => {
-        guests.forEach(g => {
-          guestMap[g.orderNumber] = g;
-          if (g.email) emailMap[g.email] = g;
-          idMap[g.id] = g;
-        });
-      })
+    // 1. Fetch upcoming MEC events
+    await fetchUpcomingEvents();
+
+    // 2. Fetch MEC attendees and WC orders in parallel
+    const [mecGuests, wcGuests] = await Promise.all([
+      upcomingEvents.length > 0 ? fetchMecAttendees(upcomingEvents) : Promise.resolve({}),
+      fetchWooOrders()
     ]);
+
+    // 3. Add MEC guests first (source of truth for ticketed attendees)
+    Object.entries(mecGuests).forEach(([key, g]) => {
+      guestMap[key] = g;
+      if (g.email) emailMap[g.email] = g;
+    });
+
+    // 4. Add WC guests — these are comps/manual entries not in MEC
+    wcGuests.forEach(g => {
+      g._source = 'wc';
+      guestMap[`wc-${g.orderNumber}`] = g;
+      if (g.email && !emailMap[g.email]) emailMap[g.email] = g;
+      if (g.id) idMap[g.id] = g;
+
+      // Add to bookingMap if not already there from MEC
+      const wcKey = `wc-${g.orderNumber}`;
+      if (!bookingMap[wcKey]) {
+        bookingMap[wcKey] = {
+          bookingId:  wcKey,
+          invoiceId:  g.orderNumber,
+          name:       g.name,
+          email:      g.email,
+          eventTitle: g.ticketName,
+          eventDay:   g.eventDay,
+          tickets:    Array.from({length: g.qty || 1}, (_, i) => ({
+            key:        `${wcKey}-${i}`,
+            attendeeKey: String(i),
+            name:       g.name,
+            ticketName: g.ticketName,
+            isVip:      g.isVip,
+            checkedIn:  g.checkedInTickets.includes(String(i))
+          })),
+          source: 'wc',
+          isComp: g.isComp,
+          isTM:   g.isTM
+        };
+      }
+    });
+
+    console.log(`Guest list: ${Object.keys(guestMap).length} total (MEC: ${Object.keys(mecGuests).length}, WC comps: ${wcGuests.length})`);
     renderGuestList(); updateGLStats();
   } catch(e) {
+    console.error('Guest list load error:', e);
     document.getElementById('gl-list').innerHTML =
       `<div class="gl-empty">⚠️ Could not load guest list<br><small style="opacity:.5">${e.message}</small></div>`;
   }
@@ -815,7 +989,7 @@ async function fetchWooOrders() {
   const hdrs  = { 'Authorization': `Basic ${creds}` };
   let page = 1, all = [];
   while (true) {
-    const url = `${base}?status=completed,processing,on-hold&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data`;
+    const url = `${base}?status=completed,processing,on-hold&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data,date_created`;
     console.log(`Fetching WC orders page ${page}:`, url);
     const r = await fetch(url, { headers: hdrs });
     if (!r.ok) throw new Error(`WooCommerce API ${r.status} — check credentials`);
@@ -867,7 +1041,7 @@ function parseOrder(o) {
     eventDay = detectDay(ticketName);
   }
 
-  const guest = { id:o.id, orderNumber:String(o.number), name, email:(o.billing.email||'').toLowerCase(), ticketName, isVip, isTM, isComp, table, guestOf, hostCategory, guestNotes, qty, checkedInTickets, checkedIn, eventDay };
+  const guest = { id:o.id, orderNumber:String(o.number), name, email:(o.billing.email||'').toLowerCase(), ticketName, isVip, isTM, isComp, table, guestOf, hostCategory, guestNotes, qty, checkedInTickets, checkedIn, eventDay, orderDate: o.date_created || null };
   idMap[o.id] = guest;
   return guest;
 }
@@ -876,7 +1050,7 @@ async function fetchSingleOrder(code) {
   const clean = code.replace(/^#/,'').trim();
   const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
   const r = await fetch(
-    `${cfg.siteUrl}/wp-json/wc/v3/orders?number=${encodeURIComponent(clean)}&status=completed,processing,on-hold&_fields=id,number,status,billing,line_items,total,meta_data`,
+    `${cfg.siteUrl}/wp-json/wc/v3/orders?number=${encodeURIComponent(clean)}&status=completed,processing,on-hold&_fields=id,number,status,billing,line_items,total,meta_data,date_created`,
     { headers: { 'Authorization': `Basic ${creds}` } }
   );
   if (!r.ok) throw new Error(`WC API ${r.status}`);
@@ -895,6 +1069,15 @@ async function refreshGuests() {
 //  RENDER GUEST LIST
 // ═══════════════════════════════════════════
 let showAll = false;
+
+function toggleBooking(bookingId) {
+  const att     = document.getElementById(`att-${bookingId}`);
+  const chevron = document.getElementById(`chevron-${bookingId}`);
+  if (!att) return;
+  const isOpen = !att.classList.contains('hidden');
+  att.classList.toggle('hidden');
+  if (chevron) chevron.textContent = isOpen ? '›' : '⌄';
+}
 
 function showAllGuests() {
   showAll = true;
@@ -917,29 +1100,43 @@ function setFilter(f, el) {
   renderGuestList();
 }
 
+function getBookingAdmittedCount(booking) {
+  return booking.tickets.filter(t => t.checkedIn).length;
+}
+
 function renderGuestList() {
   const q = (document.getElementById('gl-search').value || '').toLowerCase();
-  const all = Object.values(guestMap);
-  const filtered = all.filter(g => {
-    const mq = !q || g.name.toLowerCase().includes(q) || g.orderNumber.includes(q) || g.email.includes(q) || g.ticketName.toLowerCase().includes(q);
+  const all = Object.values(bookingMap);
+  const filtered = all.filter(b => {
+    const mq = !q || b.name.toLowerCase().includes(q) || 
+                String(b.bookingId).includes(q) || 
+                (b.email && b.email.includes(q)) ||
+                b.tickets.some(t => t.name && t.name.toLowerCase().includes(q));
     if (!mq) return false;
-    // Only show guests for upcoming events (unless searching or filter active)
-    if (!q && glFilter === 'all' && !isUpcomingGuest(g)) return false;
+    // Apply type filters
+    if (glFilter === 'thu')        return b.eventDay === 'Thu' || b.eventDay === 'All';
+    if (glFilter === 'fri')        return b.eventDay === 'Fri' || b.eventDay === 'All';
+    if (glFilter === 'sat')        return b.eventDay === 'Sat' || b.eventDay === 'All';
+    if (glFilter === 'vip')        return b.tickets.some(t => t.isVip);
+    if (glFilter === 'comp')       return b.isComp;
+    if (glFilter === 'tm')         return b.isTM;
+    if (glFilter === 'in')         return getBookingAdmittedCount(b) > 0;
+    if (glFilter === 'pending')    return getBookingAdmittedCount(b) < b.tickets.length;
     if (glFilter === 'thu')        return g.eventDay === 'Thu' || g.eventDay === 'All';
     if (glFilter === 'fri')        return g.eventDay === 'Fri' || g.eventDay === 'All';
     if (glFilter === 'sat')        return g.eventDay === 'Sat' || g.eventDay === 'All';
     if (glFilter === 'vip')        return g.isVip;
     if (glFilter === 'comp')       return g.isComp;
     if (glFilter === 'tm')         return g.isTM;
-    if (glFilter === 'artist')     return (g.hostCategory||'').toLowerCase() === 'artist';
-    if (glFilter === 'sponsor')    return (g.hostCategory||'').toLowerCase() === 'sponsor';
-    if (glFilter === 'influencer') return (g.hostCategory||'').toLowerCase() === 'influencer';
-    if (glFilter === 'in')         return g.checkedIn;
-    if (glFilter === 'pending')    return !g.checkedIn;
+    if (glFilter === 'artist')     return (b.tickets[0] && b.tickets[0].hostCategory||'').toLowerCase() === 'artist';
+    if (glFilter === 'sponsor')    return (b.tickets[0] && b.tickets[0].hostCategory||'').toLowerCase() === 'sponsor';
+    if (glFilter === 'influencer') return (b.tickets[0] && b.tickets[0].hostCategory||'').toLowerCase() === 'influencer';
     return true;
   }).sort((a,b) => {
-    if (a.isVip && !b.isVip) return -1;
-    if (!a.isVip && b.isVip) return 1;
+    const aVip = a.tickets.some(t => t.isVip);
+    const bVip = b.tickets.some(t => t.isVip);
+    if (aVip && !bVip) return -1;
+    if (!aVip && bVip) return 1;
     return a.name.localeCompare(b.name);
   });
 
@@ -953,24 +1150,49 @@ function renderGuestList() {
     return;
   }
 
-  const countHTML = `<div class="gl-count">${filtered.length} guest${filtered.length!==1?'s':''}</div>`;
-  const rows = filtered.map(g => {
-    const initials = g.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-    const avCls    = g.checkedIn ? 'checked' : g.isTM ? 'tm' : g.isVip ? 'vip' : '';
-    const avTxt    = g.checkedIn ? '✓' : initials;
+  const totalTickets = filtered.reduce((sum, b) => sum + b.tickets.length, 0);
+  const countHTML = `<div class="gl-count">${filtered.length} booking${filtered.length!==1?'s':''} · ${totalTickets} ticket${totalTickets!==1?'s':''}</div>`;
+
+  const rows = filtered.map(b => {
+    const admitted = getBookingAdmittedCount(b);
+    const total    = b.tickets.length;
+    const allIn    = admitted === total;
+    const someIn   = admitted > 0 && !allIn;
+    const initials = b.name.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase() || 'G';
+    const hasVip   = b.tickets.some(t => t.isVip);
+    const avCls    = allIn ? 'checked' : b.isTM ? 'tm' : hasVip ? 'vip' : '';
+    const avTxt    = allIn ? '✓' : initials;
     const badges   = [
-      g.isVip  ? '<span class="badge vip">⭐ VIP</span>'          : '',
-      g.isTM   ? '<span class="badge tm">🎫 TM</span>'            : '',
-      g.isComp && !g.isTM ? '<span class="badge comp">Comp</span>': '',
-      g.checkedIn ? '<span class="badge in">In ✓</span>'          : '',
+      hasVip        ? '<span class="badge vip">⭐ VIP</span>' : '',
+      b.isTM        ? '<span class="badge tm">🎫 TM</span>'  : '',
+      b.isComp      ? '<span class="badge comp">Comp</span>' : '',
+      admitted > 0  ? `<span class="badge in">${admitted}/${total} ✓</span>` : '',
     ].filter(Boolean).join('');
-    return `<div class="gl-item${g.checkedIn?' checked-in':''}" onclick="openDrawer('${g.orderNumber}')">
-      <div class="gl-avatar ${avCls}">${avTxt}</div>
-      <div class="gl-info">
-        <div class="gl-name">${g.name}${g.qty > 1 ? ' <span style="font-size:12px;font-weight:600;color:var(--muted);">('+g.checkedInTickets.length+'/'+g.qty+')</span>' : ''}</div>
-        <div class="gl-ticket">${g.eventDay && g.eventDay !== 'All' ? '<span style="font-weight:800;color:var(--navy);margin-right:4px;">'+g.eventDay+'</span>' : ''}${g.ticketName}${g.table?' · Table '+g.table:''}${g.guestOf?' · Guest of '+g.guestOf:''}${(function(){ const vf = getTicketValidFrom(g.ticketName); return (vf[0] > 14 || (vf[0]===14 && vf[1]>0)) ? ' · <span style="color:#C06000;font-weight:700;">From '+String(vf[0]).padStart(2,'0')+':'+String(vf[1]).padStart(2,'0')+'</span>' : ''; })()}</div>
+
+    // Attendee sub-rows (expandable)
+    const subRows = b.tickets.map(t => `
+      <div class="gl-attendee ${t.checkedIn?'gl-attendee-in':''}">
+        <span class="gl-att-dot ${t.checkedIn?'ok':''}"></span>
+        <span class="gl-att-name">${t.name || b.name}</span>
+        <span class="gl-att-ticket">${t.ticketName}</span>
+        ${t.checkedIn ? '<span class="gl-att-in">✓</span>' : ''}
+      </div>`).join('');
+
+    return `<div class="gl-booking" id="bk-${b.bookingId}">
+      <div class="gl-item${allIn?' checked-in':''}" onclick="toggleBooking('${b.bookingId}')">
+        <div class="gl-avatar ${avCls}">${avTxt}</div>
+        <div class="gl-info">
+          <div class="gl-name">${b.name} <span style="font-size:12px;font-weight:600;color:var(--muted);">${total > 1 ? '('+admitted+'/'+total+')' : ''}</span></div>
+          <div class="gl-ticket">${b.eventDay&&b.eventDay!=='All'?'<span style="font-weight:800;color:var(--navy);margin-right:4px;">'+b.eventDay+'</span>':''}${b.eventTitle||''}</div>
+        </div>
+        <div class="gl-badges">${badges}<span style="color:var(--muted);font-size:16px;margin-left:4px;" id="chevron-${b.bookingId}">›</span></div>
       </div>
-      <div class="gl-badges">${badges}</div>
+      <div class="gl-attendees hidden" id="att-${b.bookingId}">
+        ${subRows}
+        <div style="padding:10px 16px;">
+          <button onclick="openDrawer('${b.bookingId}')" style="background:var(--ok);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;font-family:inherit;width:100%;">✓ Admit Next</button>
+        </div>
+      </div>
     </div>`;
   }).join('');
 
@@ -980,10 +1202,36 @@ function renderGuestList() {
 // ═══════════════════════════════════════════
 //  GUEST DRAWER
 // ═══════════════════════════════════════════
-function openDrawer(orderNum) {
-  const g = guestMap[orderNum];
-  if (!g) return;
-  drawerOrderNum = orderNum;
+function openDrawer(bookingId) {
+  // Find booking in bookingMap
+  const b = bookingMap[bookingId];
+  if (!b) return;
+  drawerOrderNum = bookingId;
+
+  // Build a guest-like object from the booking for the drawer
+  const admitted = getBookingAdmittedCount(b);
+  const total    = b.tickets.length;
+  const hasVip   = b.tickets.some(t => t.isVip);
+  const g = {
+    name:            b.name,
+    email:           b.email,
+    ticketName:      b.eventTitle || b.tickets[0]?.ticketName || 'Ticket',
+    isVip:           hasVip,
+    isTM:            b.isTM,
+    isComp:          b.isComp,
+    table:           b.table || null,
+    guestOf:         b.guestOf || null,
+    hostCategory:    b.hostCategory || null,
+    guestNotes:      b.guestNotes || null,
+    qty:             total,
+    checkedInTickets: b.tickets.filter(t => t.checkedIn).map(t => t.key),
+    checkedIn:       admitted === total,
+    orderNumber:     b.invoiceId,
+    _source:         b.source,
+    _bookingId:      b.bookingId
+  };
+
+  drawerOrderNum = bookingId;
 
   document.getElementById('dr-name').textContent   = g.name;
   const admitStatus = g.qty > 1
@@ -1513,7 +1761,7 @@ async function wcExternalTicketLookup(barcode) {
   try {
     const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
     const r = await fetch(
-      `${cfg.siteUrl}/wp-json/wc/v3/orders?status=completed,processing,on-hold&meta_key=_fd_external_ticket&meta_value=${encodeURIComponent(barcode)}&_fields=id,number,status,billing,line_items,total,meta_data`,
+      `${cfg.siteUrl}/wp-json/wc/v3/orders?status=completed,processing,on-hold&meta_key=_fd_external_ticket&meta_value=${encodeURIComponent(barcode)}&_fields=id,number,status,billing,line_items,total,meta_data,date_created`,
       { headers: { 'Authorization': `Basic ${creds}` } }
     );
     if (!r.ok) return null;
@@ -1698,11 +1946,13 @@ function updateStats() {
   document.getElementById('hdr-count').textContent   = stats.admitted;
 }
 function updateGLStats() {
-  const all = Object.values(guestMap);
-  document.getElementById('st-gl-total').textContent = all.length;
-  document.getElementById('st-gl-vip').textContent   = all.filter(g=>g.isVip).length;
-  document.getElementById('st-gl-comp').textContent  = all.filter(g=>g.isComp).length;
-  document.getElementById('st-gl-in').textContent    = all.filter(g=>g.checkedIn).length;
+  const bookings  = Object.values(bookingMap);
+  const allTickets = bookings.reduce((sum, b) => sum + b.tickets.length, 0);
+  const admittedTickets = bookings.reduce((sum, b) => sum + getBookingAdmittedCount(b), 0);
+  document.getElementById('st-gl-total').textContent = bookings.length;
+  document.getElementById('st-gl-vip').textContent   = bookings.filter(b => b.tickets.some(t=>t.isVip)).length;
+  document.getElementById('st-gl-comp').textContent  = bookings.filter(b => b.isComp).length;
+  document.getElementById('st-gl-in').textContent    = admittedTickets + '/' + allTickets;
 }
 
 // ═══════════════════════════════════════════
