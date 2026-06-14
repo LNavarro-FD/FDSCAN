@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner</title>
+<title>FD Door Scanner v1.3</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -382,7 +382,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v1.3</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -562,7 +562,10 @@ input::placeholder { color: #999; }
     <div class="field-group"><label>Site URL</label><input type="url" id="s-url" autocomplete="off" autocapitalize="none"></div>
     <div class="field-group"><label>Consumer Key</label><input type="text" id="s-key" autocomplete="off"></div>
     <div class="field-group"><label>Consumer Secret</label><input type="password" id="s-secret" autocomplete="off"></div>
+    <div class="field-group"><label>MEC API Key</label><input type="password" id="s-mec-key" autocomplete="off"></div>
     <button class="btn-primary" onclick="saveSettings()">Save &amp; Reload Guest List</button>
+    <button class="btn-secondary" onclick="clearLocalCheckins()">Clear local check-ins (testing)</button>
+    <button class="btn-secondary" onclick="undoLastCheckin()">↩ Undo last check-in</button>
     <button class="btn-secondary" onclick="disconnectReset()">Disconnect &amp; Reset</button>
     <div class="setup-note">
       <strong>Ticketmaster guests:</strong> import into WooCommerce as £0 completed orders before the event. Add "Ticketmaster" to the product name and the app will flag them automatically when their name is searched.<br><br>
@@ -583,7 +586,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════
-let cfg      = { siteUrl:'', wcKey:'', wcSecret:'', demo:false };
+let cfg      = { siteUrl:'', wcKey:'', wcSecret:'', mecKey:'', demo:false };
 let guestMap = {};   // orderNumber → guest
 let emailMap = {};   // email lower → guest
 let idMap    = {};   // wc order id → guest
@@ -599,24 +602,31 @@ let offlineQueue = [];
 let isSyncing    = false;
 const SYNC_INTERVAL = 3000;
 const META_KEY = '_fd_checked_in';
+const TICKET_META_KEY = '_fd_checked_in_tickets';
 
 // ═══════════════════════════════════════════
 //  SYNC ENGINE
 // ═══════════════════════════════════════════
-async function writeCheckIn(orderId) {
+async function writeCheckIn(orderId, ticketSuffix, checkedInTickets) {
   if (cfg.demo) return true;
   try {
     const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
+    const allChecked = checkedInTickets;
     const r = await fetch(`${cfg.siteUrl}/wp-json/wc/v3/orders/${orderId}`, {
       method: 'PUT',
       headers: { 'Authorization': `Basic ${creds}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ meta_data: [{ key: META_KEY, value: '1' }] })
+      body: JSON.stringify({
+        meta_data: [
+          { key: TICKET_META_KEY, value: JSON.stringify(allChecked) },
+          { key: META_KEY, value: allChecked.length > 0 ? '1' : '' }
+        ]
+      })
     });
     if (!r.ok) throw new Error(`Write failed ${r.status}`);
     return true;
   } catch(e) {
     console.warn('Check-in write failed, queuing:', e.message);
-    offlineQueue.push(orderId);
+    offlineQueue.push({ orderId, ticketSuffix, checkedInTickets });
     showSyncStatus('offline');
     return false;
   }
@@ -628,7 +638,7 @@ async function syncCheckedIn() {
   try {
     const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
     const r = await fetch(
-      `${cfg.siteUrl}/wp-json/wc/v3/orders?status=completed&per_page=100&meta_key=${META_KEY}&meta_value=1&_fields=id,number`,
+      `${cfg.siteUrl}/wp-json/wc/v3/orders?status=completed&per_page=100&meta_key=${META_KEY}&meta_value=1&_fields=id,number,meta_data`,
       { headers: { 'Authorization': `Basic ${creds}` } }
     );
     if (!r.ok) throw new Error(`Sync ${r.status}`);
@@ -636,7 +646,19 @@ async function syncCheckedIn() {
     let changed = false;
     checked.forEach(o => {
       const g = guestMap[String(o.number)] || idMap[o.id];
-      if (g && !g.checkedIn) { g.checkedIn = true; changed = true; }
+      if (g) {
+        const ticketMeta = o.meta_data && o.meta_data.find(m => m.key === TICKET_META_KEY);
+        if (ticketMeta && ticketMeta.value) {
+          try {
+            const tickets = JSON.parse(ticketMeta.value);
+            if (tickets.length > g.checkedInTickets.length) {
+              g.checkedInTickets = tickets;
+              g.checkedIn = tickets.length >= g.qty;
+              changed = true;
+            }
+          } catch(e) {}
+        }
+      }
     });
     // Flush offline queue
     if (offlineQueue.length) {
@@ -686,8 +708,9 @@ function connect() {
   const url    = document.getElementById('site-url').value.trim().replace(/\/$/,'');
   const key    = document.getElementById('wc-key').value.trim();
   const secret = document.getElementById('wc-secret').value.trim();
-  if (!url||!key||!secret) { alert('Please fill in all three fields.'); return; }
-  cfg = { siteUrl:url, wcKey:key, wcSecret:secret, demo:false };
+  const mecKey = document.getElementById('mec-key').value.trim();
+  if (!url||!key||!secret) { alert('Please fill in Site URL, Consumer Key and Consumer Secret.'); return; }
+  cfg = { siteUrl:url, wcKey:key, wcSecret:secret, mecKey, demo:false };
   saveConfig(); launch();
 }
 function useDemoMode() { cfg = { siteUrl:'', wcKey:'', wcSecret:'', demo:true }; launch(); }
@@ -703,6 +726,7 @@ function saveSettings() {
   cfg.siteUrl  = document.getElementById('s-url').value.trim().replace(/\/$/,'');
   cfg.wcKey    = document.getElementById('s-key').value.trim();
   cfg.wcSecret = document.getElementById('s-secret').value.trim();
+  cfg.mecKey   = document.getElementById('s-mec-key').value.trim();
   cfg.demo     = false;
   saveConfig(); loadGuestList(); showTab('guests');
 }
@@ -761,14 +785,23 @@ function parseOrder(o) {
   const tableMeta  = allMeta.find(m => /table/i.test(m.key));
   const table      = tableMeta ? tableMeta.value : null;
   const name       = [o.billing.first_name, o.billing.last_name].filter(Boolean).join(' ') || 'Guest';
-  const checkedIn     = !!(o.meta_data && o.meta_data.find(m => m.key === META_KEY && m.value === '1'));
   const guestOfMeta   = allMeta.find(m => m.key === '_fd_guest_of');
   const hostCatMeta   = allMeta.find(m => m.key === '_fd_host_category');
   const notesMeta     = allMeta.find(m => m.key === '_fd_notes');
   const guestOf       = guestOfMeta ? guestOfMeta.value : null;
   const hostCategory  = hostCatMeta ? hostCatMeta.value : null;
   const guestNotes    = notesMeta   ? notesMeta.value   : null;
-  const guest = { id:o.id, orderNumber:String(o.number), name, email:(o.billing.email||'').toLowerCase(), ticketName, isVip, isTM, isComp, table, guestOf, hostCategory, guestNotes, checkedIn };
+
+  // Per-ticket check-in tracking — stored as JSON array of scanned ticket suffixes
+  const checkedInMeta = allMeta.find(m => m.key === '_fd_checked_in_tickets');
+  let checkedInTickets = [];
+  if (checkedInMeta && checkedInMeta.value) {
+    try { checkedInTickets = JSON.parse(checkedInMeta.value); } catch(e) {}
+  }
+  const qty = item ? (item.quantity || 1) : 1;
+  const checkedIn = checkedInTickets.length >= qty; // fully checked in only if ALL tickets scanned
+
+  const guest = { id:o.id, orderNumber:String(o.number), name, email:(o.billing.email||'').toLowerCase(), ticketName, isVip, isTM, isComp, table, guestOf, hostCategory, guestNotes, qty, checkedInTickets, checkedIn };
   idMap[o.id] = guest;
   return guest;
 }
@@ -843,7 +876,7 @@ function renderGuestList() {
     return `<div class="gl-item${g.checkedIn?' checked-in':''}" onclick="openDrawer('${g.orderNumber}')">
       <div class="gl-avatar ${avCls}">${avTxt}</div>
       <div class="gl-info">
-        <div class="gl-name">${g.name}</div>
+        <div class="gl-name">${g.name}${g.qty > 1 ? ' <span style="font-size:12px;font-weight:600;color:var(--muted);">('+g.checkedInTickets.length+'/'+g.qty+')</span>' : ''}</div>
         <div class="gl-ticket">${g.ticketName}${g.table?' · Table '+g.table:''}${g.guestOf?' · Guest of '+g.guestOf:''}</div>
       </div>
       <div class="gl-badges">${badges}</div>
@@ -862,7 +895,10 @@ function openDrawer(orderNum) {
   drawerOrderNum = orderNum;
 
   document.getElementById('dr-name').textContent   = g.name;
-  document.getElementById('dr-ticket').textContent = g.ticketName + (g.checkedIn ? ' · Checked in ✓' : '');
+  const admitStatus = g.qty > 1
+    ? ` · ${g.checkedInTickets.length} of ${g.qty} admitted`
+    : (g.checkedIn ? ' · Checked in ✓' : '');
+  document.getElementById('dr-ticket').textContent = g.ticketName + admitStatus;
   document.getElementById('dr-order').textContent  = `Order #${g.orderNumber}${g.email?' · '+g.email:''}`;
 
   // Guest of
@@ -910,9 +946,14 @@ function openDrawer(orderNum) {
   if (!g.checkedIn) {
     admitBtn.classList.remove('hidden');
     alreadyIn.classList.add('hidden');
+    const remaining = g.qty - g.checkedInTickets.length;
+    admitBtn.innerHTML = g.qty > 1
+      ? `<span style="font-size:28px;display:block;margin-bottom:4px;">✓</span>ADMIT NEXT (${remaining} of ${g.qty} remaining)`
+      : `<span style="font-size:28px;display:block;margin-bottom:4px;">✓</span>ADMIT`;
   } else {
     admitBtn.classList.add('hidden');
     alreadyIn.classList.remove('hidden');
+    alreadyIn.textContent = g.qty > 1 ? `✓ All ${g.qty} tickets admitted` : '✓ Already checked in';
   }
 
   document.getElementById('guest-drawer').classList.remove('hidden');
@@ -921,15 +962,32 @@ function openDrawer(orderNum) {
 function admitFromDrawer() {
   const g = guestMap[drawerOrderNum];
   if (!g || g.checkedIn) return;
-  g.checkedIn = true;
-  writeCheckIn(g.id);
-  addLog({ name:g.name, ticket:g.ticketName, status:'ok', note:'Manual' });
+  // Find next unscanned ticket suffix
+  let nextSuffix = '0';
+  for (let i = 0; i < g.qty; i++) {
+    if (!g.checkedInTickets.includes(String(i))) { nextSuffix = String(i); break; }
+  }
+  g.checkedInTickets.push(nextSuffix);
+  g.checkedIn = g.checkedInTickets.length >= g.qty;
+  writeCheckIn(g.id, nextSuffix, g.checkedInTickets);
+  addLog({ name:g.name, ticket:`${g.ticketName} (${g.checkedInTickets.length} of ${g.qty})`, status:'ok', note:'Manual' });
   stats.admitted++; stats.total++;
   document.getElementById('hdr-count').textContent = stats.admitted;
   updateStats(); updateGLStats(); renderGuestList();
-  document.getElementById('dr-admit-btn').classList.add('hidden');
-  document.getElementById('dr-already-in').classList.remove('hidden');
-  document.getElementById('dr-ticket').textContent = g.ticketName + ' · Checked in ✓';
+
+  // Update drawer
+  const remaining = g.qty - g.checkedInTickets.length;
+  const admitStatus = ` · ${g.checkedInTickets.length} of ${g.qty} admitted`;
+  document.getElementById('dr-ticket').textContent = g.ticketName + admitStatus;
+
+  if (g.checkedIn) {
+    document.getElementById('dr-admit-btn').classList.add('hidden');
+    document.getElementById('dr-already-in').classList.remove('hidden');
+    document.getElementById('dr-already-in').textContent = `✓ All ${g.qty} tickets admitted`;
+  } else {
+    // Update button to show remaining
+    document.getElementById('dr-admit-btn').innerHTML = `<span style="font-size:28px;display:block;margin-bottom:4px;">✓</span>ADMIT NEXT (${remaining} remaining)`;
+  }
   vibrate([80]);
 }
 
@@ -990,18 +1048,60 @@ async function lookupTicket(code) {
   setResult('','⏳','Checking…','');
 
   try {
-    // 1. Check if it looks like a Ticketmaster barcode
-    if (isTicketmasterCode(code)) {
-      handleTMScan(code);
-      isScanning = false;
-      return;
+    // 1. Try MEC API first — covers all native MEC/WooCommerce tickets
+    if (cfg.mecKey && !cfg.demo) {
+      const mecGuest = await mecLookupAndCheckin(code);
+      if (mecGuest) {
+        if (mecGuest.checkedIn && mecGuest.checkedInTickets.length > 0) {
+          // Already checked in via MEC
+          vibrate([200,80,200]);
+          addLog({ name:mecGuest.name, ticket:mecGuest.ticketName, status:'warn', code });
+          stats.dupe++; stats.total++;
+          setResult('warn','⚠️', mecGuest.name, 'Already checked in');
+          showEnt(mecGuest);
+          showChips([{ label:mecGuest.ticketName, cls:'' }, { label:'DUPLICATE', cls:'hi' }]);
+          updateStats();
+        } else {
+          // Valid MEC ticket — write check-in
+          mecWriteCheckin(code);
+          vibrate([80]);
+          addLog({ name:mecGuest.name, ticket:mecGuest.ticketName, status:'ok', code });
+          stats.admitted++; stats.total++;
+          document.getElementById('hdr-count').textContent = stats.admitted;
+          setResult('ok','✓', mecGuest.name, mecGuest.ticketName, true);
+          showEnt(mecGuest);
+          showChips([
+            { label: mecGuest.ticketName, cls:'' },
+            { label: 'MEC Ticket', cls:'' },
+            ...(mecGuest.isVip ? [{ label:'VIP', cls:'vip' }] : [])
+          ]);
+          updateStats();
+          // Also update guest list if we have this order
+          if (guestMap[mecGuest.orderNumber]) {
+            guestMap[mecGuest.orderNumber].checkedIn = true;
+            renderGuestList(); updateGLStats();
+          }
+        }
+        isScanning = false;
+        return;
+      }
     }
 
-    // 2. Try to resolve in guest map
+    // 2. Try local guest map (WC orders already loaded)
     const guest = resolveGuest(code);
     if (guest) { handleGuest(guest, code); isScanning = false; return; }
 
-    // 3. Not in local map — try WC API directly
+    // 3. Try WC external ticket lookup (Ticketmaster barcodes stored as meta)
+    if (!cfg.demo) {
+      const extGuest = await wcExternalTicketLookup(code);
+      if (extGuest) {
+        guestMap[extGuest.orderNumber] = extGuest;
+        if (extGuest.email) emailMap[extGuest.email] = extGuest;
+        handleGuest(extGuest, code); isScanning = false; return;
+      }
+    }
+
+    // 4. Try WC by order number directly
     if (!cfg.demo) {
       const g = await fetchSingleOrder(code);
       if (g) {
@@ -1012,8 +1112,15 @@ async function lookupTicket(code) {
       }
     }
 
-    // 4. Not found anywhere
-    rejectCode(code, 'Not found in guest list');
+    // 5. Looks like a Ticketmaster barcode but not found — flag for manual verify
+    if (isTicketmasterCode(code)) {
+      handleTMScan(code);
+      isScanning = false;
+      return;
+    }
+
+    // 6. Not found anywhere
+    rejectCode(code, 'Not found in MEC or WooCommerce');
 
   } catch(err) {
     setResult('err','⚠️','Connection error', err.message || 'Check connection');
@@ -1025,6 +1132,76 @@ async function lookupTicket(code) {
 function resolveGuest(code) {
   const clean = code.replace(/^#/,'').trim();
   return guestMap[clean] || guestMap[code] || emailMap[code.toLowerCase()] || null;
+}
+
+// MEC API — look up and check in a ticket by MEC ticket number
+async function mecLookupAndCheckin(ticketCode) {
+  if (!cfg.mecKey || !cfg.siteUrl) return null;
+  try {
+    // MEC RESTful API v1.0 — verify ticket
+    const r = await fetch(`${cfg.siteUrl}/wp-json/mec/v1.0/tickets/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: cfg.mecKey, ticket: ticketCode })
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    if (!data || data.status === 'invalid' || data.error) return null;
+
+    // Normalise MEC response to our guest shape
+    return {
+      id: data.ticket_id || ticketCode,
+      orderNumber: data.order_id ? String(data.order_id) : ticketCode,
+      name: data.name || data.attendee_name || data.holder || 'Guest',
+      email: (data.email || '').toLowerCase(),
+      ticketName: data.ticket_type || data.ticket_name || 'MEC Ticket',
+      isVip: /vip/i.test(data.ticket_type || ''),
+      isTM: false,
+      isComp: false,
+      table: data.table || null,
+      guestOf: null,
+      hostCategory: null,
+      guestNotes: null,
+      qty: 1,
+      checkedInTickets: data.checked_in ? ['0'] : [],
+      checkedIn: !!data.checked_in,
+      _mecTicket: true,
+      _mecCode: ticketCode
+    };
+  } catch(e) {
+    console.warn('MEC lookup failed:', e.message);
+    return null;
+  }
+}
+
+// MEC API — write check-in back to MEC
+async function mecWriteCheckin(ticketCode) {
+  if (!cfg.mecKey || !cfg.siteUrl) return;
+  try {
+    await fetch(`${cfg.siteUrl}/wp-json/mec/v1.0/tickets/checkin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: cfg.mecKey, ticket: ticketCode })
+    });
+  } catch(e) {
+    console.warn('MEC check-in write failed:', e.message);
+  }
+}
+
+// WC external ticket lookup — for Ticketmaster etc stored as _fd_external_ticket meta
+async function wcExternalTicketLookup(barcode) {
+  if (!cfg.wcKey || cfg.demo) return null;
+  try {
+    const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
+    const r = await fetch(
+      `${cfg.siteUrl}/wp-json/wc/v3/orders?status=completed&meta_key=_fd_external_ticket&meta_value=${encodeURIComponent(barcode)}&_fields=id,number,status,billing,line_items,total,meta_data`,
+      { headers: { 'Authorization': `Basic ${creds}` } }
+    );
+    if (!r.ok) return null;
+    const orders = await r.json();
+    if (!orders.length) return null;
+    return parseOrder(orders[0]);
+  } catch(e) { return null; }
 }
 
 // ── Ticketmaster flow ───────────────────────
@@ -1066,25 +1243,45 @@ function rejectTM() {
 
 // ── WooCommerce guest flow ──────────────────
 function handleGuest(g, code) {
-  if (g.checkedIn) {
+  // Extract ticket suffix from code e.g. "117477-2" → "2", "117477" → "0"
+  const orderNum = g.orderNumber;
+  let suffix = '0';
+  if (code.startsWith(orderNum + '-')) {
+    suffix = code.substring(orderNum.length + 1);
+  } else if (code.startsWith(orderNum + '-0')) {
+    suffix = code.substring(orderNum.length + 1);
+  }
+
+  // Check if this specific ticket already scanned
+  if (g.checkedInTickets.includes(suffix)) {
     vibrate([200,80,200]);
-    addLog({ name:g.name, ticket:g.ticketName, status:'warn', code });
+    addLog({ name:g.name, ticket:`${g.ticketName} (ticket ${parseInt(suffix)+1} of ${g.qty})`, status:'warn', code });
     stats.dupe++; stats.total++;
-    setResult('warn','⚠️', g.name, 'Already checked in');
+    setResult('warn','⚠️', g.name, `Ticket ${parseInt(suffix)+1} of ${g.qty} already scanned`);
     showEnt(g);
-    showChips([{ label:g.ticketName, cls:'' }, { label:'DUPLICATE', cls:'hi' }]);
+    showChips([{ label:`${parseInt(suffix)+1} of ${g.qty} tickets`, cls:'' }, { label:'DUPLICATE', cls:'hi' }]);
     updateStats();
     return;
   }
-  g.checkedIn = true;
-  writeCheckIn(g.id);  // write to WC — async, non-blocking
+
+  // Admit this ticket
+  g.checkedInTickets.push(suffix);
+  g.checkedIn = g.checkedInTickets.length >= g.qty;
+  writeCheckIn(g.id, suffix, g.checkedInTickets);
   vibrate([80]);
-  addLog({ name:g.name, ticket:g.ticketName, status:'ok', code });
+
+  const ticketNum = parseInt(suffix) + 1;
+  const remaining = g.qty - g.checkedInTickets.length;
+  const admitDetail = g.qty > 1
+    ? `Ticket ${ticketNum} of ${g.qty}${remaining > 0 ? ' · ' + remaining + ' still to arrive' : ' · All admitted'}`
+    : g.ticketName;
+
+  addLog({ name:g.name, ticket:admitDetail, status:'ok', code });
   stats.admitted++; stats.total++;
   document.getElementById('hdr-count').textContent = stats.admitted;
-  setResult('ok','✓', g.name, g.ticketName, true);
+  setResult('ok','✓', g.name, admitDetail, true);
   showEnt(g);
-  const chips = [{ label:g.ticketName, cls:'' }];
+  const chips = [{ label:`${g.checkedInTickets.length} of ${g.qty} admitted`, cls: remaining > 0 ? '' : 'vip' }];
   if (g.isVip)  chips.push({ label:'VIP', cls:'vip' });
   if (g.isComp) chips.push({ label:'Comp', cls:'hi' });
   if (g.isTM)   chips.push({ label:'Ticketmaster', cls:'tm' });
@@ -1192,8 +1389,8 @@ function showTab(tab) {
 // ═══════════════════════════════════════════
 function loadDemoGuests() {
   const demo = [
-    { id:1, orderNumber:'1001', name:'Sophie Marchetti',  email:'sophie@example.com',  ticketName:'VIP Weekend Pass',            isVip:true,  isTM:false, isComp:false, table:'Table 4', checkedIn:false },
-    { id:2, orderNumber:'1002', name:'James Whitfield',   email:'james@example.com',   ticketName:'General Admission — Thu',     isVip:false, isTM:false, isComp:false, table:null,      checkedIn:false },
+    { id:1, orderNumber:'1001', name:'Sophie Marchetti',  email:'sophie@example.com',  ticketName:'VIP Weekend Pass',            isVip:true,  isTM:false, isComp:false, table:'Table 4', qty:2, checkedInTickets:[], checkedIn:false },
+    { id:2, orderNumber:'1002', name:'James Whitfield',   email:'james@example.com',   ticketName:'General Admission — Thu',     isVip:false, isTM:false, isComp:false, table:null,      qty:3, checkedInTickets:[], checkedIn:false },
     { id:3, orderNumber:'1003', name:'Cressida Baxter',   email:'cress@example.com',   ticketName:'VIP Saturday',                isVip:true,  isTM:false, isComp:false, table:'Table 1', checkedIn:false },
     { id:4, orderNumber:'1004', name:'Tom Hargreaves',    email:'tom@example.com',     ticketName:'General Admission — Fri',     isVip:false, isTM:false, isComp:false, table:null,      checkedIn:true  },
     { id:5, orderNumber:'1005', name:'Allegra Fontaine',  email:'allegra@example.com', ticketName:'VIP Weekend Pass',            isVip:true,  isTM:false, isComp:false, table:'Table 2', checkedIn:false },
@@ -1206,6 +1403,43 @@ function loadDemoGuests() {
     guestMap[g.orderNumber] = g;
     if (g.email) emailMap[g.email] = g;
   });
+}
+
+// ═══════════════════════════════════════════
+//  TEST HELPERS
+// ═══════════════════════════════════════════
+function clearLocalCheckins() {
+  if (!confirm('Clear all local check-in data? This resets the app state but does NOT undo WooCommerce records.')) return;
+  Object.values(guestMap).forEach(g => {
+    g.checkedIn = false;
+    g.checkedInTickets = [];
+  });
+  stats.admitted = 0; stats.total = 0; stats.dupe = 0; stats.invalid = 0;
+  scanLog = [];
+  renderGuestList(); updateGLStats(); updateStats(); renderLogs();
+  document.getElementById('hdr-count').textContent = 0;
+  alert('Local check-in data cleared.');
+}
+
+function undoLastCheckin() {
+  // Find last admitted log entry
+  const last = scanLog.find(e => e.status === 'ok');
+  if (!last) { alert('No check-ins to undo.'); return; }
+  // Find the guest
+  const g = resolveGuest(last.code || '');
+  if (!g) { alert('Could not find guest to undo.'); return; }
+  if (!confirm(`Undo check-in for ${g.name}?`)) return;
+  // Remove last ticket from checkedInTickets
+  g.checkedInTickets.pop();
+  g.checkedIn = false;
+  stats.admitted = Math.max(0, stats.admitted - 1);
+  // Remove from log
+  const idx = scanLog.indexOf(last);
+  if (idx > -1) scanLog.splice(idx, 1);
+  // Write back to WC
+  writeCheckIn(g.id, null, g.checkedInTickets);
+  renderGuestList(); updateGLStats(); updateStats(); renderLogs();
+  alert(`Check-in undone for ${g.name}.`);
 }
 
 // ═══════════════════════════════════════════
@@ -1244,6 +1478,7 @@ window.addEventListener('DOMContentLoaded', () => {
         ['site-url','s-url'].forEach(id => document.getElementById(id).value = c.siteUrl);
         ['wc-key','s-key'].forEach(id => document.getElementById(id).value = c.wcKey);
         ['wc-secret','s-secret'].forEach(id => document.getElementById(id).value = c.wcSecret);
+        ['mec-key','s-mec-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = c.mecKey||''; });
         // Auto-launch if we have saved creds
         launch();
         return;
