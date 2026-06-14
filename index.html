@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v1.4</title>
+<title>FD Door Scanner v1.8</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -276,6 +276,7 @@ input::placeholder { color: #999; }
   cursor: pointer; -webkit-tap-highlight-color: transparent; white-space: nowrap; font-family: inherit;
 }
 .filter-pill.active { background: var(--pink); border-color: var(--pink); color: #fff; }
+.filter-pill.day-pill.active { background: var(--navy); border-color: var(--navy); color: #fff; }
 
 .gl-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--bg); }
 .gl-count { padding: 8px 16px; font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--white); }
@@ -382,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v1.4</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v1.8</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -483,6 +484,9 @@ input::placeholder { color: #999; }
   </div>
   <div class="gl-filter-bar">
     <button class="filter-pill active" onclick="setFilter('all',this)">All</button>
+    <button class="filter-pill day-pill" onclick="setFilter('thu',this)">📅 Thu</button>
+    <button class="filter-pill day-pill" onclick="setFilter('fri',this)">📅 Fri</button>
+    <button class="filter-pill day-pill" onclick="setFilter('sat',this)">📅 Sat</button>
     <button class="filter-pill" onclick="setFilter('vip',this)">⭐ VIP</button>
     <button class="filter-pill" onclick="setFilter('comp',this)">🎁 Comp</button>
     <button class="filter-pill" onclick="setFilter('tm',this)">🎫 Ticketmaster</button>
@@ -801,7 +805,14 @@ function parseOrder(o) {
   const qty = item ? (item.quantity || 1) : 1;
   const checkedIn = checkedInTickets.length >= qty; // fully checked in only if ALL tickets scanned
 
-  const guest = { id:o.id, orderNumber:String(o.number), name, email:(o.billing.email||'').toLowerCase(), ticketName, isVip, isTM, isComp, table, guestOf, hostCategory, guestNotes, qty, checkedInTickets, checkedIn };
+  // Detect event day from product name or meta
+  const dayMeta = allMeta.find(m => m.key === '_fd_day');
+  let eventDay = dayMeta ? dayMeta.value : 'All';
+  if (eventDay === 'All' || !eventDay) {
+    eventDay = detectDay(ticketName);
+  }
+
+  const guest = { id:o.id, orderNumber:String(o.number), name, email:(o.billing.email||'').toLowerCase(), ticketName, isVip, isTM, isComp, table, guestOf, hostCategory, guestNotes, qty, checkedInTickets, checkedIn, eventDay };
   idMap[o.id] = guest;
   return guest;
 }
@@ -841,6 +852,9 @@ function renderGuestList() {
   const filtered = all.filter(g => {
     const mq = !q || g.name.toLowerCase().includes(q) || g.orderNumber.includes(q) || g.email.includes(q) || g.ticketName.toLowerCase().includes(q);
     if (!mq) return false;
+    if (glFilter === 'thu')        return g.eventDay === 'Thu' || g.eventDay === 'All';
+    if (glFilter === 'fri')        return g.eventDay === 'Fri' || g.eventDay === 'All';
+    if (glFilter === 'sat')        return g.eventDay === 'Sat' || g.eventDay === 'All';
     if (glFilter === 'vip')        return g.isVip;
     if (glFilter === 'comp')       return g.isComp;
     if (glFilter === 'tm')         return g.isTM;
@@ -877,7 +891,7 @@ function renderGuestList() {
       <div class="gl-avatar ${avCls}">${avTxt}</div>
       <div class="gl-info">
         <div class="gl-name">${g.name}${g.qty > 1 ? ' <span style="font-size:12px;font-weight:600;color:var(--muted);">('+g.checkedInTickets.length+'/'+g.qty+')</span>' : ''}</div>
-        <div class="gl-ticket">${g.ticketName}${g.table?' · Table '+g.table:''}${g.guestOf?' · Guest of '+g.guestOf:''}</div>
+        <div class="gl-ticket">${g.eventDay && g.eventDay !== 'All' ? '<span style="font-weight:800;color:var(--navy);margin-right:4px;">'+g.eventDay+'</span>' : ''}${g.ticketName}${g.table?' · Table '+g.table:''}${g.guestOf?' · Guest of '+g.guestOf:''}${(function(){ const vf = getTicketValidFrom(g.ticketName); return (vf[0] > 14 || (vf[0]===14 && vf[1]>0)) ? ' · <span style="color:#C06000;font-weight:700;">From '+String(vf[0]).padStart(2,'0')+':'+String(vf[1]).padStart(2,'0')+'</span>' : ''; })()}</div>
       </div>
       <div class="gl-badges">${badges}</div>
     </div>`;
@@ -964,9 +978,8 @@ function admitFromDrawer() {
   if (!g || g.checkedIn) return;
   // Find next unscanned ticket suffix
   let nextSuffix = '0';
-  for (let i = 0; i < g.qty; i++) {
-    if (!g.checkedInTickets.includes(String(i))) { nextSuffix = String(i); break; }
-  }
+  // For manual admit, use a placeholder since we don't have the ticket code
+  nextSuffix = `manual-${Date.now()}`;
   g.checkedInTickets.push(nextSuffix);
   g.checkedIn = g.checkedInTickets.length >= g.qty;
   writeCheckIn(g.id, nextSuffix, g.checkedInTickets);
@@ -1052,41 +1065,68 @@ async function lookupTicket(code) {
   try {
     // 1. Try MEC API first — covers all native MEC/WooCommerce tickets
     if (cfg.mecKey && !cfg.demo) {
+      // Clear any stale result before API call
+      setResult('', '⏳', 'Checking ticket…', code);
+      document.getElementById('ent-banner').classList.add('hidden');
+      document.getElementById('result-chips').classList.add('hidden');
+      document.getElementById('tm-actions').classList.add('hidden');
+
       const mecGuest = await mecLookupAndCheckin(code);
       if (mecGuest) {
-        if (mecGuest.checkedIn && mecGuest.checkedInTickets.length > 0) {
+        if (mecGuest.checkedIn) {
           // Already checked in via MEC
           vibrate([200,80,200]);
-          addLog({ name:mecGuest.name, ticket:mecGuest.ticketName, status:'warn', code });
+          addLog({ name:mecGuest.name, ticket:`${mecGuest.ticketName} (${code})`, status:'warn', code });
           stats.dupe++; stats.total++;
-          setResult('warn','⚠️', mecGuest.name, 'Already checked in');
+          setResult('warn','⚠️', mecGuest.name, `Ticket ${code} already checked in`);
           showEnt(mecGuest);
           showChips([{ label:mecGuest.ticketName, cls:'' }, { label:'DUPLICATE', cls:'hi' }]);
           updateStats();
         } else {
-          // Valid MEC ticket — write check-in
-          mecWriteCheckin(code);
-          vibrate([80]);
-          addLog({ name:mecGuest.name, ticket:mecGuest.ticketName, status:'ok', code });
-          stats.admitted++; stats.total++;
-          document.getElementById('hdr-count').textContent = stats.admitted;
-          setResult('ok','✓', mecGuest.name, mecGuest.ticketName, true);
-          showEnt(mecGuest);
-          showChips([
-            { label: mecGuest.ticketName, cls:'' },
-            { label: 'MEC Ticket', cls:'' },
-            ...(mecGuest.isVip ? [{ label:'VIP', cls:'vip' }] : [])
-          ]);
-          updateStats();
-          // Also update guest list if we have this order
-          if (guestMap[mecGuest.orderNumber]) {
-            guestMap[mecGuest.orderNumber].checkedIn = true;
-            renderGuestList(); updateGLStats();
+          // Check time restriction before admitting
+          const timeBlock = checkTimeRestriction(mecGuest.ticketName, mecGuest.ticketStartTime);
+          if (timeBlock) {
+            vibrate([300, 100, 300]);
+            setResult('err','🚫', 'Too Early', 
+              `This ticket is not valid until ${timeBlock.validFrom}. Current time: ${timeBlock.currentTime}`);
+            showChips([
+              { label: mecGuest.name, cls:'' },
+              { label: `Valid from ${timeBlock.validFrom}`, cls:'hi' }
+            ]);
+            addLog({ name:mecGuest.name, ticket:`Too early — valid from ${timeBlock.validFrom}`, status:'err', code });
+            stats.invalid++; stats.total++;
+            updateStats();
+          } else {
+            // Valid MEC ticket — write check-in
+            mecWriteCheckin(code);
+            vibrate([80]);
+            addLog({ name:mecGuest.name, ticket:`${mecGuest.ticketName} (${code})`, status:'ok', code });
+            stats.admitted++; stats.total++;
+            document.getElementById('hdr-count').textContent = stats.admitted;
+            setResult('ok','✓', mecGuest.name, mecGuest.ticketName, true);
+            showEnt(mecGuest);
+            showChips([
+              { label: code, cls:'' },
+              { label: mecGuest.ticketName, cls:'' },
+              ...(mecGuest.isVip ? [{ label:'VIP', cls:'vip' }] : [])
+            ]);
+            updateStats();
+            // Update guest list if order is loaded
+            if (guestMap[mecGuest.orderNumber]) {
+              const g = guestMap[mecGuest.orderNumber];
+              if (!g.checkedInTickets.includes(code)) {
+                g.checkedInTickets.push(code);
+                g.checkedIn = g.checkedInTickets.length >= g.qty;
+              }
+              renderGuestList(); updateGLStats();
+            }
           }
         }
         isScanning = false;
         return;
       }
+      // MEC returned nothing — don't fall back to stale local data
+      // Continue to WC lookup below
     }
 
     // 2. Try local guest map (WC orders already loaded)
@@ -1138,28 +1178,94 @@ function resolveGuest(code) {
   return guestMap[clean] || guestMap[code] || emailMap[code.toLowerCase()] || null;
 }
 
-// MEC API — look up and check in a ticket by MEC ticket number
+// ═══════════════════════════════════════════
+//  TIME RESTRICTION
+// ═══════════════════════════════════════════
+function getTicketValidFrom(ticketName) {
+  // Returns [hours, minutes] that this ticket is valid from
+  const tn = (ticketName || '').toUpperCase();
+
+  // Evening tickets — valid from 6:15pm
+  if (/EVENING|LATE ENTRY|LATE|6PM|7PM|NIGHT/.test(tn)) return [18, 15];
+
+  // Saturday Brunch — valid from 11am
+  if (/BRUNCH/.test(tn)) return [11, 0];
+
+  // Default — all other tickets valid from 2pm
+  return [14, 0];
+}
+
+function checkTimeRestriction(ticketName, mecStartTime) {
+  // If MEC returns a start time, use that; otherwise fall back to name-based rules
+  let validHour, validMin;
+  if (mecStartTime) {
+    // mecStartTime expected as "HH:MM" or "HH:MM:SS"
+    const parts = mecStartTime.split(':');
+    validHour = parseInt(parts[0]);
+    validMin  = parseInt(parts[1] || 0);
+    // Apply 15-minute grace
+    const totalMins = validHour * 60 + validMin - 15;
+    validHour = Math.floor(totalMins / 60);
+    validMin  = totalMins % 60;
+  } else {
+    [validHour, validMin] = getTicketValidFrom(ticketName);
+  }
+
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const validMins = validHour * 60 + validMin;
+
+  if (nowMins < validMins) {
+    const validTimeStr = `${String(validHour).padStart(2,'0')}:${String(validMin).padStart(2,'0')}`;
+    const nowTimeStr   = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    return { validFrom: validTimeStr, currentTime: nowTimeStr };
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════
+//  MEC UTILITY API
+//  Ticket format: {booking_id}-{attendee_key} e.g. 30554-O
+// ═══════════════════════════════════════════
+
+function parseMecTicketCode(code) {
+  // Split on last hyphen — booking_id is numeric, attendee_key is after
+  const match = code.match(/^(\d+)-(.+)$/);
+  if (!match) return null;
+  return { bookingId: match[1], attendeeKey: match[2] };
+}
+
 async function mecLookupAndCheckin(ticketCode) {
   if (!cfg.mecKey || !cfg.siteUrl) return null;
+
+  const parsed = parseMecTicketCode(ticketCode);
+  if (!parsed) {
+    // Try qr/scan endpoint as fallback for unknown formats
+    return await mecQrScan(ticketCode);
+  }
+
   try {
-    // MEC RESTful API v1.0 — verify ticket
-    const r = await fetch(`${cfg.siteUrl}/wp-json/mec/v1.0/tickets/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: cfg.mecKey, ticket: ticketCode })
-    });
+    // GET attendee details first
+    const r = await fetch(
+      `${cfg.siteUrl}/wp-json/mec-utility/v1/attendees/${parsed.bookingId}/${parsed.attendeeKey}`,
+      { headers: { 'X-MEC-KEY': cfg.mecKey, 'Authorization': `Bearer ${cfg.mecKey}` } }
+    );
     if (!r.ok) return null;
     const data = await r.json();
-    if (!data || data.status === 'invalid' || data.error) return null;
+    if (!data || data.code) return null;
 
-    // Normalise MEC response to our guest shape
+    // Normalise to our guest shape
+    const name = [data.first_name || data.name || '', data.last_name || ''].join(' ').trim() || 'Guest';
+    const ticketName = data.ticket_name || data.ticket || data.type || 'MEC Ticket';
+    const checkedIn = !!(data.checked_in || data.status === 'checked_in' || data.mec_checked_in);
+
     return {
-      id: data.ticket_id || ticketCode,
-      orderNumber: data.order_id ? String(data.order_id) : ticketCode,
-      name: data.name || data.attendee_name || data.holder || 'Guest',
+      id: parsed.bookingId,
+      orderNumber: parsed.bookingId,
+      name,
       email: (data.email || '').toLowerCase(),
-      ticketName: data.ticket_type || data.ticket_name || 'MEC Ticket',
-      isVip: /vip/i.test(data.ticket_type || ''),
+      ticketName,
+      isVip: /vip/i.test(ticketName),
       isTM: false,
       isComp: false,
       table: data.table || null,
@@ -1167,26 +1273,87 @@ async function mecLookupAndCheckin(ticketCode) {
       hostCategory: null,
       guestNotes: null,
       qty: 1,
-      checkedInTickets: data.checked_in ? ['0'] : [],
-      checkedIn: !!data.checked_in,
+      checkedInTickets: checkedIn ? [ticketCode] : [],
+      checkedIn,
+      eventDay: data.event_day || detectDay(ticketName),
+      ticketStartTime: data.ticket_time_start || data.start_time || null,
       _mecTicket: true,
-      _mecCode: ticketCode
+      _mecCode: ticketCode,
+      _bookingId: parsed.bookingId,
+      _attendeeKey: parsed.attendeeKey
     };
   } catch(e) {
-    console.warn('MEC lookup failed:', e.message);
+    console.warn('MEC attendee lookup failed:', e.message);
+    return await mecQrScan(ticketCode);
+  }
+}
+
+async function mecQrScan(ticketCode) {
+  // Fallback — use qr/scan endpoint
+  try {
+    const r = await fetch(`${cfg.siteUrl}/wp-json/mec-utility/v1/qr/scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-MEC-KEY': cfg.mecKey },
+      body: JSON.stringify({ qr_code: ticketCode, key: cfg.mecKey })
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    if (!data || data.error || data.code) return null;
+    const name = [data.first_name || '', data.last_name || ''].join(' ').trim() || data.name || 'Guest';
+    const ticketName = data.ticket_name || data.ticket || 'MEC Ticket';
+    const checkedIn = !!(data.checked_in || data.status === 'checked_in');
+    return {
+      id: data.booking_id || ticketCode,
+      orderNumber: String(data.booking_id || ticketCode),
+      name,
+      email: (data.email || '').toLowerCase(),
+      ticketName,
+      isVip: /vip/i.test(ticketName),
+      isTM: false, isComp: false,
+      table: data.table || null,
+      guestOf: null, hostCategory: null, guestNotes: null,
+      qty: 1,
+      checkedInTickets: checkedIn ? [ticketCode] : [],
+      checkedIn,
+      eventDay: detectDay(ticketName),
+      ticketStartTime: null,
+      _mecTicket: true, _mecCode: ticketCode
+    };
+  } catch(e) {
+    console.warn('MEC QR scan failed:', e.message);
     return null;
   }
 }
 
-// MEC API — write check-in back to MEC
+function detectDay(ticketName) {
+  const tn = (ticketName || '').toUpperCase();
+  if (/THURSDAY|THU|THU|LADIES.DAY/.test(tn))       return 'Thu';
+  if (/FRIDAY|FRI|FRI|IBIZA|WHITE.PARTY/.test(tn))   return 'Fri';
+  if (/SATURDAY|SAT|SAT|STUDIO.54|BRUNCH/.test(tn))  return 'Sat';
+  return 'All';
+}
+
 async function mecWriteCheckin(ticketCode) {
   if (!cfg.mecKey || !cfg.siteUrl) return;
+  const parsed = parseMecTicketCode(ticketCode);
   try {
-    await fetch(`${cfg.siteUrl}/wp-json/mec/v1.0/tickets/checkin`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: cfg.mecKey, ticket: ticketCode })
-    });
+    if (parsed) {
+      // Use attendee checkin endpoint
+      await fetch(
+        `${cfg.siteUrl}/wp-json/mec-utility/v1/attendees/${parsed.bookingId}/${parsed.attendeeKey}/checkin`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-MEC-KEY': cfg.mecKey }
+        }
+      );
+    } else {
+      // Fallback to qr/scan
+      await fetch(`${cfg.siteUrl}/wp-json/mec-utility/v1/qr/scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-MEC-KEY': cfg.mecKey },
+        body: JSON.stringify({ qr_code: ticketCode, key: cfg.mecKey, checkin: true })
+      });
+    }
   } catch(e) {
     console.warn('MEC check-in write failed:', e.message);
   }
@@ -1247,17 +1414,12 @@ function rejectTM() {
 
 // ── WooCommerce guest flow ──────────────────
 function handleGuest(g, code) {
-  // Extract ticket suffix from code e.g. "117477-2" → "2", "117477" → "0"
-  const orderNum = g.orderNumber;
-  let suffix = '0';
-  if (code.startsWith(orderNum + '-')) {
-    suffix = code.substring(orderNum.length + 1);
-  } else if (code.startsWith(orderNum + '-0')) {
-    suffix = code.substring(orderNum.length + 1);
-  }
+  // MEC ticket codes are independent per ticket e.g. 30554-O, 30555-1, 30556-2
+  // The suffix is the full ticket code itself, not derived from order number
+  const suffix = code;
 
   // Check if this specific ticket already scanned
-  if (g.checkedInTickets.includes(suffix)) {
+  if (g.checkedInTickets.includes(code)) {
     vibrate([200,80,200]);
     addLog({ name:g.name, ticket:`${g.ticketName} (ticket ${parseInt(suffix)+1} of ${g.qty})`, status:'warn', code });
     stats.dupe++; stats.total++;
@@ -1268,16 +1430,32 @@ function handleGuest(g, code) {
     return;
   }
 
+  // Check time restriction before admitting
+  const timeBlock = checkTimeRestriction(g.ticketName);
+  if (timeBlock) {
+    vibrate([300, 100, 300]);
+    setResult('err','🚫', 'Too Early',
+      `This ticket is not valid until ${timeBlock.validFrom}. Current time: ${timeBlock.currentTime}`);
+    showChips([
+      { label: g.name, cls:'' },
+      { label: `Valid from ${timeBlock.validFrom}`, cls:'hi' }
+    ]);
+    addLog({ name:g.name, ticket:`Too early — valid from ${timeBlock.validFrom}`, status:'err', code });
+    stats.invalid++; stats.total++;
+    updateStats();
+    return;
+  }
+
   // Admit this ticket
   g.checkedInTickets.push(suffix);
   g.checkedIn = g.checkedInTickets.length >= g.qty;
   writeCheckIn(g.id, suffix, g.checkedInTickets);
   vibrate([80]);
 
-  const ticketNum = parseInt(suffix) + 1;
+  const ticketNum = g.checkedInTickets.length;
   const remaining = g.qty - g.checkedInTickets.length;
   const admitDetail = g.qty > 1
-    ? `Ticket ${ticketNum} of ${g.qty}${remaining > 0 ? ' · ' + remaining + ' still to arrive' : ' · All admitted'}`
+    ? `Ticket ${ticketNum} of ${g.qty} admitted${remaining > 0 ? ' · ' + remaining + ' still to arrive' : ' · All admitted'}`
     : g.ticketName;
 
   addLog({ name:g.name, ticket:admitDetail, status:'ok', code });
@@ -1393,10 +1571,10 @@ function showTab(tab) {
 // ═══════════════════════════════════════════
 function loadDemoGuests() {
   const demo = [
-    { id:1, orderNumber:'1001', name:'Sophie Marchetti',  email:'sophie@example.com',  ticketName:'VIP Weekend Pass',            isVip:true,  isTM:false, isComp:false, table:'Table 4', qty:2, checkedInTickets:[], checkedIn:false },
-    { id:2, orderNumber:'1002', name:'James Whitfield',   email:'james@example.com',   ticketName:'General Admission — Thu',     isVip:false, isTM:false, isComp:false, table:null,      qty:3, checkedInTickets:[], checkedIn:false },
-    { id:3, orderNumber:'1003', name:'Cressida Baxter',   email:'cress@example.com',   ticketName:'VIP Saturday',                isVip:true,  isTM:false, isComp:false, table:'Table 1', checkedIn:false },
-    { id:4, orderNumber:'1004', name:'Tom Hargreaves',    email:'tom@example.com',     ticketName:'General Admission — Fri',     isVip:false, isTM:false, isComp:false, table:null,      checkedIn:true  },
+    { id:1, orderNumber:'1001', name:'Sophie Marchetti',  email:'sophie@example.com',  ticketName:'VIP Weekend Pass',            isVip:true,  isTM:false, isComp:false, table:'Table 4', eventDay:'All', qty:2, checkedInTickets:[], checkedIn:false },
+    { id:2, orderNumber:'1002', name:'James Whitfield',   email:'james@example.com',   ticketName:'General Admission — Thu',     isVip:false, isTM:false, isComp:false, table:null,      eventDay:'Thu', qty:3, checkedInTickets:[], checkedIn:false },
+    { id:3, orderNumber:'1003', name:'Cressida Baxter',   email:'cress@example.com',   ticketName:'VIP Saturday',                isVip:true,  isTM:false, isComp:false, table:'Table 1', eventDay:'Sat', checkedIn:false },
+    { id:4, orderNumber:'1004', name:'Tom Hargreaves',    email:'tom@example.com',     ticketName:'General Admission — Fri',     isVip:false, isTM:false, isComp:false, table:null,      eventDay:'Fri',      checkedIn:true  },
     { id:5, orderNumber:'1005', name:'Allegra Fontaine',  email:'allegra@example.com', ticketName:'VIP Weekend Pass',            isVip:true,  isTM:false, isComp:false, table:'Table 2', checkedIn:false },
     { id:6, orderNumber:'1006', name:'Ronnie Herel',      email:'ronnie@example.com',  ticketName:'Complimentary — Staff',       isVip:false, isTM:false, isComp:true,  table:null,      checkedIn:false },
     { id:7, orderNumber:'1007', name:'Caroline Daniels',  email:'caro@example.com',    ticketName:'Complimentary — VIP Guest',   isVip:true,  isTM:false, isComp:true,  table:'Table 3', checkedIn:false },
