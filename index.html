@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v3.6</title>
+<title>FD Door Scanner v3.9</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v3.6</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v3.9</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -489,14 +489,10 @@ input::placeholder { color: #999; }
     <input class="gl-search" type="text" id="gl-search" placeholder="Search by name…" oninput="renderGuestList()" autocomplete="off" autocorrect="off" autocapitalize="none">
     <button class="gl-refresh" onclick="refreshGuests()" title="Refresh">↻</button>
   </div>
-  <div id="event-bar" style="display:none;padding:8px 14px;background:#fff;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;">
-    Showing next 10 days · <button onclick="showAllGuests()" style="background:none;border:none;color:var(--pink);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;">Show all</button>
-  </div>
-  <div class="gl-filter-bar">
+  <!-- event-bar removed — replaced by dynamic event filter pills -->
+  <div class="gl-filter-bar" id="gl-filter-bar">
     <button class="filter-pill active" onclick="setFilter('all',this)">All</button>
-    <button class="filter-pill day-pill" onclick="setFilter('thu',this)">📅 Thu</button>
-    <button class="filter-pill day-pill" onclick="setFilter('fri',this)">📅 Fri</button>
-    <button class="filter-pill day-pill" onclick="setFilter('sat',this)">📅 Sat</button>
+    <!-- Event pills injected dynamically by renderFilterPills() -->
     <button class="filter-pill" onclick="setFilter('vip',this)">⭐ VIP</button>
     <button class="filter-pill" onclick="setFilter('comp',this)">🎁 Comp</button>
     <button class="filter-pill" onclick="setFilter('tm',this)">🎫 Ticketmaster</button>
@@ -919,6 +915,7 @@ async function fetchMecAttendees(events) {
         email:       g.email,
         eventTitle:  g._eventTitle,
         eventDay:    g.eventDay,
+        _eventId:    g._eventId,
         tickets:     [],
         source:      'mec'
       };
@@ -963,6 +960,21 @@ async function loadGuestList() {
     wcGuests.forEach(g => {
       // Skip if this WC order is already represented by an MEC booking
       if (mecInvoiceIds.has(String(g.orderNumber))) return;
+
+      // If MEC events are loaded, only include WC orders whose ticket name
+      // matches an upcoming event — this filters out historical orders on test systems
+      if (upcomingEventNames.length > 0) {
+        const ticketLower = (g.ticketName || '').toLowerCase();
+        const matchesEvent = upcomingEventNames.some(evName => {
+          if (!evName || evName.length < 5) return false;
+          // Check significant words from event name appear in ticket name
+          const words = evName.split(' ').filter(w => w.length > 4);
+          const matchCount = words.filter(w => ticketLower.includes(w)).length;
+          return matchCount >= 2; // at least 2 significant words must match
+        });
+        // Always include comp/TM/manual orders regardless of event name
+        if (!matchesEvent && !g.isComp && !g.isTM && !g.guestOf) return;
+      }
       g._source = 'wc';
       guestMap[`wc-${g.orderNumber}`] = g;
       if (g.email && !emailMap[g.email]) emailMap[g.email] = g;
@@ -994,6 +1006,7 @@ async function loadGuestList() {
     });
 
     console.log(`Guest list: ${Object.keys(guestMap).length} total (MEC: ${Object.keys(mecGuests).length}, WC comps: ${wcGuests.length})`);
+    renderFilterPills();
     renderGuestList(); updateGLStats();
   } catch(e) {
     console.error('Guest list load error:', e);
@@ -1109,6 +1122,55 @@ async function refreshGuests() {
 // ═══════════════════════════════════════════
 let showAll = false;
 
+function quickAdmit(bookingId) {
+  const b = bookingMap[bookingId];
+  if (!b) return;
+  const nextTicket = b.tickets.find(t => !t.checkedIn);
+  if (!nextTicket) return;
+
+  nextTicket.checkedIn = true;
+  const admitted  = getBookingAdmittedCount(b);
+  const remaining = b.tickets.length - admitted;
+
+  // Write to MEC or WC
+  if (b.source === 'mec') {
+    fetch(`${cfg.siteUrl}/wp-json/mec-utility/v1/attendees/${b.bookingId}/${nextTicket.attendeeKey}/checkin`, {
+      method: 'POST', headers: { 'X-MEC-KEY': cfg.mecKey }
+    }).catch(e => console.warn('MEC checkin failed:', e));
+  } else {
+    const wcGuest = guestMap[`wc-${b.invoiceId}`];
+    if (wcGuest) { wcGuest.checkedInTickets.push(nextTicket.key); writeCheckIn(wcGuest.id, nextTicket.key, wcGuest.checkedInTickets); }
+  }
+
+  addLog({ name:b.name, ticket:`${nextTicket.ticketName} (${admitted} of ${b.tickets.length})`, status:'ok', note:'Guest list' });
+  stats.admitted++; stats.total++;
+  document.getElementById('hdr-count').textContent = stats.admitted;
+  updateStats(); updateGLStats(); renderGuestList();
+  vibrate([80]);
+}
+
+// Dynamic event filter pills
+function renderFilterPills() {
+  const bar = document.getElementById('gl-filter-bar');
+  if (!bar || upcomingEvents.length === 0) return;
+
+  // Remove any existing event pills
+  bar.querySelectorAll('.event-pill').forEach(p => p.remove());
+
+  // Insert event pills after the "All" button
+  const allBtn = bar.querySelector('.filter-pill');
+  upcomingEvents.forEach(ev => {
+    const pill = document.createElement('button');
+    pill.className = 'filter-pill event-pill';
+    pill.dataset.eventId = String(ev.id);
+    // Shorten title for pill — use first meaningful words
+    const shortTitle = (ev.title || 'Event').replace(/copy of /i, '').substring(0, 25) + (ev.title && ev.title.length > 25 ? '…' : '');
+    pill.textContent = '📅 ' + shortTitle;
+    pill.onclick = function() { setFilter('event:' + ev.id, this); };
+    allBtn.insertAdjacentElement('afterend', pill);
+  });
+}
+
 function toggleBooking(bookingId) {
   const att     = document.getElementById(`att-${bookingId}`);
   const chevron = document.getElementById(`chevron-${bookingId}`);
@@ -1153,9 +1215,11 @@ function renderGuestList() {
                 b.tickets.some(t => t.name && t.name.toLowerCase().includes(q));
     if (!mq) return false;
     // Apply type filters
-    if (glFilter === 'thu')        return b.eventDay === 'Thu' || b.eventDay === 'All';
-    if (glFilter === 'fri')        return b.eventDay === 'Fri' || b.eventDay === 'All';
-    if (glFilter === 'sat')        return b.eventDay === 'Sat' || b.eventDay === 'All';
+    // Dynamic event filter
+    if (glFilter.startsWith('event:')) {
+      const evId = glFilter.replace('event:', '');
+      return b.source === 'mec' ? b._eventId === evId : true;
+    }
     if (glFilter === 'vip')        return b.tickets.some(t => t.isVip);
     if (glFilter === 'comp')       return b.isComp;
     if (glFilter === 'tm')         return b.isTM;
@@ -1211,20 +1275,25 @@ function renderGuestList() {
         ${t.checkedIn ? '<span class="gl-att-in">✓</span>' : ''}
       </div>`).join('');
 
+    const admitBtnHtml = allIn 
+      ? '' 
+      : `<button onclick="event.stopPropagation();quickAdmit('${b.bookingId}')" style="background:var(--ok);color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;font-family:inherit;flex-shrink:0;-webkit-tap-highlight-color:transparent;">✓ Admit</button>`;
+
     return `<div class="gl-booking" id="bk-${b.bookingId}">
-      <div class="gl-item${allIn?' checked-in':''}" onclick="toggleBooking('${b.bookingId}')">
+      <div class="gl-item${allIn?' checked-in':''}" onclick="toggleBooking('${b.bookingId}')" style="cursor:pointer;">
         <div class="gl-avatar ${avCls}">${avTxt}</div>
         <div class="gl-info">
-          <div class="gl-name">${b.name} <span style="font-size:12px;font-weight:600;color:var(--muted);">${total > 1 ? '('+admitted+'/'+total+')' : ''}</span></div>
+          <div class="gl-name" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span>${b.name}</span>
+            ${total > 1 ? `<span style="font-size:12px;font-weight:600;color:var(--muted);">(${admitted}/${total})</span>` : ''}
+            ${admitBtnHtml}
+          </div>
           <div class="gl-ticket">${b.eventDay&&b.eventDay!=='All'?'<span style="font-weight:800;color:var(--navy);margin-right:4px;">'+b.eventDay+'</span>':''}${b.eventTitle||''}</div>
         </div>
         <div class="gl-badges">${badges}<span style="color:var(--muted);font-size:16px;margin-left:4px;" id="chevron-${b.bookingId}">›</span></div>
       </div>
       <div class="gl-attendees hidden" id="att-${b.bookingId}">
         ${subRows}
-        <div style="padding:10px 16px;">
-          <button onclick="openDrawer('${b.bookingId}')" style="background:var(--ok);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;font-family:inherit;width:100%;">✓ Admit Next</button>
-        </div>
       </div>
     </div>`;
   }).join('');
