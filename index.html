@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v4.5</title>
+<title>FD Door Scanner v4.7</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v4.5</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v4.7</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -599,6 +599,7 @@ input::placeholder { color: #999; }
 let cfg      = { siteUrl:'', wcKey:'', wcSecret:'', mecKey:'', demo:false };
 let guestMap   = {};  // orderNumber/mec-key → guest (individual)
 let bookingMap = {};  // bookingId → { name, email, tickets:[], source }
+let invoiceMap = {};  // invoiceId → booking (for QR lookup)
 let emailMap   = {};  // email lower → guest
 let idMap      = {};  // wc order id → guest
 let scanLog  = [];
@@ -919,6 +920,8 @@ async function fetchMecAttendees(events) {
         tickets:     [],
         source:      'mec'
       };
+      // Also index by invoice ID for QR code lookup
+      if (g._invoiceId) invoiceMap[g._invoiceId] = bookingMap[bid];
     }
     bookingMap[bid].tickets.push({
       key:          `${bid}-${g._attendeeKey}`,
@@ -936,7 +939,7 @@ async function fetchMecAttendees(events) {
 
 async function loadGuestList() {
   document.getElementById('gl-list').innerHTML = '<div class="gl-loading"><span class="spin"></span>&nbsp; Loading…</div>';
-  guestMap = {}; bookingMap = {}; emailMap = {}; idMap = {};
+  guestMap = {}; bookingMap = {}; invoiceMap = {}; emailMap = {}; idMap = {};
   if (cfg.demo) { loadDemoGuests(); renderGuestList(); updateGLStats(); return; }
   try {
     // 1. Fetch upcoming MEC events
@@ -1597,14 +1600,29 @@ async function lookupTicket(code) {
               ...(mecGuest.isVip ? [{ label:'VIP', cls:'vip' }] : [])
             ]);
             updateStats();
-            // Update guest list if order is loaded
+            // Update bookingMap — find booking by invoice ID using invoiceMap
+            const invoiceId = mecGuest._invoiceID || mecGuest.orderNumber;
+            const place      = mecGuest._place;
+            const booking    = invoiceMap[invoiceId] || bookingMap[invoiceId];
+            if (booking) {
+              // Find the specific ticket by attendee key (place number)
+              const ticket = booking.tickets.find(t => 
+                String(t.attendeeKey) === String(place) || 
+                String(t.attendeeKey) === String(parseInt(place) - 1)
+              ) || booking.tickets.find(t => !t.checkedIn); // fallback to next unchecked
+              if (ticket) {
+                ticket.checkedIn = true;
+                console.log(`Marked ${booking.name} ticket ${ticket.attendeeKey} as checked in`);
+              }
+              renderGuestList(); updateGLStats();
+            }
+            // Also update guestMap if present
             if (guestMap[mecGuest.orderNumber]) {
               const g = guestMap[mecGuest.orderNumber];
               if (!g.checkedInTickets.includes(code)) {
                 g.checkedInTickets.push(code);
                 g.checkedIn = g.checkedInTickets.length >= g.qty;
               }
-              renderGuestList(); updateGLStats();
             }
           }
         }
@@ -1844,8 +1862,27 @@ async function mecLookupAndCheckin(code) {
 
     const name = [attendee.first_name || '', attendee.last_name || ''].join(' ').trim() 
                || attendee.name || parsed.email || 'Guest';
-    const ticketName = attendee.ticket_name || attendee.ticket || attendee.type || 'MEC Ticket';
-    const checkedIn  = !!(attendee.checked_in || attendee.status === 'checked_in');
+    
+    // Get ticket name — try attendee field first, then look up from booking's event tickets
+    let ticketName = attendee.ticket_name || attendee.ticket_label || attendee.type || '';
+    if (!ticketName && attendee.ticket_id) {
+      // Look up ticket name from the booking in bookingMap
+      const bk = bookingMap[parsed.invoiceID];
+      if (bk) {
+        const t = bk.tickets.find(t => String(t.attendeeKey) === String(parsed.place));
+        if (t) ticketName = t.ticketName;
+      }
+      // Or look up from upcomingEvents ticket list
+      if (!ticketName) {
+        for (const ev of upcomingEvents) {
+          const evTicket = (ev.tickets || []).find(t => String(t.id) === String(attendee.ticket_id));
+          if (evTicket) { ticketName = evTicket.name; break; }
+        }
+      }
+    }
+    if (!ticketName) ticketName = 'MEC Ticket';
+    
+    const checkedIn  = !!(attendee.checked_in || attendee.checkin_status || attendee.status === 'checked_in');
     const ticketKey  = `${parsed.invoiceID}-${parsed.place || '0'}`;
 
     return {
