@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v3.5</title>
+<title>FD Door Scanner v3.6</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v3.5</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v3.6</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -1022,7 +1022,8 @@ async function fetchWooOrders() {
       const latest   = new Date(eventDates[eventDates.length - 1]);
       earliest.setFullYear(earliest.getFullYear() - 1); // 1 year before earliest event
       latest.setDate(latest.getDate() + 1); // day after latest event
-      const fmt = d => d.toISOString().split('T')[0];
+      // WC REST API needs ISO 8601 datetime format
+      const fmt = d => d.toISOString().replace('.000Z', '');
       dateParams = `&after=${fmt(earliest)}&before=${fmt(latest)}`;
       console.log(`WC date filter: ${fmt(earliest)} to ${fmt(latest)}`);
     }
