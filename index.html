@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v3.2</title>
+<title>FD Door Scanner v3.3</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v3.2</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v3.3</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -414,8 +414,12 @@ input::placeholder { color: #999; }
       <label>Consumer Secret</label>
       <input type="password" id="wc-secret" placeholder="cs_xxxxxxxxxxxx" autocomplete="off" spellcheck="false">
     </div>
+    <div class="field-group">
+      <label>MEC API Key</label>
+      <input type="password" id="mec-key" placeholder="MEC Utility API key" autocomplete="off" spellcheck="false">
+    </div>
     <div class="setup-note">
-      Generate keys in <strong>WooCommerce → Settings → Advanced → REST API</strong>. Set permissions to <em>Read</em>. Ticketmaster guests should be pre-imported as £0 completed orders before the event.
+      Generate WooCommerce keys in <strong>WooCommerce → Settings → Advanced → REST API</strong>. MEC API key from <strong>MEC → Settings → RESTful API</strong>.
     </div>
     <button class="btn-primary" onclick="connect()">Connect &amp; Load Guest List</button>
     <button class="btn-secondary" onclick="useDemoMode()">Try Demo Mode</button>
@@ -1137,12 +1141,6 @@ function renderGuestList() {
     if (glFilter === 'tm')         return b.isTM;
     if (glFilter === 'in')         return getBookingAdmittedCount(b) > 0;
     if (glFilter === 'pending')    return getBookingAdmittedCount(b) < b.tickets.length;
-    if (glFilter === 'thu')        return g.eventDay === 'Thu' || g.eventDay === 'All';
-    if (glFilter === 'fri')        return g.eventDay === 'Fri' || g.eventDay === 'All';
-    if (glFilter === 'sat')        return g.eventDay === 'Sat' || g.eventDay === 'All';
-    if (glFilter === 'vip')        return g.isVip;
-    if (glFilter === 'comp')       return g.isComp;
-    if (glFilter === 'tm')         return g.isTM;
     if (glFilter === 'artist')     return (b.tickets[0] && b.tickets[0].hostCategory||'').toLowerCase() === 'artist';
     if (glFilter === 'sponsor')    return (b.tickets[0] && b.tickets[0].hostCategory||'').toLowerCase() === 'sponsor';
     if (glFilter === 'influencer') return (b.tickets[0] && b.tickets[0].hostCategory||'').toLowerCase() === 'influencer';
