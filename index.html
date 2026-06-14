@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v2.1</title>
+<title>FD Door Scanner v2.5</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v2.1</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v2.5</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -484,6 +484,9 @@ input::placeholder { color: #999; }
   <div class="gl-toolbar">
     <input class="gl-search" type="text" id="gl-search" placeholder="Search by name…" oninput="renderGuestList()" autocomplete="off" autocorrect="off" autocapitalize="none">
     <button class="gl-refresh" onclick="refreshGuests()" title="Refresh">↻</button>
+  </div>
+  <div id="event-bar" style="display:none;padding:8px 14px;background:#fff;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;">
+    Showing next 10 days · <button onclick="showAllGuests()" style="background:none;border:none;color:var(--pink);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;">Show all</button>
   </div>
   <div class="gl-filter-bar">
     <button class="filter-pill active" onclick="setFilter('all',this)">All</button>
@@ -751,16 +754,54 @@ function disconnectReset() {
 // ═══════════════════════════════════════════
 //  WOOCOMMERCE
 // ═══════════════════════════════════════════
+// Upcoming MEC event names for filtering
+let upcomingEventNames = [];
+
+async function fetchUpcomingEvents() {
+  if (!cfg.mecKey || !cfg.siteUrl || cfg.demo) return;
+  try {
+    const now  = new Date();
+    const in10 = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
+    const fmt  = d => d.toISOString().split('T')[0];
+    const r = await fetch(
+      `${cfg.siteUrl}/wp-json/mec-utility/v1/events?date_filter=upcoming&start_date=${fmt(now)}&end_date=${fmt(in10)}&per_page=50&status=publish`,
+      { headers: { 'X-MEC-KEY': cfg.mecKey } }
+    );
+    if (!r.ok) return;
+    const data = await r.json();
+    const events = Array.isArray(data) ? data : (data.events || data.data || []);
+    upcomingEventNames = events.map(e => (e.title || e.name || '').toLowerCase());
+    console.log('Upcoming events found:', upcomingEventNames.length, upcomingEventNames);
+  } catch(e) {
+    console.warn('Could not fetch upcoming events:', e.message);
+  }
+}
+
+function isUpcomingGuest(g) {
+  if (showAll) return true;
+  if (upcomingEventNames.length === 0) return true; // no filter if MEC unavailable
+  const ticketLower = (g.ticketName || '').toLowerCase();
+  return upcomingEventNames.some(evName => {
+    const words = evName.split(' ').filter(w => w.length > 3);
+    return words.some(w => ticketLower.includes(w));
+  });
+}
+
 async function loadGuestList() {
   document.getElementById('gl-list').innerHTML = '<div class="gl-loading"><span class="spin"></span>&nbsp; Loading…</div>';
-  guestMap = {}; emailMap = {};
+  guestMap = {}; emailMap = {}; idMap = {};
   if (cfg.demo) { loadDemoGuests(); renderGuestList(); updateGLStats(); return; }
   try {
-    const guests = await fetchWooOrders();
-    guests.forEach(g => {
-      guestMap[g.orderNumber] = g;
-      if (g.email) emailMap[g.email] = g;
-    });
+    await Promise.all([
+      fetchUpcomingEvents(),
+      fetchWooOrders().then(guests => {
+        guests.forEach(g => {
+          guestMap[g.orderNumber] = g;
+          if (g.email) emailMap[g.email] = g;
+          idMap[g.id] = g;
+        });
+      })
+    ]);
     renderGuestList(); updateGLStats();
   } catch(e) {
     document.getElementById('gl-list').innerHTML =
@@ -846,6 +887,22 @@ async function refreshGuests() {
 // ═══════════════════════════════════════════
 //  RENDER GUEST LIST
 // ═══════════════════════════════════════════
+let showAll = false;
+
+function showAllGuests() {
+  showAll = true;
+  document.getElementById('event-bar').innerHTML = 
+    'Showing all guests · <button onclick="hideOldGuests()" style="background:none;border:none;color:var(--pink);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;">Next 10 days only</button>';
+  renderGuestList();
+}
+
+function hideOldGuests() {
+  showAll = false;
+  document.getElementById('event-bar').innerHTML = 
+    'Showing next 10 days · <button onclick="showAllGuests()" style="background:none;border:none;color:var(--pink);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;">Show all</button>';
+  renderGuestList();
+}
+
 function setFilter(f, el) {
   glFilter = f;
   document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
@@ -859,6 +916,8 @@ function renderGuestList() {
   const filtered = all.filter(g => {
     const mq = !q || g.name.toLowerCase().includes(q) || g.orderNumber.includes(q) || g.email.includes(q) || g.ticketName.toLowerCase().includes(q);
     if (!mq) return false;
+    // Only show guests for upcoming events (unless searching or filter active)
+    if (!q && glFilter === 'all' && !isUpcomingGuest(g)) return false;
     if (glFilter === 'thu')        return g.eventDay === 'Thu' || g.eventDay === 'All';
     if (glFilter === 'fri')        return g.eventDay === 'Fri' || g.eventDay === 'All';
     if (glFilter === 'sat')        return g.eventDay === 'Sat' || g.eventDay === 'All';
@@ -877,9 +936,13 @@ function renderGuestList() {
     return a.name.localeCompare(b.name);
   });
 
+  // Show/update event filter bar
+  const evBar = document.getElementById('event-bar');
+  if (evBar) evBar.style.display = upcomingEventNames.length > 0 ? 'block' : 'none';
+
   if (!filtered.length) {
     document.getElementById('gl-list').innerHTML =
-      `<div class="gl-empty">No guests match${q ? ` "<strong>${q}</strong>"` : ' this filter'}</div>`;
+      `<div class="gl-empty">No guests match${q ? ` "<strong>${q}</strong>"` : ' this filter'}${!showAll && upcomingEventNames.length > 0 ? '<br><small style="color:var(--muted)">Try tapping "Show all" above</small>' : ''}</div>`;
     return;
   }
 
@@ -1030,15 +1093,22 @@ function initCamera() {
     const backCam = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
     const deviceId = backCam ? backCam.deviceId : undefined;
 
-    codeReader.decodeFromVideoDevice(deviceId, 'qr-video', (result, err) => {
+    const hints = new Map();
+  // Only scan QR codes — ignore barcodes
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
+  codeReader.hints = hints;
+
+  codeReader.decodeFromVideoDevice(deviceId, 'qr-video', (result, err) => {
       if (result) {
+        // Only process QR codes
+        if (result.getBarcodeFormat && result.getBarcodeFormat() !== ZXing.BarcodeFormat.QR_CODE) return;
         const code = result.getText();
         const now = Date.now();
-        // Show debug bar so we can see what was scanned
+        // Show debug bar
         const dbg = document.getElementById('debug-bar');
         const dbgCode = document.getElementById('debug-code');
-        if (dbg && dbgCode) { dbg.style.display='block'; dbgCode.textContent = code; }
-        // Block if same code within 8 seconds OR if currently processing
+        if (dbg && dbgCode) { dbg.style.display='block'; dbgCode.textContent = code.length > 60 ? code.substring(0,60)+'…' : code; }
+        // Strict cooldown — block if processing OR same code within 8 seconds
         if (isScanning) return;
         if (code === lastCode && now - lastAt < 8000) return;
         lastCode = code; lastAt = now;
@@ -1241,21 +1311,59 @@ function checkTimeRestriction(ticketName, mecStartTime) {
 // ═══════════════════════════════════════════
 
 function parseMecQrUrl(code) {
-  // Handle full URL from QR code
+  // Handle full URL with parameters
   try {
-    let url;
     if (code.startsWith('http')) {
-      url = new URL(code);
-    } else {
-      // Try treating as query string
-      url = new URL('https://x.com/?' + code);
+      const url = new URL(code);
+      const invoiceID = url.searchParams.get('invoiceID');
+      const place     = url.searchParams.get('place');
+      const hash      = url.searchParams.get('Hash');
+      const email     = url.searchParams.get('checkIn');
+      if (invoiceID) return { invoiceID, place, hash, email, shortUrl: null };
+      
+      // Short URL format e.g. /invoice/stG.wC5G.J.WQ — return for redirect fetch
+      if (url.pathname.includes('/invoice/')) {
+        return { shortUrl: code, invoiceID: null, place: null, hash: null, email: null };
+      }
     }
+  } catch(e) {}
+  return null;
+}
+
+async function resolveShortUrl(shortUrl) {
+  // Fetch the short URL to get the full check-in URL with parameters
+  try {
+    const r = await fetch(shortUrl, { 
+      method: 'GET',
+      redirect: 'follow',
+      headers: { 'Accept': 'text/html' }
+    });
+    const finalUrl = r.url;  // URL after redirect
+    const url = new URL(finalUrl);
     const invoiceID = url.searchParams.get('invoiceID');
     const place     = url.searchParams.get('place');
     const hash      = url.searchParams.get('Hash');
     const email     = url.searchParams.get('checkIn');
-    if (invoiceID) return { invoiceID, place, hash, email };
-  } catch(e) {}
+    if (invoiceID) return { invoiceID, place, hash, email, shortUrl };
+    
+    // Also try to get from page HTML if params not in URL
+    const html = await r.text();
+    const invMatch   = html.match(/invoiceID[=\"':]+(\d+)/);
+    const placeMatch = html.match(/place[=\"':]+(\d+)/);
+    const hashMatch  = html.match(/Hash[=\"':]+([a-f0-9]+)/i);
+    const emailMatch = html.match(/checkIn[=\"':]+([^&\"'<\s]+)/);
+    if (invMatch) {
+      return {
+        invoiceID: invMatch[1],
+        place:     placeMatch ? placeMatch[1] : null,
+        hash:      hashMatch  ? hashMatch[1]  : null,
+        email:     emailMatch ? emailMatch[1] : null,
+        shortUrl
+      };
+    }
+  } catch(e) {
+    console.warn('Short URL resolve failed:', e.message);
+  }
   return null;
 }
 
@@ -1270,39 +1378,62 @@ function detectDay(ticketName) {
 async function mecLookupAndCheckin(code) {
   if (!cfg.mecKey || !cfg.siteUrl) return null;
 
-  const parsed = parseMecQrUrl(code);
+  let parsed = parseMecQrUrl(code);
   if (!parsed) return null;
 
+  // Resolve short URL if needed
+  if (parsed.shortUrl && !parsed.invoiceID) {
+    parsed = await resolveShortUrl(parsed.shortUrl);
+    if (!parsed) return null;
+  }
+
   try {
-    // GET invoice attendees to find the specific ticket
-    const r = await fetch(
-      `${cfg.siteUrl}/wp-json/mec-utility/v1/invoices/${parsed.invoiceID}/attendees`,
-      { headers: { 'X-MEC-KEY': cfg.mecKey } }
-    );
-    if (!r.ok) {
-      console.warn('MEC invoice attendees failed:', r.status);
-      return null;
+    // GET all invoice attendees with pagination
+    let attendees = [];
+    let page = 1;
+    while (true) {
+      const r = await fetch(
+        `${cfg.siteUrl}/wp-json/mec-utility/v1/invoices/${parsed.invoiceID}/attendees?per_page=100&page=${page}`,
+        { headers: { 'X-MEC-KEY': cfg.mecKey } }
+      );
+      if (!r.ok) {
+        console.warn('MEC invoice attendees failed:', r.status);
+        break;
+      }
+      const data = await r.json();
+      if (!data) break;
+      const batch = Array.isArray(data) ? data : (data.attendees || data.data || []);
+      if (!batch.length) break;
+      attendees = attendees.concat(batch);
+      // Check if there are more pages
+      const total = parseInt(r.headers.get('X-WP-Total') || r.headers.get('x-wp-total') || '0');
+      if (!total || attendees.length >= total) break;
+      page++;
     }
-    const data = await r.json();
-    if (!data) return null;
+
+    console.log(`MEC invoice ${parsed.invoiceID}: found ${attendees.length} attendees`);
 
     // Find the specific attendee by place number
-    // data may be array or object with attendees key
-    const attendees = Array.isArray(data) ? data : (data.attendees || data.data || []);
-    
-    // Find attendee matching place number
     let attendee = null;
-    if (parsed.place) {
+    if (parsed.place && attendees.length > 0) {
       attendee = attendees.find(a => 
-        String(a.place) === String(parsed.place) || 
+        String(a.place)        === String(parsed.place) || 
         String(a.ticket_place) === String(parsed.place) ||
-        String(a.index) === String(parseInt(parsed.place) - 1)
+        String(a.attendee_place) === String(parsed.place) ||
+        String(a.index)        === String(parseInt(parsed.place) - 1) ||
+        String(a.id)           === String(parsed.place)
       );
+      // If still not found, try by position in array
+      if (!attendee) {
+        const placeNum = parseInt(parsed.place);
+        if (!isNaN(placeNum) && placeNum > 0 && placeNum <= attendees.length) {
+          attendee = attendees[placeNum - 1];
+        }
+      }
     }
     // Fallback to first attendee if place not found
     if (!attendee && attendees.length > 0) attendee = attendees[0];
     if (!attendee) {
-      // Build a minimal guest from the URL params
       attendee = { email: parsed.email };
     }
 
@@ -1322,7 +1453,7 @@ async function mecLookupAndCheckin(code) {
       isTM: false, isComp: false,
       table: attendee.table || null,
       guestOf: null, hostCategory: null, guestNotes: null,
-      qty: attendees.length || 1,
+      qty: attendees.length || parseInt(parsed.place) || 1,
       checkedInTickets: checkedIn ? [ticketKey] : [],
       checkedIn,
       eventDay: detectDay(ticketName),
@@ -1344,7 +1475,10 @@ async function mecWriteCheckin(code, mecGuest) {
   if (!cfg.mecKey || !cfg.siteUrl) return;
   try {
     // Use invoice attendees check endpoint with the hash from QR
-    const parsed = parseMecQrUrl(code);
+    let parsed = parseMecQrUrl(code);
+    if (parsed && parsed.shortUrl && !parsed.invoiceID) {
+      parsed = await resolveShortUrl(parsed.shortUrl);
+    }
     if (parsed) {
       const r = await fetch(
         `${cfg.siteUrl}/wp-json/mec-utility/v1/invoices/${parsed.invoiceID}/attendees/check`,
