@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v1.8</title>
+<title>FD Door Scanner v1.9</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v1.8</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v1.9</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -434,6 +434,9 @@ input::placeholder { color: #999; }
   <div class="manual-bar">
     <input type="text" id="manual-input" placeholder="Order number, email or barcode…" autocomplete="off" autocorrect="off" autocapitalize="none">
     <button onclick="lookupManual()">Check</button>
+  </div>
+  <div id="debug-bar" style="padding:6px 14px;background:#FFF9C4;border-bottom:1px solid #E0D800;font-size:11px;color:#555;font-family:monospace;display:none;">
+    📷 Last scan: <span id="debug-code" style="font-weight:bold;color:#333;"></span>
   </div>
   <div id="result-area">
     <div class="result-card" id="result-card">
@@ -1027,6 +1030,10 @@ function initCamera() {
       if (result) {
         const code = result.getText();
         const now = Date.now();
+        // Show debug bar so we can see what was scanned
+        const dbg = document.getElementById('debug-bar');
+        const dbgCode = document.getElementById('debug-code');
+        if (dbg && dbgCode) { dbg.style.display='block'; dbgCode.textContent = code; }
         // Block if same code within 8 seconds OR if currently processing
         if (isScanning) return;
         if (code === lastCode && now - lastAt < 8000) return;
