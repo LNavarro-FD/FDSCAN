@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v2.5</title>
+<title>FD Door Scanner v2.6</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v2.5</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v2.6</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -815,15 +815,22 @@ async function fetchWooOrders() {
   const hdrs  = { 'Authorization': `Basic ${creds}` };
   let page = 1, all = [];
   while (true) {
-    const r = await fetch(`${base}?status=completed,processing,on-hold&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data`, { headers: hdrs });
+    const url = `${base}?status=completed,processing,on-hold&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data`;
+    console.log(`Fetching WC orders page ${page}:`, url);
+    const r = await fetch(url, { headers: hdrs });
     if (!r.ok) throw new Error(`WooCommerce API ${r.status} — check credentials`);
     const orders = await r.json();
+    console.log(`WC page ${page}: got ${orders.length} orders`);
     if (!orders.length) break;
     all = all.concat(orders);
-    const tot = parseInt(r.headers.get('X-WP-Total') || '0');
-    if (all.length >= tot) break;
+    // Check total pages from headers
+    const totalPages = parseInt(r.headers.get('X-WP-TotalPages') || r.headers.get('x-wp-totalpages') || '1');
+    const total      = parseInt(r.headers.get('X-WP-Total')      || r.headers.get('x-wp-total')      || '0');
+    console.log(`WC total: ${total} orders, ${totalPages} pages`);
+    if (page >= totalPages || !total || all.length >= total) break;
     page++;
   }
+  console.log(`WC fetch complete: ${all.length} total orders`);
   return all.map(parseOrder);
 }
 
