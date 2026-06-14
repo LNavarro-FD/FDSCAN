@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v1.9</title>
+<title>FD Door Scanner v2.0</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v1.9</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v2.0</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -699,6 +699,10 @@ function showSyncStatus(state) {
 // ═══════════════════════════════════════════
 function isTicketmasterCode(code) {
   const c = code.trim();
+  // Don't flag MEC QR URLs as Ticketmaster
+  if (c.includes('invoiceID') || c.includes('checkIn') || c.includes('Hash')) return false;
+  // Don't flag our own site URLs
+  if (c.includes(cfg.siteUrl)) return false;
   // Pure long numeric (TM barcode format) — 10+ digits with no letters
   if (/^\d{10,}$/.test(c)) return true;
   // TM QR often contains URLs or known TM identifiers
@@ -1105,7 +1109,7 @@ async function lookupTicket(code) {
             updateStats();
           } else {
             // Valid MEC ticket — write check-in
-            mecWriteCheckin(code);
+            mecWriteCheckin(code, mecGuest);
             vibrate([80]);
             addLog({ name:mecGuest.name, ticket:`${mecGuest.ticketName} (${code})`, status:'ok', code });
             stats.admitted++; stats.total++;
@@ -1232,104 +1236,27 @@ function checkTimeRestriction(ticketName, mecStartTime) {
 
 // ═══════════════════════════════════════════
 //  MEC UTILITY API
-//  Ticket format: {booking_id}-{attendee_key} e.g. 30554-O
+//  QR URL format:
+//  https://site.com/?invoiceID=30554&checkIn=email@x.com&place=12&Hash=abc123
 // ═══════════════════════════════════════════
 
-function parseMecTicketCode(code) {
-  // Split on last hyphen — booking_id is numeric, attendee_key is after
-  const match = code.match(/^(\d+)-(.+)$/);
-  if (!match) return null;
-  return { bookingId: match[1], attendeeKey: match[2] };
-}
-
-async function mecLookupAndCheckin(ticketCode) {
-  if (!cfg.mecKey || !cfg.siteUrl) return null;
-
-  const parsed = parseMecTicketCode(ticketCode);
-  if (!parsed) {
-    // Try qr/scan endpoint as fallback for unknown formats
-    return await mecQrScan(ticketCode);
-  }
-
+function parseMecQrUrl(code) {
+  // Handle full URL from QR code
   try {
-    // GET attendee details first
-    const r = await fetch(
-      `${cfg.siteUrl}/wp-json/mec-utility/v1/attendees/${parsed.bookingId}/${parsed.attendeeKey}`,
-      { headers: { 'X-MEC-KEY': cfg.mecKey, 'Authorization': `Bearer ${cfg.mecKey}` } }
-    );
-    if (!r.ok) return null;
-    const data = await r.json();
-    if (!data || data.code) return null;
-
-    // Normalise to our guest shape
-    const name = [data.first_name || data.name || '', data.last_name || ''].join(' ').trim() || 'Guest';
-    const ticketName = data.ticket_name || data.ticket || data.type || 'MEC Ticket';
-    const checkedIn = !!(data.checked_in || data.status === 'checked_in' || data.mec_checked_in);
-
-    return {
-      id: parsed.bookingId,
-      orderNumber: parsed.bookingId,
-      name,
-      email: (data.email || '').toLowerCase(),
-      ticketName,
-      isVip: /vip/i.test(ticketName),
-      isTM: false,
-      isComp: false,
-      table: data.table || null,
-      guestOf: null,
-      hostCategory: null,
-      guestNotes: null,
-      qty: 1,
-      checkedInTickets: checkedIn ? [ticketCode] : [],
-      checkedIn,
-      eventDay: data.event_day || detectDay(ticketName),
-      ticketStartTime: data.ticket_time_start || data.start_time || null,
-      _mecTicket: true,
-      _mecCode: ticketCode,
-      _bookingId: parsed.bookingId,
-      _attendeeKey: parsed.attendeeKey
-    };
-  } catch(e) {
-    console.warn('MEC attendee lookup failed:', e.message);
-    return await mecQrScan(ticketCode);
-  }
-}
-
-async function mecQrScan(ticketCode) {
-  // Fallback — use qr/scan endpoint
-  try {
-    const r = await fetch(`${cfg.siteUrl}/wp-json/mec-utility/v1/qr/scan`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-MEC-KEY': cfg.mecKey },
-      body: JSON.stringify({ qr_code: ticketCode, key: cfg.mecKey })
-    });
-    if (!r.ok) return null;
-    const data = await r.json();
-    if (!data || data.error || data.code) return null;
-    const name = [data.first_name || '', data.last_name || ''].join(' ').trim() || data.name || 'Guest';
-    const ticketName = data.ticket_name || data.ticket || 'MEC Ticket';
-    const checkedIn = !!(data.checked_in || data.status === 'checked_in');
-    return {
-      id: data.booking_id || ticketCode,
-      orderNumber: String(data.booking_id || ticketCode),
-      name,
-      email: (data.email || '').toLowerCase(),
-      ticketName,
-      isVip: /vip/i.test(ticketName),
-      isTM: false, isComp: false,
-      table: data.table || null,
-      guestOf: null, hostCategory: null, guestNotes: null,
-      qty: 1,
-      checkedInTickets: checkedIn ? [ticketCode] : [],
-      checkedIn,
-      eventDay: detectDay(ticketName),
-      ticketStartTime: null,
-      _mecTicket: true, _mecCode: ticketCode
-    };
-  } catch(e) {
-    console.warn('MEC QR scan failed:', e.message);
-    return null;
-  }
+    let url;
+    if (code.startsWith('http')) {
+      url = new URL(code);
+    } else {
+      // Try treating as query string
+      url = new URL('https://x.com/?' + code);
+    }
+    const invoiceID = url.searchParams.get('invoiceID');
+    const place     = url.searchParams.get('place');
+    const hash      = url.searchParams.get('Hash');
+    const email     = url.searchParams.get('checkIn');
+    if (invoiceID) return { invoiceID, place, hash, email };
+  } catch(e) {}
+  return null;
 }
 
 function detectDay(ticketName) {
@@ -1340,26 +1267,99 @@ function detectDay(ticketName) {
   return 'All';
 }
 
-async function mecWriteCheckin(ticketCode) {
-  if (!cfg.mecKey || !cfg.siteUrl) return;
-  const parsed = parseMecTicketCode(ticketCode);
+async function mecLookupAndCheckin(code) {
+  if (!cfg.mecKey || !cfg.siteUrl) return null;
+
+  const parsed = parseMecQrUrl(code);
+  if (!parsed) return null;
+
   try {
+    // GET invoice attendees to find the specific ticket
+    const r = await fetch(
+      `${cfg.siteUrl}/wp-json/mec-utility/v1/invoices/${parsed.invoiceID}/attendees`,
+      { headers: { 'X-MEC-KEY': cfg.mecKey } }
+    );
+    if (!r.ok) {
+      console.warn('MEC invoice attendees failed:', r.status);
+      return null;
+    }
+    const data = await r.json();
+    if (!data) return null;
+
+    // Find the specific attendee by place number
+    // data may be array or object with attendees key
+    const attendees = Array.isArray(data) ? data : (data.attendees || data.data || []);
+    
+    // Find attendee matching place number
+    let attendee = null;
+    if (parsed.place) {
+      attendee = attendees.find(a => 
+        String(a.place) === String(parsed.place) || 
+        String(a.ticket_place) === String(parsed.place) ||
+        String(a.index) === String(parseInt(parsed.place) - 1)
+      );
+    }
+    // Fallback to first attendee if place not found
+    if (!attendee && attendees.length > 0) attendee = attendees[0];
+    if (!attendee) {
+      // Build a minimal guest from the URL params
+      attendee = { email: parsed.email };
+    }
+
+    const name = [attendee.first_name || '', attendee.last_name || ''].join(' ').trim() 
+               || attendee.name || parsed.email || 'Guest';
+    const ticketName = attendee.ticket_name || attendee.ticket || attendee.type || 'MEC Ticket';
+    const checkedIn  = !!(attendee.checked_in || attendee.status === 'checked_in');
+    const ticketKey  = `${parsed.invoiceID}-${parsed.place || '0'}`;
+
+    return {
+      id: parsed.invoiceID,
+      orderNumber: String(parsed.invoiceID),
+      name,
+      email: (attendee.email || parsed.email || '').toLowerCase(),
+      ticketName,
+      isVip: /vip/i.test(ticketName),
+      isTM: false, isComp: false,
+      table: attendee.table || null,
+      guestOf: null, hostCategory: null, guestNotes: null,
+      qty: attendees.length || 1,
+      checkedInTickets: checkedIn ? [ticketKey] : [],
+      checkedIn,
+      eventDay: detectDay(ticketName),
+      ticketStartTime: attendee.start_time || null,
+      _mecTicket: true,
+      _mecCode: code,
+      _invoiceID: parsed.invoiceID,
+      _place: parsed.place,
+      _hash: parsed.hash,
+      _ticketKey: ticketKey
+    };
+  } catch(e) {
+    console.warn('MEC lookup failed:', e.message);
+    return null;
+  }
+}
+
+async function mecWriteCheckin(code, mecGuest) {
+  if (!cfg.mecKey || !cfg.siteUrl) return;
+  try {
+    // Use invoice attendees check endpoint with the hash from QR
+    const parsed = parseMecQrUrl(code);
     if (parsed) {
-      // Use attendee checkin endpoint
-      await fetch(
-        `${cfg.siteUrl}/wp-json/mec-utility/v1/attendees/${parsed.bookingId}/${parsed.attendeeKey}/checkin`,
+      const r = await fetch(
+        `${cfg.siteUrl}/wp-json/mec-utility/v1/invoices/${parsed.invoiceID}/attendees/check`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-MEC-KEY': cfg.mecKey }
+          headers: { 'Content-Type': 'application/json', 'X-MEC-KEY': cfg.mecKey },
+          body: JSON.stringify({ 
+            place: parsed.place,
+            hash: parsed.hash,
+            email: parsed.email,
+            invoice_id: parsed.invoiceID
+          })
         }
       );
-    } else {
-      // Fallback to qr/scan
-      await fetch(`${cfg.siteUrl}/wp-json/mec-utility/v1/qr/scan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-MEC-KEY': cfg.mecKey },
-        body: JSON.stringify({ qr_code: ticketCode, key: cfg.mecKey, checkin: true })
-      });
+      if (!r.ok) console.warn('MEC checkin write status:', r.status);
     }
   } catch(e) {
     console.warn('MEC check-in write failed:', e.message);
