@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>FD Door Scanner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root {
+  --pink:  #FF4B7B;
+  --navy:  #22224C;
+  --lpink: #F2B2E5;
+  --white: #FFFFFF;
+  --ok:    #00A85A;
+  --err:   #D0000A;
+  --warn:  #C06000;
+  --gold:  #8A6800;
+  --tm:    #0050B3;
+  --bg:    #F4F4F6;
+  --card:  #FFFFFF;
+  --text:  #0A0A0A;
+  --muted: #444444;
+  --border:#CCCCCC;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Futura','Century Gothic','Trebuchet MS',sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+#app { display: flex; flex-direction: column; height: 100dvh; }
+.hidden { display: none !important; }
+.screen { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Header ── */
+header {
+  flex-shrink: 0;
+  background: var(--navy);
+  padding: 12px 18px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 2px solid var(--pink);
+}
+.brand-name { font-size: 17px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--pink); line-height: 1; }
+.brand-sub  { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: #fff; opacity: .75; margin-top: 3px; }
+.hdr-right  { text-align: right; font-size: 11px; color: #fff; opacity: .8; }
+.hdr-right strong { display: block; font-size: 22px; font-weight: 900; color: #fff; opacity: 1; line-height: 1; }
+
+/* ── Setup screen ── */
+#setup-screen { padding: 28px 22px; gap: 20px; overflow-y: auto; }
+.setup-title {
+  font-size: 13px; font-weight: 800; letter-spacing: .15em;
+  text-transform: uppercase; color: var(--text); margin-bottom: 2px;
+}
+.field-group { display: flex; flex-direction: column; gap: 8px; }
+label { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text); }
+input[type=text], input[type=password], input[type=url] {
+  background: var(--white);
+  border: 2px solid var(--border);
+  border-radius: 10px; padding: 14px 15px;
+  font-size: 16px; color: var(--text);
+  font-family: inherit; width: 100%; outline: none; -webkit-appearance: none;
+  transition: border-color .2s;
+}
+input:focus { border-color: var(--pink); }
+input::placeholder { color: #999; }
+.btn-primary {
+  background: var(--pink); color: #fff; border: none; border-radius: 12px;
+  padding: 18px; font-size: 15px; font-weight: 800; letter-spacing: .1em;
+  text-transform: uppercase; width: 100%; cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-primary:active { opacity: .85; transform: scale(.98); }
+.btn-secondary {
+  background: transparent; color: var(--text);
+  border: 2px solid var(--border); border-radius: 12px;
+  padding: 14px; font-size: 13px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; width: 100%; cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-secondary:active { opacity: .7; }
+.setup-note {
+  font-size: 13px; color: var(--muted); line-height: 1.7;
+  padding: 12px 14px; background: #fff;
+  border-radius: 8px; border-left: 3px solid var(--pink);
+}
+
+/* ── Bottom nav ── */
+.bottom-nav {
+  flex-shrink: 0; display: flex;
+  border-top: 2px solid var(--border);
+  background: var(--white);
+  padding-bottom: env(safe-area-inset-bottom, 6px);
+}
+.nav-btn {
+  flex: 1; background: none; border: none; padding: 11px 6px 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; font-family: inherit; color: #888;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent; transition: color .15s;
+}
+.nav-btn.active { color: var(--pink); }
+.nav-icon { font-size: 20px; line-height: 1; }
+
+/* ── Camera ── */
+.cam-wrap { position: relative; flex-shrink: 0; height: 44vw; max-height: 280px; overflow: hidden; background: #000; }
+#qr-reader { width: 100%; height: 100%; position: absolute; inset: 0; }
+#qr-reader video { width: 100%!important; height: 100%!important; object-fit: cover; display: block; }
+#qr-reader img { display: none!important; }
+#qr-reader > div:first-child, #qr-reader__dashboard { display: none!important; }
+.scan-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+.scan-frame {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%); width: 50%; aspect-ratio: 1;
+}
+.scan-frame::before,.scan-frame::after,
+.scan-frame > span::before,.scan-frame > span::after {
+  content: ''; position: absolute; width: 22px; height: 22px;
+  border-color: var(--pink); border-style: solid;
+}
+.scan-frame::before          { top:0;left:0;     border-width:3px 0 0 3px; }
+.scan-frame::after           { top:0;right:0;    border-width:3px 3px 0 0; }
+.scan-frame > span::before   { bottom:0;left:0;  border-width:0 0 3px 3px; }
+.scan-frame > span::after    { bottom:0;right:0; border-width:0 3px 3px 0; }
+.scan-line {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%,-50%);
+  width: 46%; height: 2px;
+  background: linear-gradient(90deg,transparent,var(--pink),transparent);
+  animation: scanline 2s ease-in-out infinite;
+}
+@keyframes scanline {
+  0%,100% { transform:translate(-50%,-50%) translateY(-44px); opacity:0; }
+  20%,80%  { opacity:1; }
+  50%      { transform:translate(-50%,-50%) translateY(44px); }
+}
+
+/* ── Manual bar ── */
+.manual-bar {
+  display: flex; gap: 8px; padding: 10px 14px;
+  background: var(--white); flex-shrink: 0;
+  border-bottom: 2px solid var(--border);
+}
+.manual-bar input {
+  flex: 1; background: var(--bg); border: 2px solid var(--border);
+  border-radius: 8px; padding: 11px 13px; font-size: 15px; color: var(--text);
+  font-family: inherit; outline: none;
+}
+.manual-bar input:focus { border-color: var(--pink); }
+.manual-bar input::placeholder { color: #999; }
+.manual-bar button {
+  background: var(--pink); border: none; border-radius: 8px; padding: 11px 16px;
+  font-size: 13px; font-weight: 800; color: #fff; font-family: inherit;
+  letter-spacing: .06em; text-transform: uppercase; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Result area ── */
+#result-area { flex: 1; overflow-y: auto; padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 12px; background: var(--bg); }
+
+.result-card {
+  border-radius: 14px; padding: 18px;
+  display: flex; gap: 14px; align-items: flex-start;
+  border: 2px solid var(--border);
+  background: var(--card);
+}
+.result-card.ok   { background: #E6F9EF; border-color: var(--ok); }
+.result-card.err  { background: #FDE8E8; border-color: var(--err); }
+.result-card.warn { background: #FEF3E2; border-color: var(--warn); }
+.result-card.tm   { background: #E6F0FF; border-color: var(--tm); }
+
+.rc-icon   { font-size: 34px; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+.rc-body   { flex: 1; min-width: 0; }
+.rc-status { font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; margin-bottom: 5px; color: var(--muted); }
+.ok   .rc-status { color: var(--ok); }
+.err  .rc-status { color: var(--err); }
+.warn .rc-status { color: var(--warn); }
+.tm   .rc-status { color: var(--tm); }
+.rc-name   { font-size: 22px; font-weight: 900; line-height: 1.1; color: var(--text); }
+.rc-detail { font-size: 13px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+
+/* ── Ticketmaster confirm buttons ── */
+.tm-actions { display: flex; gap: 10px; }
+.tm-admit {
+  flex: 1; background: var(--ok); color: #fff; border: none; border-radius: 10px;
+  padding: 15px; font-size: 14px; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.tm-reject {
+  flex: 1; background: #fff; color: var(--err); border: 2px solid var(--err);
+  border-radius: 10px; padding: 15px; font-size: 14px; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.tm-admit:active  { opacity: .85; }
+.tm-reject:active { opacity: .85; }
+
+/* ── Entitlement banner ── */
+.ent-banner {
+  border-radius: 12px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 13px; flex-shrink: 0;
+}
+.ent-banner.std { background: #fff; border: 2px solid var(--border); }
+.ent-banner.vip { background: #FFFBE6; border: 2px solid #C89500; }
+.eb-icon  { font-size: 28px; }
+.eb-title { font-size: 14px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--text); }
+.vip .eb-title { color: #7A5500; }
+.eb-items { font-size: 13px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+.vip .eb-items { color: #7A5500; }
+
+/* ── Chips ── */
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip {
+  background: #fff; border: 2px solid var(--border);
+  border-radius: 20px; padding: 6px 13px; font-size: 12px; font-weight: 700; color: var(--text);
+}
+.chip.hi  { background: #FFF0F4; border-color: var(--pink); color: #C0004A; }
+.chip.tm  { background: #E6F0FF; border-color: var(--tm); color: var(--tm); }
+.chip.vip { background: #FFFBE6; border-color: #C89500; color: #7A5500; }
+
+/* ── Scan log ── */
+.log-hdr  { display: flex; align-items: center; justify-content: space-between; }
+.log-label { font-size: 11px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); }
+.log-clear { font-size: 11px; font-weight: 700; color: var(--pink); background: none; border: none; cursor: pointer; font-family: inherit; letter-spacing: .08em; text-transform: uppercase; padding: 4px; }
+.log-list  { list-style: none; display: flex; flex-direction: column; gap: 5px; max-height: 150px; overflow-y: auto; margin-top: 8px; }
+.log-item  { display: flex; align-items: center; gap: 9px; font-size: 12px; padding: 8px 12px; border-radius: 8px; background: var(--white); border: 1px solid var(--border); }
+.log-dot   { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.log-dot.ok   { background: var(--ok); }
+.log-dot.err  { background: var(--err); }
+.log-dot.warn { background: var(--warn); }
+.log-dot.tm   { background: var(--tm); }
+.log-name { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.log-sub  { font-size: 11px; color: var(--muted); font-weight: 400; }
+.log-time { color: #888; font-size: 10px; flex-shrink: 0; }
+
+@keyframes pulse-ok  { 0%{box-shadow:0 0 0 0 rgba(0,200,117,.6)}  70%{box-shadow:0 0 0 16px rgba(0,200,117,0)}  100%{box-shadow:0 0 0 0 rgba(0,200,117,0)} }
+@keyframes pulse-err { 0%{box-shadow:0 0 0 0 rgba(255,59,48,.6)}   70%{box-shadow:0 0 0 16px rgba(255,59,48,0)}   100%{box-shadow:0 0 0 0 rgba(255,59,48,0)} }
+@keyframes pulse-tm  { 0%{box-shadow:0 0 0 0 rgba(2,108,223,.6)}   70%{box-shadow:0 0 0 16px rgba(2,108,223,0)}   100%{box-shadow:0 0 0 0 rgba(2,108,223,0)} }
+.pulse-ok  { animation: pulse-ok  .7s ease-out; }
+.pulse-err { animation: pulse-err .7s ease-out; }
+.pulse-tm  { animation: pulse-tm  .7s ease-out; }
+
+/* ── Guest list ── */
+#guests-screen { display: flex; flex-direction: column; overflow: hidden; }
+.gl-toolbar {
+  flex-shrink: 0; padding: 12px 14px; display: flex; gap: 8px; align-items: center;
+  border-bottom: 2px solid var(--border); background: var(--white);
+}
+.gl-search {
+  flex: 1; background: var(--bg); border: 2px solid var(--border);
+  border-radius: 9px; padding: 11px 13px; font-size: 15px; color: var(--text);
+  font-family: inherit; outline: none; -webkit-appearance: none;
+}
+.gl-search:focus { border-color: var(--pink); }
+.gl-search::placeholder { color: #999; }
+.gl-refresh {
+  background: var(--bg); border: 2px solid var(--border);
+  border-radius: 9px; padding: 10px 14px; color: var(--text); font-size: 20px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; line-height: 1;
+}
+.gl-filter-bar {
+  flex-shrink: 0; display: flex; gap: 7px; padding: 9px 14px;
+  overflow-x: auto; border-bottom: 1px solid var(--border);
+  scrollbar-width: none; background: var(--white);
+}
+.gl-filter-bar::-webkit-scrollbar { display: none; }
+.filter-pill {
+  flex-shrink: 0; background: var(--bg); border: 2px solid var(--border);
+  border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 700;
+  color: var(--muted);
+  cursor: pointer; -webkit-tap-highlight-color: transparent; white-space: nowrap; font-family: inherit;
+}
+.filter-pill.active { background: var(--pink); border-color: var(--pink); color: #fff; }
+
+.gl-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--bg); }
+.gl-count { padding: 8px 16px; font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--white); }
+.gl-item {
+  display: flex; align-items: center; gap: 13px;
+  padding: 13px 16px; border-bottom: 1px solid var(--border);
+  cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .1s;
+  background: var(--white);
+}
+.gl-item:active { background: var(--bg); }
+.gl-item.checked-in { opacity: .45; }
+.gl-avatar {
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 900;
+  background: #FFD6E3; color: #C0004A;
+}
+.gl-avatar.vip     { background: #FFF3B0; color: #7A5500; }
+.gl-avatar.checked { background: #C8F5E0; color: #006B38; font-size: 20px; }
+.gl-avatar.tm      { background: #D6E8FF; color: #0050B3; }
+.gl-info  { flex: 1; min-width: 0; }
+.gl-name  { font-size: 15px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gl-ticket { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gl-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+.badge {
+  font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 20px;
+}
+.badge.vip  { background: #FFF3B0; color: #7A5500;  border: 1.5px solid #C89500; }
+.badge.comp { background: #FFD6E3; color: #C0004A;  border: 1.5px solid var(--pink); }
+.badge.tm   { background: #D6E8FF; color: #0050B3;  border: 1.5px solid #0050B3; }
+.badge.in   { background: #C8F5E0; color: #006B38;  border: 1.5px solid var(--ok); }
+
+.gl-empty   { text-align: center; padding: 48px 24px; color: var(--muted); font-size: 14px; line-height: 1.8; }
+.gl-loading { text-align: center; padding: 40px; color: var(--muted); font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+
+/* ── Guest drawer ── */
+#guest-drawer { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; justify-content: flex-end; }
+.drawer-scrim { position: absolute; inset: 0; background: rgba(0,0,0,.5); }
+.drawer-panel {
+  position: relative; z-index: 1; background: var(--white);
+  border-radius: 20px 20px 0 0; padding: 20px 20px 40px;
+  display: flex; flex-direction: column; gap: 16px;
+  max-height: 82vh; overflow-y: auto;
+  box-shadow: 0 -8px 40px rgba(0,0,0,.2);
+}
+.drawer-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 0 auto 4px; }
+.drawer-name   { font-size: 26px; font-weight: 900; color: var(--text); line-height: 1.1; }
+.drawer-ticket { font-size: 14px; color: var(--muted); margin-top: 5px; }
+.drawer-ent    { border-radius: 12px; padding: 16px; }
+.drawer-ent.std { background: var(--bg); border: 2px solid var(--border); }
+.drawer-ent.vip { background: #FFFBE6; border: 2px solid #C89500; }
+.drawer-ent.tm  { background: #E6F0FF; border: 2px solid #0050B3; }
+.drawer-ent-title { font-size: 12px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; margin-bottom: 12px; color: var(--muted); }
+.vip .drawer-ent-title  { color: #7A5500; }
+.tm-dr .drawer-ent-title { color: #0050B3; }
+.ent-row { display: flex; align-items: center; gap: 11px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.ent-row:last-child { border-bottom: none; }
+.ent-icon  { font-size: 22px; width: 30px; text-align: center; }
+.ent-label { flex: 1; font-size: 14px; color: var(--text); font-weight: 600; }
+.ent-val   { font-size: 13px; color: var(--muted); }
+.vip .ent-val { color: #7A5500; font-weight: 700; }
+.drawer-order { font-size: 12px; color: #999; letter-spacing: .04em; }
+.drawer-close { background: var(--bg); border: 2px solid var(--border); border-radius: 10px; padding: 15px; font-size: 14px; font-weight: 700; color: var(--text); font-family: inherit; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; width: 100%; }
+.drawer-admit {
+  background: var(--ok); color: #fff; border: none; border-radius: 10px;
+  padding: 16px; font-size: 14px; font-weight: 800; letter-spacing: .08em;
+  text-transform: uppercase; cursor: pointer; font-family: inherit; width: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Stats ── */
+#stats-screen { overflow-y: auto; background: var(--bg); }
+.stats-inner  { padding: 20px 16px; display: flex; flex-direction: column; gap: 16px; flex: 1; }
+.stat-grid    { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+.stat-card    { background: var(--white); border: 2px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
+.stat-card.accent { border-color: var(--pink); }
+.stat-num     { font-size: 36px; font-weight: 900; line-height: 1; color: var(--text); }
+.stat-card.accent .stat-num { color: var(--pink); }
+.stat-lbl     { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+
+/* ── Settings ── */
+#settings-screen { overflow-y: auto; background: var(--bg); }
+.settings-inner { padding: 22px 18px; display: flex; flex-direction: column; gap: 18px; flex: 1; }
+
+/* spinner */
+.spin { display: inline-block; width: 18px; height: 18px; border: 2px solid #ddd; border-top-color: var(--pink); border-radius: 50%; animation: _spin .7s linear infinite; vertical-align: middle; }
+@keyframes _spin { to { transform: rotate(360deg); } }
+
+/* sync dot */
+.sync-dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:#555; transition:background .4s; flex-shrink:0; }
+.sync-dot.ok      { background: #00C875; }
+.sync-dot.offline { background: #FF9500; animation: pulse-warn 1.5s ease-in-out infinite; }
+@keyframes pulse-warn { 0%,100%{opacity:1} 50%{opacity:.4} }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- HEADER -->
+<header id="main-header" class="hidden">
+  <div>
+    <div class="brand-name">Funky Dory</div>
+    <div class="brand-sub">Door Scanner · HRR 2026</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span id="sync-dot" class="sync-dot" title="Sync status"></span>
+    <div class="hdr-right">
+      <strong id="hdr-count">0</strong>
+      admitted
+    </div>
+  </div>
+</header>
+
+<!-- SETUP -->
+<div id="setup-screen" class="screen" style="display:flex;">
+  <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
+    <div>
+      <div class="brand-name" style="font-size:24px;">Funky Dory</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · HRR 2026</div>
+    </div>
+    <div class="setup-title" style="margin-top:8px;">Connect to WooCommerce</div>
+    <div class="field-group">
+      <label>WordPress Site URL</label>
+      <input type="url" id="site-url" placeholder="https://funkydorylove.co.uk" autocomplete="off" autocapitalize="none" spellcheck="false">
+    </div>
+    <div class="field-group">
+      <label>Consumer Key</label>
+      <input type="text" id="wc-key" placeholder="ck_xxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="field-group">
+      <label>Consumer Secret</label>
+      <input type="password" id="wc-secret" placeholder="cs_xxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="setup-note">
+      Generate keys in <strong>WooCommerce → Settings → Advanced → REST API</strong>. Set permissions to <em>Read</em>. Ticketmaster guests should be pre-imported as £0 completed orders before the event.
+    </div>
+    <button class="btn-primary" onclick="connect()">Connect &amp; Load Guest List</button>
+    <button class="btn-secondary" onclick="useDemoMode()">Try Demo Mode</button>
+  </div>
+</div>
+
+<!-- SCAN TAB -->
+<div id="scan-screen" class="screen hidden">
+  <div class="cam-wrap">
+    <div id="qr-reader"></div>
+    <div class="scan-overlay">
+      <div class="scan-frame"><span></span></div>
+      <div class="scan-line"></div>
+    </div>
+  </div>
+  <div class="manual-bar">
+    <input type="text" id="manual-input" placeholder="Order number, email or barcode…" autocomplete="off" autocorrect="off" autocapitalize="none">
+    <button onclick="lookupManual()">Check</button>
+  </div>
+  <div id="result-area">
+    <div class="result-card" id="result-card">
+      <div class="rc-icon">🎟️</div>
+      <div class="rc-body">
+        <div class="rc-status">Ready</div>
+        <div class="rc-name">Scan a ticket</div>
+        <div class="rc-detail">Point camera at QR code, or type an order number or email below</div>
+      </div>
+    </div>
+    <!-- Ticketmaster manual confirm — hidden until TM scan -->
+    <div class="tm-actions hidden" id="tm-actions">
+      <button class="tm-admit"  onclick="admitTM()">✓ Admit</button>
+      <button class="tm-reject" onclick="rejectTM()">✕ Reject</button>
+    </div>
+    <!-- Entitlement banner -->
+    <div class="ent-banner std hidden" id="ent-banner">
+      <div class="eb-icon">🎽</div>
+      <div class="eb-body">
+        <div class="eb-title">Wristband</div>
+        <div class="eb-items" id="ent-items"></div>
+      </div>
+    </div>
+    <!-- Chips -->
+    <div class="chips hidden" id="result-chips"></div>
+    <!-- Log -->
+    <div>
+      <div class="log-hdr">
+        <span class="log-label">Recent scans</span>
+        <button class="log-clear" onclick="clearLog()">Clear</button>
+      </div>
+      <ul class="log-list" id="scan-log"></ul>
+    </div>
+  </div>
+  <nav class="bottom-nav">
+    <button class="nav-btn active" onclick="showTab('scan')"><span class="nav-icon">📷</span>Scan</button>
+    <button class="nav-btn" onclick="showTab('guests')"><span class="nav-icon">👥</span>Guests</button>
+    <button class="nav-btn" onclick="showTab('stats')"><span class="nav-icon">📊</span>Stats</button>
+    <button class="nav-btn" onclick="showTab('settings')"><span class="nav-icon">⚙️</span>Settings</button>
+  </nav>
+</div>
+
+<!-- GUEST LIST TAB -->
+<div id="guests-screen" class="screen hidden">
+  <div class="gl-toolbar">
+    <input class="gl-search" type="text" id="gl-search" placeholder="Search name, order, email…" oninput="renderGuestList()" autocomplete="off" autocorrect="off" autocapitalize="none">
+    <button class="gl-refresh" onclick="refreshGuests()" title="Refresh">↻</button>
+  </div>
+  <div class="gl-filter-bar">
+    <button class="filter-pill active" onclick="setFilter('all',this)">All</button>
+    <button class="filter-pill" onclick="setFilter('vip',this)">⭐ VIP</button>
+    <button class="filter-pill" onclick="setFilter('comp',this)">🎁 Comp</button>
+    <button class="filter-pill" onclick="setFilter('tm',this)">🎫 Ticketmaster</button>
+    <button class="filter-pill" onclick="setFilter('in',this)">✓ In</button>
+    <button class="filter-pill" onclick="setFilter('pending',this)">⏳ Not yet</button>
+  </div>
+  <div id="gl-list" class="gl-list">
+    <div class="gl-loading"><span class="spin"></span>&nbsp; Loading…</div>
+  </div>
+  <nav class="bottom-nav">
+    <button class="nav-btn" onclick="showTab('scan')"><span class="nav-icon">📷</span>Scan</button>
+    <button class="nav-btn active" onclick="showTab('guests')"><span class="nav-icon">👥</span>Guests</button>
+    <button class="nav-btn" onclick="showTab('stats')"><span class="nav-icon">📊</span>Stats</button>
+    <button class="nav-btn" onclick="showTab('settings')"><span class="nav-icon">⚙️</span>Settings</button>
+  </nav>
+</div>
+
+<!-- GUEST DETAIL DRAWER -->
+<div id="guest-drawer" class="hidden" onclick="closeDrawer(event)">
+  <div class="drawer-scrim"></div>
+  <div class="drawer-panel">
+    <div class="drawer-handle"></div>
+    <div>
+      <div class="drawer-name" id="dr-name"></div>
+      <div class="drawer-ticket" id="dr-ticket"></div>
+    </div>
+    <div class="drawer-ent std" id="dr-ent">
+      <div class="drawer-ent-title" id="dr-ent-title"></div>
+      <div id="dr-ent-rows"></div>
+    </div>
+    <div class="drawer-order" id="dr-order"></div>
+    <button class="drawer-admit hidden" id="dr-admit-btn" onclick="admitFromDrawer()">✓ Mark as Admitted</button>
+    <button class="drawer-close" onclick="closeDrawer()">Close</button>
+  </div>
+</div>
+
+<!-- STATS TAB -->
+<div id="stats-screen" class="screen hidden">
+  <div style="padding:20px 16px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;flex:1;background:var(--bg);">
+    <div class="setup-title">This session</div>
+    <div class="stat-grid">
+      <div class="stat-card accent"><div class="stat-num" id="st-admitted">0</div><div class="stat-lbl">Admitted</div></div>
+      <div class="stat-card"><div class="stat-num" id="st-total">0</div><div class="stat-lbl">Total scans</div></div>
+      <div class="stat-card"><div class="stat-num" id="st-dupe">0</div><div class="stat-lbl">Duplicates</div></div>
+      <div class="stat-card"><div class="stat-num" id="st-invalid">0</div><div class="stat-lbl">Rejected</div></div>
+    </div>
+    <div class="setup-title">Guest list</div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-num" id="st-gl-total">—</div><div class="stat-lbl">Total guests</div></div>
+      <div class="stat-card"><div class="stat-num" id="st-gl-vip">—</div><div class="stat-lbl">VIP</div></div>
+      <div class="stat-card"><div class="stat-num" id="st-gl-comp">—</div><div class="stat-lbl">Comps</div></div>
+      <div class="stat-card accent"><div class="stat-num" id="st-gl-in">—</div><div class="stat-lbl">Checked in</div></div>
+    </div>
+    <div class="log-hdr"><span class="log-label">Full scan log</span></div>
+    <ul class="log-list" id="full-log" style="max-height:none;"></ul>
+  </div>
+  <nav class="bottom-nav">
+    <button class="nav-btn" onclick="showTab('scan')"><span class="nav-icon">📷</span>Scan</button>
+    <button class="nav-btn" onclick="showTab('guests')"><span class="nav-icon">👥</span>Guests</button>
+    <button class="nav-btn active" onclick="showTab('stats')"><span class="nav-icon">📊</span>Stats</button>
+    <button class="nav-btn" onclick="showTab('settings')"><span class="nav-icon">⚙️</span>Settings</button>
+  </nav>
+</div>
+
+<!-- SETTINGS TAB -->
+<div id="settings-screen" class="screen hidden">
+  <div style="padding:22px 18px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;flex:1;background:var(--bg);">
+    <div class="setup-title">WooCommerce Connection</div>
+    <div class="field-group"><label>Site URL</label><input type="url" id="s-url" autocomplete="off" autocapitalize="none"></div>
+    <div class="field-group"><label>Consumer Key</label><input type="text" id="s-key" autocomplete="off"></div>
+    <div class="field-group"><label>Consumer Secret</label><input type="password" id="s-secret" autocomplete="off"></div>
+    <button class="btn-primary" onclick="saveSettings()">Save &amp; Reload Guest List</button>
+    <button class="btn-secondary" onclick="disconnectReset()">Disconnect &amp; Reset</button>
+    <div class="setup-note">
+      <strong>Ticketmaster guests:</strong> import into WooCommerce as £0 completed orders before the event. Add "Ticketmaster" to the product name and the app will flag them automatically when their name is searched.<br><br>
+      <strong>VIP:</strong> detected when product name contains "VIP".<br>
+      <strong>Comps:</strong> any completed order with a £0 total.
+    </div>
+  </div>
+  <nav class="bottom-nav">
+    <button class="nav-btn" onclick="showTab('scan')"><span class="nav-icon">📷</span>Scan</button>
+    <button class="nav-btn" onclick="showTab('guests')"><span class="nav-icon">👥</span>Guests</button>
+    <button class="nav-btn" onclick="showTab('stats')"><span class="nav-icon">📊</span>Stats</button>
+    <button class="nav-btn active" onclick="showTab('settings')"><span class="nav-icon">⚙️</span>Settings</button>
+  </nav>
+</div>
+
+</div><!-- /app -->
+<script>
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let cfg      = { siteUrl:'', wcKey:'', wcSecret:'', demo:false };
+let guestMap = {};   // orderNumber → guest
+let emailMap = {};   // email lower → guest
+let idMap    = {};   // wc order id → guest
+let scanLog  = [];
+let stats    = { admitted:0, total:0, dupe:0, invalid:0 };
+let glFilter = 'all';
+let scanner  = null;
+let lastCode = ''; let lastAt = 0; let isScanning = false;
+let pendingTMCode = null;
+let drawerOrderNum = null;
+let syncTimer    = null;
+let offlineQueue = [];
+let isSyncing    = false;
+const SYNC_INTERVAL = 3000;
+const META_KEY = '_fd_checked_in';
+
+// ═══════════════════════════════════════════
+//  SYNC ENGINE
+// ═══════════════════════════════════════════
+async function writeCheckIn(orderId) {
+  if (cfg.demo) return true;
+  try {
+    const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
+    const r = await fetch(`${cfg.siteUrl}/wp-json/wc/v3/orders/${orderId}`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Basic ${creds}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ meta_data: [{ key: META_KEY, value: '1' }] })
+    });
+    if (!r.ok) throw new Error(`Write failed ${r.status}`);
+    return true;
+  } catch(e) {
+    console.warn('Check-in write failed, queuing:', e.message);
+    offlineQueue.push(orderId);
+    showSyncStatus('offline');
+    return false;
+  }
+}
+
+async function syncCheckedIn() {
+  if (cfg.demo || isSyncing || !Object.keys(guestMap).length) return;
+  isSyncing = true;
+  try {
+    const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
+    const r = await fetch(
+      `${cfg.siteUrl}/wp-json/wc/v3/orders?status=completed&per_page=100&meta_key=${META_KEY}&meta_value=1&_fields=id,number`,
+      { headers: { 'Authorization': `Basic ${creds}` } }
+    );
+    if (!r.ok) throw new Error(`Sync ${r.status}`);
+    const checked = await r.json();
+    let changed = false;
+    checked.forEach(o => {
+      const g = guestMap[String(o.number)] || idMap[o.id];
+      if (g && !g.checkedIn) { g.checkedIn = true; changed = true; }
+    });
+    // Flush offline queue
+    if (offlineQueue.length) {
+      const toFlush = [...offlineQueue]; offlineQueue = [];
+      for (const id of toFlush) { await writeCheckIn(id); }
+    }
+    if (changed) { renderGuestList(); updateGLStats(); updateStats(); }
+    showSyncStatus('ok');
+  } catch(e) {
+    showSyncStatus('offline');
+  } finally {
+    isSyncing = false;
+  }
+}
+
+function startSync() {
+  if (syncTimer) clearInterval(syncTimer);
+  syncTimer = setInterval(syncCheckedIn, SYNC_INTERVAL);
+  syncCheckedIn();
+}
+
+function showSyncStatus(state) {
+  const el = document.getElementById('sync-dot');
+  if (!el) return;
+  el.className = 'sync-dot ' + state;
+}
+
+// ═══════════════════════════════════════════
+//  TICKETMASTER DETECTION
+//  TM barcodes: long numeric strings (13-18 digits), or start with known prefixes
+// ═══════════════════════════════════════════
+function isTicketmasterCode(code) {
+  const c = code.trim();
+  // Pure long numeric (TM barcode format) — 10+ digits with no letters
+  if (/^\d{10,}$/.test(c)) return true;
+  // TM QR often contains URLs or known TM identifiers
+  if (/ticketmaster|livenation|tm\d{6}/i.test(c)) return true;
+  // TM may encode as alphanumeric with specific lengths
+  if (/^[A-Z0-9]{16,}$/.test(c) && !/^(ck_|cs_)/.test(c)) return true;
+  return false;
+}
+
+// ═══════════════════════════════════════════
+//  SETUP
+// ═══════════════════════════════════════════
+function connect() {
+  const url    = document.getElementById('site-url').value.trim().replace(/\/$/,'');
+  const key    = document.getElementById('wc-key').value.trim();
+  const secret = document.getElementById('wc-secret').value.trim();
+  if (!url||!key||!secret) { alert('Please fill in all three fields.'); return; }
+  cfg = { siteUrl:url, wcKey:key, wcSecret:secret, demo:false };
+  saveConfig(); launch();
+}
+function useDemoMode() { cfg = { siteUrl:'', wcKey:'', wcSecret:'', demo:true }; launch(); }
+function launch() {
+  document.getElementById('setup-screen').classList.add('hidden');
+  document.getElementById('main-header').classList.remove('hidden');
+  showTab('scan');
+  loadGuestList().then(() => startSync());
+  initCamera();
+}
+function saveConfig() { localStorage.setItem('fd_cfg', JSON.stringify(cfg)); }
+function saveSettings() {
+  cfg.siteUrl  = document.getElementById('s-url').value.trim().replace(/\/$/,'');
+  cfg.wcKey    = document.getElementById('s-key').value.trim();
+  cfg.wcSecret = document.getElementById('s-secret').value.trim();
+  cfg.demo     = false;
+  saveConfig(); loadGuestList(); showTab('guests');
+}
+function disconnectReset() {
+  if (!confirm('Reset and disconnect?')) return;
+  localStorage.clear();
+  if (scanner) { try { scanner.stop(); } catch(e){} }
+  location.reload();
+}
+
+// ═══════════════════════════════════════════
+//  WOOCOMMERCE
+// ═══════════════════════════════════════════
+async function loadGuestList() {
+  document.getElementById('gl-list').innerHTML = '<div class="gl-loading"><span class="spin"></span>&nbsp; Loading…</div>';
+  guestMap = {}; emailMap = {};
+  if (cfg.demo) { loadDemoGuests(); renderGuestList(); updateGLStats(); return; }
+  try {
+    const guests = await fetchWooOrders();
+    guests.forEach(g => {
+      guestMap[g.orderNumber] = g;
+      if (g.email) emailMap[g.email] = g;
+    });
+    renderGuestList(); updateGLStats();
+  } catch(e) {
+    document.getElementById('gl-list').innerHTML =
+      `<div class="gl-empty">⚠️ Could not load guest list<br><small style="opacity:.5">${e.message}</small></div>`;
+  }
+}
+
+async function fetchWooOrders() {
+  const base  = `${cfg.siteUrl}/wp-json/wc/v3/orders`;
+  const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
+  const hdrs  = { 'Authorization': `Basic ${creds}` };
+  let page = 1, all = [];
+  while (true) {
+    const r = await fetch(`${base}?status=completed&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data`, { headers: hdrs });
+    if (!r.ok) throw new Error(`WooCommerce API ${r.status} — check credentials`);
+    const orders = await r.json();
+    if (!orders.length) break;
+    all = all.concat(orders);
+    const tot = parseInt(r.headers.get('X-WP-Total') || '0');
+    if (all.length >= tot) break;
+    page++;
+  }
+  return all.map(parseOrder);
+}
+
+function parseOrder(o) {
+  const item       = o.line_items && o.line_items[0];
+  const ticketName = item ? item.name : 'Ticket';
+  const isVip      = /vip/i.test(ticketName);
+  const isTM       = /ticketmaster/i.test(ticketName);
+  const isComp     = parseFloat(o.total) === 0;
+  const allMeta    = [...(o.meta_data||[]), ...(item&&item.meta_data?item.meta_data:[])];
+  const tableMeta  = allMeta.find(m => /table/i.test(m.key));
+  const table      = tableMeta ? tableMeta.value : null;
+  const name       = [o.billing.first_name, o.billing.last_name].filter(Boolean).join(' ') || 'Guest';
+  const checkedIn = !!(o.meta_data && o.meta_data.find(m => m.key === META_KEY && m.value === '1'));
+  const guest = { id:o.id, orderNumber:String(o.number), name, email:(o.billing.email||'').toLowerCase(), ticketName, isVip, isTM, isComp, table, checkedIn };
+  idMap[o.id] = guest;
+  return guest;
+}
+
+async function fetchSingleOrder(code) {
+  const clean = code.replace(/^#/,'').trim();
+  const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
+  const r = await fetch(
+    `${cfg.siteUrl}/wp-json/wc/v3/orders?number=${encodeURIComponent(clean)}&status=completed&_fields=id,number,status,billing,line_items,total,meta_data`,
+    { headers: { 'Authorization': `Basic ${creds}` } }
+  );
+  if (!r.ok) throw new Error(`WC API ${r.status}`);
+  const orders = await r.json();
+  return orders.length ? parseOrder(orders[0]) : null;
+}
+
+async function refreshGuests() {
+  const btn = document.querySelector('.gl-refresh');
+  btn.style.opacity = '.4';
+  await loadGuestList();
+  btn.style.opacity = '1';
+}
+
+// ═══════════════════════════════════════════
+//  RENDER GUEST LIST
+// ═══════════════════════════════════════════
+function setFilter(f, el) {
+  glFilter = f;
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  renderGuestList();
+}
+
+function renderGuestList() {
+  const q = (document.getElementById('gl-search').value || '').toLowerCase();
+  const all = Object.values(guestMap);
+  const filtered = all.filter(g => {
+    const mq = !q || g.name.toLowerCase().includes(q) || g.orderNumber.includes(q) || g.email.includes(q) || g.ticketName.toLowerCase().includes(q);
+    if (!mq) return false;
+    if (glFilter === 'vip')     return g.isVip;
+    if (glFilter === 'comp')    return g.isComp;
+    if (glFilter === 'tm')      return g.isTM;
+    if (glFilter === 'in')      return g.checkedIn;
+    if (glFilter === 'pending') return !g.checkedIn;
+    return true;
+  }).sort((a,b) => {
+    if (a.isVip && !b.isVip) return -1;
+    if (!a.isVip && b.isVip) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  if (!filtered.length) {
+    document.getElementById('gl-list').innerHTML =
+      `<div class="gl-empty">No guests match${q ? ` "<strong>${q}</strong>"` : ' this filter'}</div>`;
+    return;
+  }
+
+  const countHTML = `<div class="gl-count">${filtered.length} guest${filtered.length!==1?'s':''}</div>`;
+  const rows = filtered.map(g => {
+    const initials = g.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const avCls    = g.checkedIn ? 'checked' : g.isTM ? 'tm' : g.isVip ? 'vip' : '';
+    const avTxt    = g.checkedIn ? '✓' : initials;
+    const badges   = [
+      g.isVip  ? '<span class="badge vip">⭐ VIP</span>'          : '',
+      g.isTM   ? '<span class="badge tm">🎫 TM</span>'            : '',
+      g.isComp && !g.isTM ? '<span class="badge comp">Comp</span>': '',
+      g.checkedIn ? '<span class="badge in">In ✓</span>'          : '',
+    ].filter(Boolean).join('');
+    return `<div class="gl-item${g.checkedIn?' checked-in':''}" onclick="openDrawer('${g.orderNumber}')">
+      <div class="gl-avatar ${avCls}">${avTxt}</div>
+      <div class="gl-info">
+        <div class="gl-name">${g.name}</div>
+        <div class="gl-ticket">${g.ticketName}${g.table?' · Table '+g.table:''}</div>
+      </div>
+      <div class="gl-badges">${badges}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('gl-list').innerHTML = countHTML + rows;
+}
+
+// ═══════════════════════════════════════════
+//  GUEST DRAWER
+// ═══════════════════════════════════════════
+function openDrawer(orderNum) {
+  const g = guestMap[orderNum];
+  if (!g) return;
+  drawerOrderNum = orderNum;
+
+  document.getElementById('dr-name').textContent   = g.name;
+  document.getElementById('dr-ticket').textContent = g.ticketName + (g.checkedIn ? ' · Checked in ✓' : '');
+  document.getElementById('dr-order').textContent  = `Order #${g.orderNumber}${g.email?' · '+g.email:''}`;
+
+  const entEl   = document.getElementById('dr-ent');
+  const titleEl = document.getElementById('dr-ent-title');
+  const rowsEl  = document.getElementById('dr-ent-rows');
+  const admitBtn = document.getElementById('dr-admit-btn');
+
+  if (g.isTM) {
+    entEl.className   = 'drawer-ent tm tm-dr';
+    titleEl.textContent = 'Ticketmaster — verify ticket visually';
+    rowsEl.innerHTML  = `
+      <div class="ent-row"><span class="ent-icon">🎫</span><span class="ent-label">Check Ticketmaster app / printout matches this name</span></div>
+      <div class="ent-row"><span class="ent-icon">🎽</span><span class="ent-label">Wristband</span><span class="ent-val">${g.isVip?'VIP band':'Standard'}</span></div>
+      ${g.isVip ? `<div class="ent-row"><span class="ent-icon">🍽️</span><span class="ent-label">Food tokens</span><span class="ent-val">Issue now</span></div>` : ''}
+      ${g.table ? `<div class="ent-row"><span class="ent-icon">🪑</span><span class="ent-label">Table</span><span class="ent-val">${g.table}</span></div>` : ''}
+    `;
+  } else if (g.isVip) {
+    entEl.className   = 'drawer-ent vip';
+    titleEl.textContent = 'VIP Entitlements';
+    rowsEl.innerHTML  = `
+      <div class="ent-row"><span class="ent-icon">🎽</span><span class="ent-label">Wristband</span><span class="ent-val">VIP band</span></div>
+      <div class="ent-row"><span class="ent-icon">🍽️</span><span class="ent-label">Food tokens</span><span class="ent-val">Issue now</span></div>
+      ${g.table ? `<div class="ent-row"><span class="ent-icon">🪑</span><span class="ent-label">Allocated table</span><span class="ent-val">${g.table}</span></div>` : ''}
+    `;
+  } else {
+    entEl.className   = 'drawer-ent std';
+    titleEl.textContent = 'Entitlements';
+    rowsEl.innerHTML  = `
+      <div class="ent-row"><span class="ent-icon">🎽</span><span class="ent-label">Wristband</span><span class="ent-val">Standard</span></div>
+    `;
+  }
+
+  // Show manual admit button if not yet checked in
+  if (!g.checkedIn) {
+    admitBtn.classList.remove('hidden');
+    admitBtn.textContent = '✓ Mark as Admitted';
+  } else {
+    admitBtn.classList.add('hidden');
+  }
+
+  document.getElementById('guest-drawer').classList.remove('hidden');
+}
+
+function admitFromDrawer() {
+  const g = guestMap[drawerOrderNum];
+  if (!g || g.checkedIn) return;
+  g.checkedIn = true;
+  writeCheckIn(g.id);
+  addLog({ name:g.name, ticket:g.ticketName, status:'ok', note:'Manual' });
+  stats.admitted++; stats.total++;
+  document.getElementById('hdr-count').textContent = stats.admitted;
+  updateStats(); updateGLStats(); renderGuestList();
+  document.getElementById('dr-admit-btn').classList.add('hidden');
+  document.getElementById('dr-ticket').textContent = g.ticketName + ' · Checked in ✓';
+  vibrate([80]);
+}
+
+function closeDrawer(e) {
+  if (e && !e.target.classList.contains('drawer-scrim') && e.target.id !== 'guest-drawer' && !e.target.classList.contains('drawer-close')) return;
+  document.getElementById('guest-drawer').classList.add('hidden');
+  drawerOrderNum = null;
+}
+
+// ═══════════════════════════════════════════
+//  CAMERA
+// ═══════════════════════════════════════════
+function initCamera() {
+  scanner = new Html5Qrcode('qr-reader');
+  const onCode = code => {
+    const now = Date.now();
+    if (code === lastCode && now - lastAt < 3000) return;
+    lastCode = code; lastAt = now;
+    lookupTicket(code);
+  };
+  scanner.start({ facingMode:'environment' }, { fps:10, qrbox:{width:200,height:200}, aspectRatio:1 }, onCode, ()=>{})
+    .catch(() => scanner.start({ facingMode:'environment' }, { fps:10 }, onCode, ()=>{}).catch(e => console.warn('Camera:', e)));
+}
+
+// ═══════════════════════════════════════════
+//  LOOKUP
+// ═══════════════════════════════════════════
+function lookupManual() {
+  const v = document.getElementById('manual-input').value.trim();
+  if (!v) return;
+  lookupTicket(v);
+  document.getElementById('manual-input').value = '';
+}
+document.addEventListener('keydown', e => {
+  if (e.key==='Enter' && document.activeElement===document.getElementById('manual-input')) lookupManual();
+});
+
+async function lookupTicket(code) {
+  if (isScanning) return;
+  isScanning = true;
+
+  // Reset UI
+  document.getElementById('ent-banner').classList.add('hidden');
+  document.getElementById('result-chips').classList.add('hidden');
+  document.getElementById('tm-actions').classList.add('hidden');
+  pendingTMCode = null;
+
+  setResult('','⏳','Checking…','');
+
+  try {
+    // 1. Check if it looks like a Ticketmaster barcode
+    if (isTicketmasterCode(code)) {
+      handleTMScan(code);
+      isScanning = false;
+      return;
+    }
+
+    // 2. Try to resolve in guest map
+    const guest = resolveGuest(code);
+    if (guest) { handleGuest(guest, code); isScanning = false; return; }
+
+    // 3. Not in local map — try WC API directly
+    if (!cfg.demo) {
+      const g = await fetchSingleOrder(code);
+      if (g) {
+        guestMap[g.orderNumber] = g;
+        if (g.email) emailMap[g.email] = g;
+        renderGuestList(); updateGLStats();
+        handleGuest(g, code); isScanning = false; return;
+      }
+    }
+
+    // 4. Not found anywhere
+    rejectCode(code, 'Not found in guest list');
+
+  } catch(err) {
+    setResult('err','⚠️','Connection error', err.message || 'Check connection');
+  } finally {
+    isScanning = false;
+  }
+}
+
+function resolveGuest(code) {
+  const clean = code.replace(/^#/,'').trim();
+  return guestMap[clean] || guestMap[code] || emailMap[code.toLowerCase()] || null;
+}
+
+// ── Ticketmaster flow ───────────────────────
+function handleTMScan(code) {
+  pendingTMCode = code;
+  vibrate([100,50,100]);
+  setResult('tm','🎫','Ticketmaster Ticket','Verify the name on their app or printout matches the guest list, then admit or reject.');
+  document.getElementById('tm-actions').classList.remove('hidden');
+  showChips([{ label:'Ticketmaster', cls:'tm' }]);
+  // Pulse
+  const card = document.getElementById('result-card');
+  card.classList.add('pulse-tm');
+  setTimeout(() => card.classList.remove('pulse-tm'), 700);
+}
+
+function admitTM() {
+  if (!pendingTMCode) return;
+  vibrate([80]);
+  addLog({ name:'TM Guest', ticket:'Ticketmaster', status:'ok', note:'Manual verify' });
+  stats.admitted++; stats.total++;
+  document.getElementById('hdr-count').textContent = stats.admitted;
+  document.getElementById('tm-actions').classList.add('hidden');
+  setResult('ok','✓','Ticketmaster — Admitted','Wristband issued', true);
+  showEnt({ isVip:false, isTM:true, table:null });
+  updateStats();
+  pendingTMCode = null;
+}
+
+function rejectTM() {
+  if (!pendingTMCode) return;
+  vibrate([400]);
+  addLog({ name:'TM Guest', ticket:'Ticketmaster', status:'err', note:'Rejected by staff' });
+  stats.invalid++; stats.total++;
+  document.getElementById('tm-actions').classList.add('hidden');
+  setResult('err','✗','Ticketmaster — Rejected','Ticket not admitted');
+  updateStats();
+  pendingTMCode = null;
+}
+
+// ── WooCommerce guest flow ──────────────────
+function handleGuest(g, code) {
+  if (g.checkedIn) {
+    vibrate([200,80,200]);
+    addLog({ name:g.name, ticket:g.ticketName, status:'warn', code });
+    stats.dupe++; stats.total++;
+    setResult('warn','⚠️', g.name, 'Already checked in');
+    showEnt(g);
+    showChips([{ label:g.ticketName, cls:'' }, { label:'DUPLICATE', cls:'hi' }]);
+    updateStats();
+    return;
+  }
+  g.checkedIn = true;
+  writeCheckIn(g.id);  // write to WC — async, non-blocking
+  vibrate([80]);
+  addLog({ name:g.name, ticket:g.ticketName, status:'ok', code });
+  stats.admitted++; stats.total++;
+  document.getElementById('hdr-count').textContent = stats.admitted;
+  setResult('ok','✓', g.name, g.ticketName, true);
+  showEnt(g);
+  const chips = [{ label:g.ticketName, cls:'' }];
+  if (g.isVip)  chips.push({ label:'VIP', cls:'vip' });
+  if (g.isComp) chips.push({ label:'Comp', cls:'hi' });
+  if (g.isTM)   chips.push({ label:'Ticketmaster', cls:'tm' });
+  showChips(chips);
+  updateStats(); updateGLStats(); renderGuestList();
+}
+
+function rejectCode(code, msg) {
+  vibrate([500]);
+  addLog({ name:'Unknown', ticket:code, status:'err' });
+  stats.invalid++; stats.total++;
+  setResult('err','✗','Invalid ticket', msg);
+  updateStats();
+}
+
+// ─── UI helpers ────────────────────────────
+function setResult(state, icon, name, detail, pulse) {
+  const el = document.getElementById('result-card');
+  el.className = 'result-card' + (state==='ok'?' ok':state==='err'?' err':state==='warn'?' warn':state==='tm'?' tm':'');
+  if (pulse) {
+    el.classList.add('pulse-ok');
+    setTimeout(() => el.classList.remove('pulse-ok'), 700);
+  }
+  el.querySelector('.rc-icon').textContent   = icon;
+  el.querySelector('.rc-status').textContent = state==='ok'?'Admitted':state==='err'?'Rejected':state==='warn'?'Already In':state==='tm'?'Ticketmaster':'';
+  el.querySelector('.rc-name').textContent   = name;
+  el.querySelector('.rc-detail').textContent = detail;
+}
+
+function showEnt(g) {
+  const el    = document.getElementById('ent-banner');
+  const items = document.getElementById('ent-items');
+  if (g.isVip) {
+    el.className = 'ent-banner vip';
+    el.querySelector('.eb-icon').textContent  = '⭐';
+    el.querySelector('.eb-title').textContent = 'VIP — Issue now:';
+    items.innerHTML = `🎽 Wristband &nbsp;·&nbsp; 🍽️ Food tokens${g.table?' &nbsp;·&nbsp; 🪑 Table '+g.table:''}`;
+  } else {
+    el.className = 'ent-banner std';
+    el.querySelector('.eb-icon').textContent  = '🎽';
+    el.querySelector('.eb-title').textContent = 'Wristband';
+    items.textContent = 'Standard wristband';
+  }
+  el.classList.remove('hidden');
+}
+
+function showChips(chips) {
+  const el = document.getElementById('result-chips');
+  if (!chips||!chips.length) { el.classList.add('hidden'); return; }
+  el.innerHTML = chips.map(c => `<span class="chip ${c.cls||''}">${c.label}</span>`).join('');
+  el.classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════
+//  LOG
+// ═══════════════════════════════════════════
+function addLog(e) {
+  e.time = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  scanLog.unshift(e);
+  renderLogs();
+}
+function renderLogs() {
+  const row = e => `<li class="log-item">
+    <span class="log-dot ${e.status}"></span>
+    <span class="log-name">${e.name} <span class="log-sub">${e.ticket||''}${e.note?' ('+e.note+')':''}</span></span>
+    <span class="log-time">${e.time}</span>
+  </li>`;
+  document.getElementById('scan-log').innerHTML = scanLog.slice(0,6).map(row).join('');
+  document.getElementById('full-log').innerHTML = scanLog.map(row).join('');
+}
+function clearLog() {
+  if (!confirm('Clear scan log?')) return;
+  scanLog = []; renderLogs();
+}
+
+// ═══════════════════════════════════════════
+//  STATS
+// ═══════════════════════════════════════════
+function updateStats() {
+  document.getElementById('st-admitted').textContent = stats.admitted;
+  document.getElementById('st-total').textContent    = stats.total;
+  document.getElementById('st-dupe').textContent     = stats.dupe;
+  document.getElementById('st-invalid').textContent  = stats.invalid;
+  document.getElementById('hdr-count').textContent   = stats.admitted;
+}
+function updateGLStats() {
+  const all = Object.values(guestMap);
+  document.getElementById('st-gl-total').textContent = all.length;
+  document.getElementById('st-gl-vip').textContent   = all.filter(g=>g.isVip).length;
+  document.getElementById('st-gl-comp').textContent  = all.filter(g=>g.isComp).length;
+  document.getElementById('st-gl-in').textContent    = all.filter(g=>g.checkedIn).length;
+}
+
+// ═══════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════
+function showTab(tab) {
+  ['scan','guests','stats','settings'].forEach(t => document.getElementById(t+'-screen').classList.add('hidden'));
+  document.getElementById(tab+'-screen').classList.remove('hidden');
+  if (tab==='stats') renderLogs();
+}
+
+// ═══════════════════════════════════════════
+//  DEMO DATA
+// ═══════════════════════════════════════════
+function loadDemoGuests() {
+  const demo = [
+    { id:1, orderNumber:'1001', name:'Sophie Marchetti',  email:'sophie@example.com',  ticketName:'VIP Weekend Pass',            isVip:true,  isTM:false, isComp:false, table:'Table 4', checkedIn:false },
+    { id:2, orderNumber:'1002', name:'James Whitfield',   email:'james@example.com',   ticketName:'General Admission — Thu',     isVip:false, isTM:false, isComp:false, table:null,      checkedIn:false },
+    { id:3, orderNumber:'1003', name:'Cressida Baxter',   email:'cress@example.com',   ticketName:'VIP Saturday',                isVip:true,  isTM:false, isComp:false, table:'Table 1', checkedIn:false },
+    { id:4, orderNumber:'1004', name:'Tom Hargreaves',    email:'tom@example.com',     ticketName:'General Admission — Fri',     isVip:false, isTM:false, isComp:false, table:null,      checkedIn:true  },
+    { id:5, orderNumber:'1005', name:'Allegra Fontaine',  email:'allegra@example.com', ticketName:'VIP Weekend Pass',            isVip:true,  isTM:false, isComp:false, table:'Table 2', checkedIn:false },
+    { id:6, orderNumber:'1006', name:'Ronnie Herel',      email:'ronnie@example.com',  ticketName:'Complimentary — Staff',       isVip:false, isTM:false, isComp:true,  table:null,      checkedIn:false },
+    { id:7, orderNumber:'1007', name:'Caroline Daniels',  email:'caro@example.com',    ticketName:'Complimentary — VIP Guest',   isVip:true,  isTM:false, isComp:true,  table:'Table 3', checkedIn:false },
+    { id:8, orderNumber:'1008', name:'Marcus Reid',       email:'marcus@example.com',  ticketName:'Ticketmaster — General',      isVip:false, isTM:true,  isComp:true,  table:null,      checkedIn:false },
+    { id:9, orderNumber:'1009', name:'Priya Nair',        email:'priya@example.com',   ticketName:'Ticketmaster — VIP Weekend',  isVip:true,  isTM:true,  isComp:true,  table:'Table 6', checkedIn:false },
+  ];
+  demo.forEach(g => {
+    guestMap[g.orderNumber] = g;
+    if (g.email) emailMap[g.email] = g;
+  });
+}
+
+// ═══════════════════════════════════════════
+//  HAPTICS
+// ═══════════════════════════════════════════
+function vibrate(p) { try { navigator.vibrate && navigator.vibrate(p); } catch(e){} }
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  // 1. Check URL for QR-encoded credentials (?fd=base64payload)
+  const params = new URLSearchParams(window.location.search);
+  const fd = params.get('fd');
+  if (fd) {
+    try {
+      const decoded = JSON.parse(atob(decodeURIComponent(fd)));
+      if (decoded.u && decoded.k && decoded.s) {
+        cfg = { siteUrl: decoded.u, wcKey: decoded.k, wcSecret: decoded.s, demo: false };
+        saveConfig();
+        // Clean the URL so keys don't sit in browser history
+        window.history.replaceState({}, '', window.location.pathname);
+        launch();
+        return;
+      }
+    } catch(e) { console.warn('QR decode failed', e); }
+  }
+
+  // 2. Fall back to saved config
+  const saved = localStorage.getItem('fd_cfg');
+  if (saved) {
+    try {
+      const c = JSON.parse(saved);
+      if (c.siteUrl && c.wcKey) {
+        cfg = c;
+        ['site-url','s-url'].forEach(id => document.getElementById(id).value = c.siteUrl);
+        ['wc-key','s-key'].forEach(id => document.getElementById(id).value = c.wcKey);
+        ['wc-secret','s-secret'].forEach(id => document.getElementById(id).value = c.wcSecret);
+        // Auto-launch if we have saved creds
+        launch();
+        return;
+      }
+    } catch(e){}
+  }
+  // 3. Show setup screen
+});
+</script>
+</body>
+</html>
