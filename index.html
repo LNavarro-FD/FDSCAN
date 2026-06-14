@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v4.2</title>
+<title>FD Door Scanner v4.4</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v4.2</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v4.4</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -1189,8 +1189,15 @@ function renderFilterPills() {
     pill.className = 'filter-pill event-pill';
     pill.dataset.eventId = String(ev.id);
     // Shorten title for pill — use first meaningful words
-    const shortTitle = (ev.title || 'Event').replace(/copy of /i, '').substring(0, 25) + (ev.title && ev.title.length > 25 ? '…' : '');
-    pill.textContent = '📅 ' + shortTitle;
+    // Show date + shortened title so events are distinguishable
+    const cleanTitle = (ev.title || 'Event')
+      .replace(/copy of /i, '')
+      .replace(/ticket scan test[^]*/i, '')
+      .replace(/- \d+\/\d+/g, '')
+      .trim();
+    const shortTitle = cleanTitle.substring(0, 20) + (cleanTitle.length > 20 ? '…' : '');
+    const eventDate  = ev.mec_data ? ev.mec_data.start_date.substring(5) : ''; // MM-DD
+    pill.textContent = shortTitle + (eventDate ? ' · ' + eventDate : '');
     pill.onclick = function() { setFilter('event:' + ev.id, this); };
     allBtn.insertAdjacentElement('afterend', pill);
   });
@@ -1240,10 +1247,12 @@ function renderGuestList() {
                 b.tickets.some(t => t.name && t.name.toLowerCase().includes(q));
     if (!mq) return false;
     // Apply type filters
-    // Dynamic event filter
+    // Dynamic event filter — show only MEC attendees for this specific event
+    // WC-only comps appear under All but not under specific event pills
     if (glFilter.startsWith('event:')) {
       const evId = glFilter.replace('event:', '');
-      return b.source === 'mec' ? b._eventId === evId : true;
+      if (b.source === 'wc') return false; // comps only show under All
+      return b._eventId === evId;
     }
     if (glFilter === 'vip')        return b.tickets.some(t => t.isVip);
     if (glFilter === 'comp')       return b.isComp;
