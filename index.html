@@ -434,7 +434,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.1</div>
+    <div class="brand-sub">Door Scanner · v5.3</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -450,7 +450,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.1</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.3</div>
     </div>
     <div class="setup-title" style="margin-top:8px;">Connect to WooCommerce</div>
     <div class="field-group">
@@ -1466,8 +1466,8 @@ function renderGuestList() {
       return `
       <div class="gl-attendee ${t.checkedIn?'gl-attendee-in':''}">
         <div style="flex:1;min-width:0;">
-          <div style="font-size:14px;font-weight:700;color:var(--text);">Ticket ${num} of ${total}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:1px;">${t.ticketName}</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);">${t.name && t.name !== b.name ? t.name : `Ticket ${num} of ${total}`}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:1px;">${t.name && t.name !== b.name ? `Ticket ${num} · ` : ''}${t.ticketName}</div>
         </div>
         ${t.checkedIn
           ? `<div style="display:flex;align-items:center;gap:8px;">
@@ -1948,33 +1948,25 @@ function parseMecQrUrl(code) {
 }
 
 async function resolveShortUrl(shortUrl) {
-  // Fetch the short URL to get the full check-in URL with parameters
   try {
-    const r = await fetch(shortUrl, { 
-      method: 'GET',
-      redirect: 'follow',
-      headers: { 'Accept': 'text/html' }
-    });
-    const finalUrl = r.url;  // URL after redirect
-    const url = new URL(finalUrl);
-    const invoiceID = url.searchParams.get('invoiceID');
-    const place     = url.searchParams.get('place');
-    const hash      = url.searchParams.get('Hash');
-    const email     = url.searchParams.get('checkIn');
-    if (invoiceID) return { invoiceID, place, hash, email, shortUrl };
-    
-    // Also try to get from page HTML if params not in URL
-    const html = await r.text();
-    const invMatch   = html.match(/invoiceID[=\"':]+(\d+)/);
-    const placeMatch = html.match(/place[=\"':]+(\d+)/);
-    const hashMatch  = html.match(/Hash[=\"':]+([a-f0-9]+)/i);
-    const emailMatch = html.match(/checkIn[=\"':]+([^&\"'<\s]+)/);
-    if (invMatch) {
+    // Extract just the slug from the short URL e.g. "stX4XI0LVK-xw" from ".../invoice/stX4XI0LVK-xw"
+    const slug = shortUrl.split('/invoice/').pop().split('?')[0].trim();
+    if (!slug) return null;
+
+    // Use our WordPress proxy to resolve server-side (avoids CORS)
+    const proxyUrl = `${cfg.siteUrl}/wp-json/fd/v1/resolve-invoice?url=${encodeURIComponent(slug)}`;
+    const r = await fetch(proxyUrl, { headers: { 'Accept': 'application/json' } });
+    if (!r.ok) {
+      console.warn('Proxy resolve failed:', r.status);
+      return null;
+    }
+    const data = await r.json();
+    if (data.invoiceID) {
       return {
-        invoiceID: invMatch[1],
-        place:     placeMatch ? placeMatch[1] : null,
-        hash:      hashMatch  ? hashMatch[1]  : null,
-        email:     emailMatch ? emailMatch[1] : null,
+        invoiceID: String(data.invoiceID),
+        place:     data.place ? String(data.place) : null,
+        hash:      data.hash  || null,
+        email:     data.email || null,
         shortUrl
       };
     }
