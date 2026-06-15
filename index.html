@@ -245,6 +245,19 @@ input::placeholder { color: #999; }
 .pulse-err { animation: pulse-err .7s ease-out; }
 .pulse-tm  { animation: pulse-tm  .7s ease-out; }
 
+/* ── Full-screen scan flash ── */
+#scan-flash {
+  position: fixed; inset: 0; z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+}
+@keyframes flash-ok   { 0%{opacity:.85} 100%{opacity:0} }
+@keyframes flash-err  { 0%{opacity:.85} 100%{opacity:0} }
+@keyframes flash-warn { 0%{opacity:.75} 100%{opacity:0} }
+#scan-flash.flash-ok   { background: #00C875; animation: flash-ok  .45s ease-out forwards; }
+#scan-flash.flash-err  { background: #D0000A; animation: flash-err .45s ease-out forwards; }
+#scan-flash.flash-warn { background: #FF9500; animation: flash-warn .45s ease-out forwards; }
+
 /* ── Guest list ── */
 #guests-screen { display: flex; flex-direction: column; overflow: hidden; }
 .gl-toolbar {
@@ -415,12 +428,13 @@ input::placeholder { color: #999; }
 </head>
 <body>
 <div id="app">
+<div id="scan-flash"></div>
 
 <!-- HEADER -->
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.0</div>
+    <div class="brand-sub">Door Scanner · v5.1</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -436,7 +450,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.0</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.1</div>
     </div>
     <div class="setup-title" style="margin-top:8px;">Connect to WooCommerce</div>
     <div class="field-group">
@@ -1003,7 +1017,7 @@ async function fetchMecAttendees(events) {
     if (!bookingMap[bid]) {
       bookingMap[bid] = {
         bookingId:   bid,
-        invoiceID:   g._invoiceId,
+        invoiceID:   g._invoiceID,
         name:        g.name,
         email:       g.email,
         eventTitle:  g._eventTitle,
@@ -1012,8 +1026,10 @@ async function fetchMecAttendees(events) {
         tickets:     [],
         source:      'mec'
       };
-      // Also index by invoice ID for QR code lookup
-      if (g._invoiceID) invoiceMap[g._invoiceId] = bookingMap[bid];
+      // Index by invoice ID for QR code lookup — use consistent uppercase _invoiceID
+      if (g._invoiceID) invoiceMap[g._invoiceID] = bookingMap[bid];
+      // Also index by booking ID directly
+      invoiceMap[bid] = bookingMap[bid];
     }
     bookingMap[bid].tickets.push({
       key:          `${bid}-${g._attendeeKey}`,
@@ -2267,6 +2283,17 @@ function setResult(state, icon, name, detail, pulse) {
   if (state === 'warn') vibrate([200, 80, 200]);       // duplicate: double long
   if (state === 'err')  vibrate([500]);                // rejected: single long
   if (state === 'tm')   vibrate([100, 50, 100]);       // ticketmaster: attention
+
+  // Full-screen flash — visible feedback on iOS where vibration doesn't work
+  const flash = document.getElementById('scan-flash');
+  if (flash && state) {
+    flash.className = '';
+    void flash.offsetWidth; // force reflow to restart animation
+    if (state === 'ok')   flash.className = 'flash-ok';
+    if (state === 'err')  flash.className = 'flash-err';
+    if (state === 'warn') flash.className = 'flash-warn';
+    if (state === 'tm')   flash.className = 'flash-warn';
+  }
 }
 
 function showEnt(g) {
