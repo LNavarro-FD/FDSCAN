@@ -434,7 +434,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.4</div>
+    <div class="brand-sub">Door Scanner · v5.5</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -450,7 +450,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.4</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.5</div>
     </div>
     <div class="setup-title" style="margin-top:8px;">Connect to WooCommerce</div>
     <div class="field-group">
@@ -1119,10 +1119,52 @@ async function loadGuestList() {
     console.log(`Guest list: ${Object.keys(guestMap).length} total (MEC: ${Object.keys(mecGuests).length}, WC comps: ${wcGuests.length})`);
     renderFilterPills();
     renderGuestList(); updateGLStats();
+
+    // Load real check-in state from our database proxy
+    // MEC's API doesn't reflect our direct writes, so we read back from fd2/v1/checkins
+    await loadCheckinState();
+
   } catch(e) {
     console.error('Guest list load error:', e);
     document.getElementById('gl-list').innerHTML =
       `<div class="gl-empty">⚠️ Could not load guest list<br><small style="opacity:.5">${e.message}</small></div>`;
+  }
+}
+
+async function loadCheckinState() {
+  if (cfg.demo || !cfg.siteUrl) return;
+  try {
+    // Get all MEC bookings and fetch their checkin state from our proxy
+    const mecBookings = Object.values(bookingMap).filter(b => b.source === 'mec');
+    let totalChecked = 0;
+
+    await Promise.all(mecBookings.map(async (b) => {
+      if (!b.invoiceID) return;
+      try {
+        const r = await fetch(`${cfg.siteUrl}/wp-json/fd2/v1/checkins?invoice_id=${encodeURIComponent(b.invoiceID)}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        if (!data.found || !data.attendees) return;
+
+        // Update each ticket's checkedIn state from the database
+        data.attendees.forEach(a => {
+          const ticket = b.tickets.find(t => String(t.attendeeKey) === String(a.place));
+          if (ticket && a.checked_in) {
+            ticket.checkedIn = true;
+            totalChecked++;
+          }
+        });
+      } catch(e) {}
+    }));
+
+    if (totalChecked > 0) {
+      console.log(`✓ Loaded ${totalChecked} checked-in tickets from database`);
+      stats.admitted = totalChecked;
+      document.getElementById('hdr-count').textContent = totalChecked;
+      updateStats(); updateGLStats(); renderGuestList();
+    }
+  } catch(e) {
+    console.warn('loadCheckinState failed:', e.message);
   }
 }
 
