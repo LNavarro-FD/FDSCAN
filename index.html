@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FD Door Scanner v4.8</title>
+<title>FD Door Scanner v4.9</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -383,7 +383,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v4.8</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v4.9</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -852,7 +852,7 @@ async function fetchMecAttendees(events) {
               _mecTicket:      true,
               _bookingId:      String(a.booking_id),
               _attendeeKey:    String(a.attendee_key),
-              _invoiceId:      String(a.invoice_id || a.booking_id),
+              _invoiceID:      String(a.invoice_id || a.booking_id),
               _eventId:        String(ev.id),
               _eventTitle:     ev.title || '',
               _source:         'mec'
@@ -893,7 +893,7 @@ async function fetchMecAttendees(events) {
               _mecTicket:      true,
               _bookingId:      String(a.booking_id),
               _attendeeKey:    String(a.attendee_key),
-              _invoiceId:      String(a.invoice_id || a.booking_id),
+              _invoiceID:      String(a.invoice_id || a.booking_id),
               _eventId:        String(ev.id),
               _eventTitle:     ev.title || '',
               _source:         'mec'
@@ -911,7 +911,7 @@ async function fetchMecAttendees(events) {
     if (!bookingMap[bid]) {
       bookingMap[bid] = {
         bookingId:   bid,
-        invoiceId:   g._invoiceId,
+        invoiceID:   g._invoiceId,
         name:        g.name,
         email:       g.email,
         eventTitle:  g._eventTitle,
@@ -921,7 +921,7 @@ async function fetchMecAttendees(events) {
         source:      'mec'
       };
       // Also index by invoice ID for QR code lookup
-      if (g._invoiceId) invoiceMap[g._invoiceId] = bookingMap[bid];
+      if (g._invoiceID) invoiceMap[g._invoiceId] = bookingMap[bid];
     }
     bookingMap[bid].tickets.push({
       key:          `${bid}-${g._attendeeKey}`,
@@ -959,7 +959,7 @@ async function loadGuestList() {
 
     // 4. Add WC guests — only those NOT already covered by MEC (comps, TM, Remenham Farm)
     // A WC order is "already in MEC" if its order number matches an MEC invoice ID
-    const mecInvoiceIds = new Set(Object.values(bookingMap).map(b => String(b.invoiceId)));
+    const mecInvoiceIds = new Set(Object.values(bookingMap).map(b => String(b.invoiceID)));
     wcGuests.forEach(g => {
       // Skip if this WC order is already represented by an MEC booking
       if (mecInvoiceIds.has(String(g.orderNumber))) return;
@@ -988,7 +988,7 @@ async function loadGuestList() {
       if (!bookingMap[wcKey]) {
         bookingMap[wcKey] = {
           bookingId:  wcKey,
-          invoiceId:  g.orderNumber,
+          invoiceID:  g.orderNumber,
           name:       g.name,
           email:      g.email,
           eventTitle: g.ticketName,
@@ -1139,7 +1139,7 @@ function admitSpecific(bookingId, attendeeKey) {
       method: 'POST', headers: { 'X-MEC-KEY': cfg.mecKey }
     }).catch(e => console.warn('MEC checkin failed:', e));
   } else {
-    const wcGuest = guestMap[`wc-${b.invoiceId}`];
+    const wcGuest = guestMap[`wc-${b.invoiceID}`];
     if (wcGuest) { wcGuest.checkedInTickets.push(ticket.key); writeCheckIn(wcGuest.id, ticket.key, wcGuest.checkedInTickets); }
   }
 
@@ -1166,7 +1166,7 @@ function quickAdmit(bookingId) {
       method: 'POST', headers: { 'X-MEC-KEY': cfg.mecKey }
     }).catch(e => console.warn('MEC checkin failed:', e));
   } else {
-    const wcGuest = guestMap[`wc-${b.invoiceId}`];
+    const wcGuest = guestMap[`wc-${b.invoiceID}`];
     if (wcGuest) { wcGuest.checkedInTickets.push(nextTicket.key); writeCheckIn(wcGuest.id, nextTicket.key, wcGuest.checkedInTickets); }
   }
 
@@ -1368,7 +1368,7 @@ function openDrawer(bookingId) {
     qty:             total,
     checkedInTickets: b.tickets.filter(t => t.checkedIn).map(t => t.key),
     checkedIn:       admitted === total,
-    orderNumber:     b.invoiceId,
+    orderNumber:     b.invoiceID,
     _source:         b.source,
     _bookingId:      b.bookingId
   };
@@ -1562,12 +1562,19 @@ async function lookupTicket(code) {
 
       const mecGuest = await mecLookupAndCheckin(code);
       if (mecGuest) {
-        if (mecGuest.checkedIn) {
-          // Already checked in via MEC
+        // Check local bookingMap state first (catches same-session rescans)
+        const invoiceId = mecGuest._invoiceID || mecGuest.orderNumber;
+        const place     = mecGuest._place;
+        const localBooking = invoiceMap[invoiceId];
+        const localTicket  = localBooking?.tickets.find(t => String(t.attendeeKey) === String(place));
+        const alreadyIn    = mecGuest.checkedIn || (localTicket && localTicket.checkedIn);
+
+        if (alreadyIn) {
+          // Already checked in (either MEC reports it or we already scanned this session)
           vibrate([200,80,200]);
           addLog({ name:mecGuest.name, ticket:`${mecGuest.ticketName} (${code})`, status:'warn', code });
           stats.dupe++; stats.total++;
-          setResult('warn','⚠️', mecGuest.name, `Ticket ${code} already checked in`);
+          setResult('warn','⚠️', mecGuest.name, `Ticket already checked in`);
           showEnt(mecGuest);
           showChips([{ label:mecGuest.ticketName, cls:'' }, { label:'DUPLICATE', cls:'hi' }]);
           updateStats();
@@ -1601,28 +1608,20 @@ async function lookupTicket(code) {
             ]);
             updateStats();
             // Update bookingMap — find booking by invoice ID using invoiceMap
-            const invoiceId = mecGuest._invoiceID || mecGuest.orderNumber;
-            const place      = mecGuest._place;
-            const booking    = invoiceMap[invoiceId] || bookingMap[invoiceId];
+            const invId   = mecGuest._invoiceID || mecGuest.orderNumber;
+            const placeNo = mecGuest._place;
+            const booking = invoiceMap[invId] || bookingMap[invId];
+            console.log('Scan update: invoiceID='+invId+' place='+placeNo+' booking='+(booking?booking.name:'NOT FOUND')+' invoiceMap keys='+Object.keys(invoiceMap).slice(0,5).join(','));
             if (booking) {
-              // Find the specific ticket by attendee key (place number)
-              const ticket = booking.tickets.find(t => 
-                String(t.attendeeKey) === String(place) || 
-                String(t.attendeeKey) === String(parseInt(place) - 1)
-              ) || booking.tickets.find(t => !t.checkedIn); // fallback to next unchecked
+              const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(placeNo))
+                          || booking.tickets.find(t => !t.checkedIn);
               if (ticket) {
                 ticket.checkedIn = true;
-                console.log(`Marked ${booking.name} ticket ${ticket.attendeeKey} as checked in`);
+                console.log('✓ Marked', booking.name, 'ticket', ticket.attendeeKey, 'as checked in');
+              } else {
+                console.warn('No matching ticket found for place', placeNo, 'in', booking.tickets.map(t=>t.attendeeKey));
               }
               renderGuestList(); updateGLStats();
-            }
-            // Also update guestMap if present
-            if (guestMap[mecGuest.orderNumber]) {
-              const g = guestMap[mecGuest.orderNumber];
-              if (!g.checkedInTickets.includes(code)) {
-                g.checkedInTickets.push(code);
-                g.checkedIn = g.checkedInTickets.length >= g.qty;
-              }
             }
           }
         }
