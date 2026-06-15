@@ -434,7 +434,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.3</div>
+    <div class="brand-sub">Door Scanner · v5.4</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -450,7 +450,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.3</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.4</div>
     </div>
     <div class="setup-title" style="margin-top:8px;">Connect to WooCommerce</div>
     <div class="field-group">
@@ -1339,25 +1339,27 @@ function renderFilterPills() {
   const bar = document.getElementById('gl-filter-bar');
   if (!bar || upcomingEvents.length === 0) return;
 
-  // Remove any existing event pills
   bar.querySelectorAll('.event-pill').forEach(p => p.remove());
 
-  // Insert event pills after the "All" button
   const allBtn = bar.querySelector('.filter-pill');
   upcomingEvents.forEach(ev => {
     const pill = document.createElement('button');
     pill.className = 'filter-pill event-pill';
     pill.dataset.eventId = String(ev.id);
-    // Shorten title for pill — use first meaningful words
-    // Show date + shortened title so events are distinguishable
+
+    // Strip noise from event titles
     const cleanTitle = (ev.title || 'Event')
       .replace(/copy of /i, '')
-      .replace(/ticket scan test[^]*/i, '')
-      .replace(/- \d+\/\d+/g, '')
+      .replace(/funky dory\s*/i, '')
+      .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
+      .replace(/meets\s*/i, '× ')
+      .replace(/\s*[-–]\s*\d{2}[./]\d{2}([./]\d{2,4})?/g, '')
+      .replace(/\(SCAN TEST[^)]*\)/i, '')
+      .replace(/\s{2,}/g, ' ')
       .trim();
-    const shortTitle = cleanTitle.substring(0, 20) + (cleanTitle.length > 20 ? '…' : '');
-    const eventDate  = ev.mec_data ? ev.mec_data.start_date.substring(5) : ''; // MM-DD
-    pill.textContent = shortTitle + (eventDate ? ' · ' + eventDate : '');
+
+    const eventDate = ev.mec_data ? ev.mec_data.start_date.substring(5).replace('-', '/') : '';
+    pill.textContent = cleanTitle + (eventDate ? ' · ' + eventDate : '');
     pill.onclick = function() { setFilter('event:' + ev.id, this); };
     allBtn.insertAdjacentElement('afterend', pill);
   });
@@ -2110,28 +2112,18 @@ async function mecLookupAndCheckin(code) {
 }
 
 async function mecWriteCheckin(code, mecGuest) {
-  if (!cfg.mecKey || !cfg.siteUrl) return;
+  if (!cfg.siteUrl) return;
   try {
-    // Use invoice attendees check endpoint with the hash from QR
-    let parsed = parseMecQrUrl(code);
-    if (parsed && parsed.shortUrl && !parsed.invoiceID) {
-      parsed = await resolveShortUrl(parsed.shortUrl);
-    }
-    if (parsed) {
-      const r = await fetch(
-        `${cfg.siteUrl}/wp-json/mec-utility/v1/invoices/${parsed.invoiceID}/attendees/check`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-MEC-KEY': cfg.mecKey },
-          body: JSON.stringify({ 
-            place: parsed.place,
-            hash: parsed.hash,
-            email: parsed.email,
-            invoice_id: parsed.invoiceID
-          })
-        }
-      );
-      if (!r.ok) console.warn('MEC checkin write status:', r.status);
+    const invoiceID = mecGuest._invoiceID || mecGuest.orderNumber;
+    const place     = mecGuest._place;
+    if (!invoiceID || !place) { console.warn('MEC checkin: missing invoiceID or place'); return; }
+    const url = `${cfg.siteUrl}/wp-json/fd2/v1/checkin?invoice_id=${encodeURIComponent(invoiceID)}&place=${encodeURIComponent(place)}`;
+    const r = await fetch(url, { method: 'POST' });
+    const data = await r.json();
+    if (data.success) {
+      console.log('✓ MEC checkin written:', data.attendee_name, 'place', data.place, `(${data.total_checked}/${data.total})`);
+    } else {
+      console.warn('MEC checkin proxy failed:', data.message || data);
     }
   } catch(e) {
     console.warn('MEC check-in write failed:', e.message);
@@ -2394,7 +2386,15 @@ function renderEventCards() {
     const pct            = totalTickets > 0 ? Math.round(admittedTickets / totalTickets * 100) : 0;
     const col            = colors[ci++ % colors.length];
     // Shorten long event titles
-    const shortTitle = ev.title.replace(/funky dory\s*/i,'').replace(/during henley\s*(royal\s*)?regatta\s*/i,'').replace(/\s*-\s*(Early Bird|2nd Release)[^£]*/i,'').trim();
+    const shortTitle = ev.title
+      .replace(/copy of /i, '')
+      .replace(/funky dory\s*/i, '')
+      .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
+      .replace(/meets\s*/i, '× ')
+      .replace(/\s*[-–]\s*\d{2}[./]\d{2}([./]\d{2,4})?/g, '')
+      .replace(/\(SCAN TEST[^)]*\)/i, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
 
     return `<div class="ev-card">
       <div class="ev-card-header">
