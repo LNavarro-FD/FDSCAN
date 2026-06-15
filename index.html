@@ -4,1711 +4,2380 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="theme-color" content="#1a2744">
-<title>Henley Regatta · Gate Entry</title>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>FD Door Scanner v5.0</title>
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
-  :root {
-    --navy: #1a2744;
-    --navy-light: #243460;
-    --gold: #c9a84c;
-    --gold-light: #e8c97a;
-    --red: #c0392b;
-    --green: #27ae60;
-    --green-dark: #1e8449;
-    --amber: #e67e22;
-    --bg: #f0ede6;
-    --card: #ffffff;
-    --text: #1a2744;
-    --muted: #6b7a99;
-    --border: #d5cfc4;
-    --shadow: 0 2px 12px rgba(26,39,68,0.12);
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+:root {
+  --pink:  #FF4B7B;
+  --navy:  #22224C;
+  --lpink: #F2B2E5;
+  --white: #FFFFFF;
+  --ok:    #00A85A;
+  --err:   #D0000A;
+  --warn:  #C06000;
+  --gold:  #8A6800;
+  --tm:    #0050B3;
+  --bg:    #F4F4F6;
+  --card:  #FFFFFF;
+  --text:  #0A0A0A;
+  --muted: #444444;
+  --border:#CCCCCC;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Futura','Century Gothic','Trebuchet MS',sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+#app { display: flex; flex-direction: column; height: 100dvh; }
+.hidden { display: none !important; }
+.screen { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
-  /* ── HEADER ── */
-  .header {
-    background: var(--navy);
-    color: white;
-    padding: 14px 16px 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  }
-  .header-title { display: flex; align-items: center; gap: 10px; }
-  .header-title img { width: 32px; height: 32px; border-radius: 6px; }
-  .header-title h1 { font-size: 17px; font-weight: 700; letter-spacing: 0.3px; line-height: 1.2; }
-  .header-title p { font-size: 11px; color: var(--gold-light); margin-top: 1px; }
-  .header-badge {
-    background: var(--gold);
-    color: var(--navy);
-    font-size: 11px;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 20px;
-    letter-spacing: 0.5px;
-  }
+/* ── Header ── */
+header {
+  flex-shrink: 0;
+  background: var(--navy);
+  padding: 12px 18px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 2px solid var(--pink);
+}
+.brand-name { font-size: 17px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--pink); line-height: 1; }
+.brand-sub  { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: #fff; opacity: .75; margin-top: 3px; }
+.hdr-right  { text-align: right; font-size: 11px; color: #fff; opacity: .8; }
+.hdr-right strong { display: block; font-size: 22px; font-weight: 900; color: #fff; opacity: 1; line-height: 1; }
 
-  /* ── NAV TABS ── */
-  .nav-tabs {
-    display: flex;
-    background: var(--navy-light);
-    border-bottom: 2px solid var(--gold);
-  }
-  .nav-tab {
-    flex: 1;
-    padding: 11px 6px;
-    text-align: center;
-    font-size: 12px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.55);
-    cursor: pointer;
-    transition: all 0.18s;
-    letter-spacing: 0.3px;
-    text-transform: uppercase;
-    border: none;
-    background: none;
-    -webkit-appearance: none;
-  }
-  .nav-tab.active {
-    color: var(--gold);
-    border-bottom: 2px solid var(--gold);
-    margin-bottom: -2px;
-  }
-  .nav-tab:active { opacity: 0.7; }
+/* ── Setup screen ── */
+#setup-screen { padding: 28px 22px; gap: 20px; overflow-y: auto; }
+.setup-title {
+  font-size: 13px; font-weight: 800; letter-spacing: .15em;
+  text-transform: uppercase; color: var(--text); margin-bottom: 2px;
+}
+.field-group { display: flex; flex-direction: column; gap: 8px; }
+label { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text); }
+input[type=text], input[type=password], input[type=url] {
+  background: var(--white);
+  border: 2px solid var(--border);
+  border-radius: 10px; padding: 14px 15px;
+  font-size: 16px; color: var(--text);
+  font-family: inherit; width: 100%; outline: none; -webkit-appearance: none;
+  transition: border-color .2s;
+}
+input:focus { border-color: var(--pink); }
+input::placeholder { color: #999; }
+.btn-primary {
+  background: var(--pink); color: #fff; border: none; border-radius: 12px;
+  padding: 18px; font-size: 15px; font-weight: 800; letter-spacing: .1em;
+  text-transform: uppercase; width: 100%; cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-primary:active { opacity: .85; transform: scale(.98); }
+.btn-secondary {
+  background: transparent; color: var(--text);
+  border: 2px solid var(--border); border-radius: 12px;
+  padding: 14px; font-size: 13px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; width: 100%; cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-secondary:active { opacity: .7; }
+.setup-note {
+  font-size: 13px; color: var(--muted); line-height: 1.7;
+  padding: 12px 14px; background: #fff;
+  border-radius: 8px; border-left: 3px solid var(--pink);
+}
 
-  /* ── PANELS ── */
-  .panel { display: none; padding: 16px; }
-  .panel.active { display: block; }
+/* ── Bottom nav ── */
+.bottom-nav {
+  flex-shrink: 0; display: flex;
+  border-top: 2px solid var(--border);
+  background: var(--white);
+  padding-bottom: env(safe-area-inset-bottom, 6px);
+}
+.nav-btn {
+  flex: 1; background: none; border: none; padding: 11px 6px 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; font-family: inherit; color: #888;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent; transition: color .15s;
+}
+.nav-btn.active { color: var(--pink); }
+.nav-icon { font-size: 20px; line-height: 1; }
 
-  /* ── CARDS ── */
-  .card {
-    background: var(--card);
-    border-radius: 12px;
-    box-shadow: var(--shadow);
-    overflow: hidden;
-    margin-bottom: 14px;
-  }
-  .card-header {
-    padding: 12px 16px;
-    background: var(--navy);
-    color: white;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.4px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .card-header span { color: var(--gold-light); font-size: 12px; font-weight: 400; }
+/* ── Camera ── */
+.cam-wrap { position: relative; flex-shrink: 0; height: 70vw; max-height: 380px; overflow: hidden; background: #000; }
+#qr-reader { width: 100%; height: 100%; position: absolute; inset: 0; }
+#qr-reader video { width: 100%!important; height: 100%!important; object-fit: cover; display: block; }
+#qr-reader img { display: none!important; }
+#qr-reader > div:first-child, #qr-reader__dashboard { display: none!important; }
+.scan-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+.scan-frame {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%); width: 50%; aspect-ratio: 1;
+}
+.scan-frame::before,.scan-frame::after,
+.scan-frame > span::before,.scan-frame > span::after {
+  content: ''; position: absolute; width: 22px; height: 22px;
+  border-color: var(--pink); border-style: solid;
+}
+.scan-frame::before          { top:0;left:0;     border-width:3px 0 0 3px; }
+.scan-frame::after           { top:0;right:0;    border-width:3px 3px 0 0; }
+.scan-frame > span::before   { bottom:0;left:0;  border-width:0 0 3px 3px; }
+.scan-frame > span::after    { bottom:0;right:0; border-width:0 3px 3px 0; }
+.scan-line {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%,-50%);
+  width: 46%; height: 2px;
+  background: linear-gradient(90deg,transparent,var(--pink),transparent);
+  animation: scanline 2s ease-in-out infinite;
+}
+@keyframes scanline {
+  0%,100% { transform:translate(-50%,-50%) translateY(-44px); opacity:0; }
+  20%,80%  { opacity:1; }
+  50%      { transform:translate(-50%,-50%) translateY(44px); }
+}
 
-  /* ── SCANNER ── */
-  .scan-area {
-    position: relative;
-    background: #000;
-    width: 100%;
-    aspect-ratio: 1;
-    max-height: 65vw;
-    overflow: hidden;
-    border-radius: 12px 12px 0 0;
-  }
-  #scanVideo {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  .scan-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-  }
-  .scan-frame {
-    width: 60%;
-    aspect-ratio: 1;
-    border: 2px solid var(--gold);
-    border-radius: 12px;
-    box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
-    position: relative;
-  }
-  .scan-frame::before, .scan-frame::after,
-  .scan-frame > .c1, .scan-frame > .c2 {
-    content: '';
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    border-color: var(--gold);
-    border-style: solid;
-  }
-  .scan-frame::before { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 8px 0 0 0; }
-  .scan-frame::after  { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-radius: 0 8px 0 0; }
-  .scan-frame > .c1   { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-radius: 0 0 0 8px; }
-  .scan-frame > .c2   { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 8px 0; }
-  .scan-line {
-    position: absolute;
-    left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(to right, transparent, var(--gold), transparent);
-    animation: scanAnim 2s linear infinite;
-    top: 0;
-  }
-  @keyframes scanAnim {
-    0% { top: 5%; opacity: 1; }
-    90% { top: 90%; opacity: 1; }
-    100% { top: 95%; opacity: 0; }
-  }
-  .scan-status-bar {
-    background: var(--navy);
-    color: white;
-    text-align: center;
-    padding: 10px;
-    font-size: 13px;
-    font-weight: 500;
-  }
-  .scan-hint { color: var(--gold-light); font-size: 11px; margin-top: 2px; }
+/* ── Manual bar ── */
+.manual-bar {
+  display: flex; gap: 8px; padding: 10px 14px;
+  background: var(--white); flex-shrink: 0;
+  border-bottom: 2px solid var(--border);
+}
+.manual-bar input {
+  flex: 1; background: var(--bg); border: 2px solid var(--border);
+  border-radius: 8px; padding: 11px 13px; font-size: 15px; color: var(--text);
+  font-family: inherit; outline: none;
+}
+.manual-bar input:focus { border-color: var(--pink); }
+.manual-bar input::placeholder { color: #999; }
+.manual-bar button {
+  background: var(--pink); border: none; border-radius: 8px; padding: 11px 16px;
+  font-size: 13px; font-weight: 800; color: #fff; font-family: inherit;
+  letter-spacing: .06em; text-transform: uppercase; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
 
-  /* RESULT OVERLAY */
-  .scan-result-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 200;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0,0,0,0.65);
-    padding: 24px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s;
-  }
-  .scan-result-overlay.show {
-    opacity: 1;
-    pointer-events: all;
-  }
-  .result-card {
-    background: white;
-    border-radius: 16px;
-    width: 100%;
-    max-width: 360px;
-    overflow: hidden;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-    transform: scale(0.92);
-    transition: transform 0.2s;
-  }
-  .scan-result-overlay.show .result-card { transform: scale(1); }
-  .result-header {
-    padding: 20px 20px 14px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-  .result-icon {
-    width: 52px; height: 52px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 26px;
-    flex-shrink: 0;
-  }
-  .result-icon.ok { background: #e8f8ef; }
-  .result-icon.fail { background: #fdecea; }
-  .result-icon.warn { background: #fff4e5; }
-  .result-title { font-size: 20px; font-weight: 800; }
-  .result-title.ok { color: var(--green); }
-  .result-title.fail { color: var(--red); }
-  .result-title.warn { color: var(--amber); }
-  .result-subtitle { font-size: 13px; color: var(--muted); margin-top: 2px; }
-  .result-body { padding: 0 20px 16px; }
-  .result-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0ede6; }
-  .result-row:last-child { border-bottom: none; }
-  .result-label { font-size: 12px; color: var(--muted); font-weight: 500; }
-  .result-value { font-size: 13px; font-weight: 700; color: var(--text); text-align: right; max-width: 60%; }
-  .result-dismiss {
-    display: block;
-    width: calc(100% - 40px);
-    margin: 0 20px 20px;
-    padding: 14px;
-    background: var(--navy);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    letter-spacing: 0.3px;
-  }
-  .result-dismiss:active { opacity: 0.85; }
+/* ── Result area ── */
+#result-area { flex: 1; overflow-y: auto; padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 12px; background: var(--bg); }
 
-  /* ── GUEST LIST ── */
-  .search-bar {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-  .search-bar input {
-    flex: 1;
-    padding: 11px 14px;
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
-    font-size: 15px;
-    background: white;
-    color: var(--text);
-    outline: none;
-  }
-  .search-bar input:focus { border-color: var(--gold); }
-  .filter-btn {
-    padding: 11px 14px;
-    background: var(--navy);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .filter-btn.active-filter { background: var(--gold); color: var(--navy); }
+.result-card {
+  border-radius: 14px; padding: 18px;
+  display: flex; gap: 14px; align-items: flex-start;
+  border: 2px solid var(--border);
+  background: var(--card);
+}
+.result-card.ok   { background: #E6F9EF; border-color: var(--ok); }
+.result-card.err  { background: #FDE8E8; border-color: var(--err); }
+.result-card.warn { background: #FEF3E2; border-color: var(--warn); }
+.result-card.tm   { background: #E6F0FF; border-color: var(--tm); }
 
-  /* GUEST ROW — redesigned to fix tap target issue */
-  .guest-item {
-    background: white;
-    border-radius: 10px;
-    margin-bottom: 8px;
-    box-shadow: 0 1px 4px rgba(26,39,68,0.08);
-    overflow: hidden;
-  }
-  /* TOP ROW: name + check-in all button — clearly separated */
-  .guest-main {
-    display: flex;
-    align-items: center;
-    padding: 12px 14px;
-    gap: 10px;
-    border-bottom: 1px solid #f0ede6;
-  }
-  .guest-avatar {
-    width: 38px; height: 38px;
-    border-radius: 50%;
-    background: var(--navy);
-    color: white;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-  .guest-info { flex: 1; min-width: 0; }
-  .guest-name { font-size: 15px; font-weight: 700; color: var(--text); }
-  .guest-meta { font-size: 12px; color: var(--muted); margin-top: 1px; }
-  .guest-party-count {
-    font-size: 12px;
-    color: var(--muted);
-    background: #f0ede6;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-weight: 600;
-    flex-shrink: 0;
-    cursor: pointer;
-  }
-  .guest-party-count:active { background: var(--border); }
+.rc-icon   { font-size: 34px; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+.rc-body   { flex: 1; min-width: 0; }
+.rc-status { font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; margin-bottom: 5px; color: var(--muted); }
+.ok   .rc-status { color: var(--ok); }
+.err  .rc-status { color: var(--err); }
+.warn .rc-status { color: var(--warn); }
+.tm   .rc-status { color: var(--tm); }
+.rc-name   { font-size: 22px; font-weight: 900; line-height: 1.1; color: var(--text); }
+.rc-detail { font-size: 13px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
 
-  /* CHECK-IN ALL button — large, unambiguous */
-  .checkin-all-btn {
-    width: calc(100% - 28px);
-    margin: 10px 14px;
-    padding: 11px;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    letter-spacing: 0.2px;
-    transition: background 0.15s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-  }
-  .checkin-all-btn.pending {
-    background: var(--navy);
-    color: white;
-  }
-  .checkin-all-btn.done {
-    background: #e8f8ef;
-    color: var(--green-dark);
-  }
-  .checkin-all-btn:active { opacity: 0.8; }
+/* ── Ticketmaster confirm buttons ── */
+.tm-actions { display: flex; gap: 10px; }
+.tm-admit {
+  flex: 1; background: var(--ok); color: #fff; border: none; border-radius: 10px;
+  padding: 15px; font-size: 14px; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.tm-reject {
+  flex: 1; background: #fff; color: var(--err); border: 2px solid var(--err);
+  border-radius: 10px; padding: 15px; font-size: 14px; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.tm-admit:active  { opacity: .85; }
+.tm-reject:active { opacity: .85; }
 
-  /* TICKET ROWS — expanded list */
-  .ticket-list { border-top: 1px solid #f0ede6; }
-  .ticket-list.collapsed { display: none; }
-  .ticket-row {
-    display: flex;
-    align-items: center;
-    padding: 10px 14px;
-    border-bottom: 1px solid #f8f6f2;
-    gap: 10px;
-  }
-  .ticket-row:last-child { border-bottom: none; }
-  .ticket-info { flex: 1; min-width: 0; }
-  .ticket-number { font-size: 12px; font-weight: 700; color: var(--navy); }
-  .ticket-event { font-size: 12px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ticket-checkin-btn {
-    padding: 7px 14px;
-    border: none;
-    border-radius: 7px;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    flex-shrink: 0;
-    min-width: 70px;
-    text-align: center;
-    transition: all 0.15s;
-  }
-  .ticket-checkin-btn.pending {
-    background: var(--navy);
-    color: white;
-  }
-  .ticket-checkin-btn.checked {
-    background: #e8f8ef;
-    color: var(--green-dark);
-    border: 1.5px solid #a8dfc0;
-  }
-  .ticket-checkin-btn:active { opacity: 0.75; }
+/* ── Entitlement banner ── */
+.ent-banner {
+  border-radius: 12px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 13px; flex-shrink: 0;
+}
+.ent-banner.std { background: #fff; border: 2px solid var(--border); }
+.ent-banner.vip { background: #FFFBE6; border: 2px solid #C89500; }
+.eb-icon  { font-size: 28px; }
+.eb-title { font-size: 14px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--text); }
+.vip .eb-title { color: #7A5500; }
+.eb-items { font-size: 13px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+.vip .eb-items { color: #7A5500; }
 
-  /* all-checked indicator */
-  .all-checked-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    color: var(--green-dark);
-    font-weight: 600;
-  }
+/* ── Chips ── */
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip {
+  background: #fff; border: 2px solid var(--border);
+  border-radius: 20px; padding: 6px 13px; font-size: 12px; font-weight: 700; color: var(--text);
+}
+.chip.hi  { background: #FFF0F4; border-color: var(--pink); color: #C0004A; }
+.chip.tm  { background: #E6F0FF; border-color: var(--tm); color: var(--tm); }
+.chip.vip { background: #FFFBE6; border-color: #C89500; color: #7A5500; }
 
-  /* ── EVENTS ── */
-  .events-grid { display: flex; flex-direction: column; gap: 10px; }
-  .event-card {
-    background: white;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: var(--shadow);
-    display: flex;
-  }
-  .event-stripe {
-    width: 6px;
-    flex-shrink: 0;
-  }
-  .event-body { padding: 14px 14px 14px 12px; flex: 1; }
-  .event-name {
-    font-size: 15px;
-    font-weight: 800;
-    color: var(--navy);
-    line-height: 1.3;
-    margin-bottom: 6px;
-  }
-  .event-time {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 12px;
-    font-weight: 700;
-    color: white;
-    background: var(--navy);
-    padding: 4px 9px;
-    border-radius: 6px;
-    margin-bottom: 8px;
-  }
-  .event-stats {
-    display: flex;
-    gap: 14px;
-    margin-top: 8px;
-  }
-  .event-stat { text-align: center; }
-  .event-stat-num { font-size: 20px; font-weight: 800; color: var(--navy); line-height: 1; }
-  .event-stat-label { font-size: 10px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.4px; }
-  .event-progress {
-    height: 5px;
-    background: #e8e4dc;
-    border-radius: 3px;
-    margin-top: 10px;
-    overflow: hidden;
-  }
-  .event-progress-bar {
-    height: 100%;
-    border-radius: 3px;
-    background: var(--green);
-    transition: width 0.5s;
-  }
+/* ── Scan log ── */
+.log-hdr  { display: flex; align-items: center; justify-content: space-between; }
+.log-label { font-size: 11px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); }
+.log-clear { font-size: 11px; font-weight: 700; color: var(--pink); background: none; border: none; cursor: pointer; font-family: inherit; letter-spacing: .08em; text-transform: uppercase; padding: 4px; }
+.log-list  { list-style: none; display: flex; flex-direction: column; gap: 5px; max-height: 150px; overflow-y: auto; margin-top: 8px; }
+.log-item  { display: flex; align-items: center; gap: 9px; font-size: 12px; padding: 8px 12px; border-radius: 8px; background: var(--white); border: 1px solid var(--border); }
+.log-dot   { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.log-dot.ok   { background: var(--ok); }
+.log-dot.err  { background: var(--err); }
+.log-dot.warn { background: var(--warn); }
+.log-dot.tm   { background: var(--tm); }
+.log-name { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.log-sub  { font-size: 11px; color: var(--muted); font-weight: 400; }
+.log-time { color: #888; font-size: 10px; flex-shrink: 0; }
 
-  /* ── UPLOAD ── */
-  .upload-zone {
-    border: 2px dashed var(--gold);
-    border-radius: 12px;
-    padding: 32px 20px;
-    text-align: center;
-    background: white;
-    cursor: pointer;
-    transition: background 0.15s;
-    position: relative;
-  }
-  .upload-zone:active, .upload-zone.drag-over { background: #fffcf2; }
-  .upload-zone input[type=file] {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
-    width: 100%;
-    height: 100%;
-  }
-  .upload-icon { font-size: 40px; margin-bottom: 12px; }
-  .upload-title { font-size: 16px; font-weight: 700; color: var(--navy); }
-  .upload-sub { font-size: 13px; color: var(--muted); margin-top: 6px; }
-  .upload-btn {
-    margin-top: 16px;
-    display: inline-block;
-    padding: 10px 24px;
-    background: var(--navy);
-    color: white;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 700;
-  }
+@keyframes pulse-ok  { 0%{box-shadow:0 0 0 0 rgba(0,200,117,.6)}  70%{box-shadow:0 0 0 16px rgba(0,200,117,0)}  100%{box-shadow:0 0 0 0 rgba(0,200,117,0)} }
+@keyframes pulse-err { 0%{box-shadow:0 0 0 0 rgba(255,59,48,.6)}   70%{box-shadow:0 0 0 16px rgba(255,59,48,0)}   100%{box-shadow:0 0 0 0 rgba(255,59,48,0)} }
+@keyframes pulse-tm  { 0%{box-shadow:0 0 0 0 rgba(2,108,223,.6)}   70%{box-shadow:0 0 0 16px rgba(2,108,223,0)}   100%{box-shadow:0 0 0 0 rgba(2,108,223,0)} }
+.pulse-ok  { animation: pulse-ok  .7s ease-out; }
+.pulse-err { animation: pulse-err .7s ease-out; }
+.pulse-tm  { animation: pulse-tm  .7s ease-out; }
 
-  .upload-progress {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    margin-top: 14px;
-    box-shadow: var(--shadow);
-    display: none;
-  }
-  .upload-progress.show { display: block; }
-  .progress-bar-wrap { height: 6px; background: #e8e4dc; border-radius: 3px; margin-top: 10px; overflow: hidden; }
-  .progress-bar { height: 100%; background: var(--gold); border-radius: 3px; width: 0; transition: width 0.3s; }
-  .upload-log { font-size: 12px; color: var(--muted); margin-top: 10px; max-height: 120px; overflow-y: auto; }
-  .upload-log p { margin-bottom: 4px; }
-  .upload-log p.ok { color: var(--green-dark); }
-  .upload-log p.err { color: var(--red); }
+/* ── Guest list ── */
+#guests-screen { display: flex; flex-direction: column; overflow: hidden; }
+.gl-toolbar {
+  flex-shrink: 0; padding: 12px 14px; display: flex; gap: 8px; align-items: center;
+  border-bottom: 2px solid var(--border); background: var(--white);
+}
+.gl-search {
+  flex: 1; background: var(--bg); border: 2px solid var(--border);
+  border-radius: 9px; padding: 14px 15px; font-size: 18px; color: var(--text);
+  font-family: inherit; outline: none; -webkit-appearance: none;
+}
+.gl-search:focus { border-color: var(--pink); }
+.gl-search::placeholder { color: #999; }
+.gl-refresh {
+  background: var(--bg); border: 2px solid var(--border);
+  border-radius: 9px; padding: 10px 14px; color: var(--text); font-size: 20px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; line-height: 1;
+}
+.gl-filter-bar {
+  flex-shrink: 0; display: flex; gap: 7px; padding: 9px 14px;
+  overflow-x: auto; border-bottom: 1px solid var(--border);
+  scrollbar-width: none; background: var(--white);
+}
+.gl-filter-bar::-webkit-scrollbar { display: none; }
+.filter-pill {
+  flex-shrink: 0; background: var(--bg); border: 2px solid var(--border);
+  border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 700;
+  color: var(--muted);
+  cursor: pointer; -webkit-tap-highlight-color: transparent; white-space: nowrap; font-family: inherit;
+}
+.filter-pill.active { background: var(--pink); border-color: var(--pink); color: #fff; }
+.filter-pill.day-pill.active { background: var(--navy); border-color: var(--navy); color: #fff; }
 
-  /* ── STATS PANEL ── */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-  .stat-tile {
-    background: white;
-    border-radius: 10px;
-    padding: 14px;
-    box-shadow: var(--shadow);
-    text-align: center;
-  }
-  .stat-tile-num { font-size: 28px; font-weight: 800; color: var(--navy); }
-  .stat-tile-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+.gl-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--bg); }
+.gl-count { padding: 8px 16px; font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--white); }
+.gl-item {
+  display: flex; align-items: center; gap: 13px;
+  padding: 16px 16px; border-bottom: 1px solid var(--border);
+  cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .1s;
+  background: var(--white);
+}
+.gl-item:active { background: var(--bg); }
+.gl-item.checked-in { opacity: .45; }
+.gl-avatar {
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 900;
+  background: #FFD6E3; color: #C0004A;
+}
+.gl-avatar.vip     { background: #FFF3B0; color: #7A5500; }
+.gl-avatar.checked { background: #C8F5E0; color: #006B38; font-size: 20px; }
+.gl-avatar.tm      { background: #D6E8FF; color: #0050B3; }
+.gl-info  { flex: 1; min-width: 0; }
+.gl-name  { font-size: 17px; font-weight: 800; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gl-ticket { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gl-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+.badge {
+  font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 20px;
+}
+.badge.vip  { background: #FFF3B0; color: #7A5500;  border: 1.5px solid #C89500; }
+.badge.comp { background: #FFD6E3; color: #C0004A;  border: 1.5px solid var(--pink); }
+.badge.tm   { background: #D6E8FF; color: #0050B3;  border: 1.5px solid #0050B3; }
+.badge.in   { background: #C8F5E0; color: #006B38;  border: 1.5px solid var(--ok); }
 
-  /* ── SETTINGS / INFO ── */
-  .info-card {
-    background: white;
-    border-radius: 10px;
-    padding: 14px;
-    box-shadow: var(--shadow);
-    margin-bottom: 10px;
-  }
-  .info-card h3 { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
-  .info-card p { font-size: 13px; color: var(--muted); line-height: 1.5; }
-  .info-card ul { padding-left: 16px; }
-  .info-card li { font-size: 13px; color: var(--muted); margin-bottom: 4px; line-height: 1.5; }
-  .setting-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 14px;
-    background: white;
-    border-radius: 10px;
-    box-shadow: var(--shadow);
-    margin-bottom: 8px;
-  }
-  .setting-label { font-size: 14px; font-weight: 600; color: var(--text); }
-  .setting-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .toggle {
-    width: 46px; height: 26px;
-    background: #ccc;
-    border-radius: 13px;
-    position: relative;
-    cursor: pointer;
-    transition: background 0.2s;
-    flex-shrink: 0;
-    border: none;
-  }
-  .toggle::after {
-    content: '';
-    position: absolute;
-    width: 20px; height: 20px;
-    background: white;
-    border-radius: 50%;
-    top: 3px; left: 3px;
-    transition: left 0.2s;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-  }
-  .toggle.on { background: var(--green); }
-  .toggle.on::after { left: 23px; }
+.gl-empty   { text-align: center; padding: 48px 24px; color: var(--muted); font-size: 14px; line-height: 1.8; }
+.gl-loading { text-align: center; padding: 40px; color: var(--muted); font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 
-  /* Loading spinner */
-  .spinner {
-    display: inline-block;
-    width: 16px; height: 16px;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
-    vertical-align: middle;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+/* gl-attendees — shown on expand, clearly separated from main row */
+.gl-attendees { background: #F9F9FB; border-top: 1px solid var(--border); }
+.gl-attendee  { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-bottom: 1px solid #ECECF0; }
+.gl-attendee:last-of-type { border-bottom: none; }
+.gl-attendee-in { opacity: .55; }
+.gl-att-dot  { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+.gl-att-dot.ok { background: var(--ok); }
+.gl-att-name { flex: 1; font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gl-att-ticket { font-size: 12px; color: var(--muted); flex-shrink: 0; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gl-att-in   { font-size: 11px; font-weight: 800; color: var(--ok); letter-spacing: .05em; flex-shrink: 0; }
 
-  .loading-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(26,39,68,0.7);
-    z-index: 300;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-    color: white;
-    font-size: 15px;
-    font-weight: 600;
-    display: none;
-  }
-  .loading-overlay.show { display: flex; }
-  .loading-overlay .big-spinner {
-    width: 44px; height: 44px;
-    border: 3px solid rgba(255,255,255,0.25);
-    border-top-color: var(--gold);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
+/* ── Guest drawer ── */
+#guest-drawer { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; justify-content: flex-end; }
+.drawer-scrim { position: absolute; inset: 0; background: rgba(0,0,0,.5); }
+.drawer-panel {
+  position: relative; z-index: 1; background: var(--white);
+  border-radius: 20px 20px 0 0; padding: 20px 20px 40px;
+  display: flex; flex-direction: column; gap: 16px;
+  max-height: 82vh; overflow-y: auto;
+  box-shadow: 0 -8px 40px rgba(0,0,0,.2);
+}
+.drawer-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 0 auto 4px; }
+.drawer-name   { font-size: 26px; font-weight: 900; color: var(--text); line-height: 1.1; }
+.drawer-ticket { font-size: 14px; color: var(--muted); margin-top: 5px; }
+.drawer-ent    { border-radius: 12px; padding: 16px; }
+.drawer-ent.std { background: var(--bg); border: 2px solid var(--border); }
+.drawer-ent.vip { background: #FFFBE6; border: 2px solid #C89500; }
+.drawer-ent.tm  { background: #E6F0FF; border: 2px solid #0050B3; }
+.drawer-ent-title { font-size: 12px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; margin-bottom: 12px; color: var(--muted); }
+.vip .drawer-ent-title  { color: #7A5500; }
+.tm-dr .drawer-ent-title { color: #0050B3; }
+.ent-row { display: flex; align-items: center; gap: 11px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.ent-row:last-child { border-bottom: none; }
+.ent-icon  { font-size: 22px; width: 30px; text-align: center; }
+.ent-label { flex: 1; font-size: 14px; color: var(--text); font-weight: 600; }
+.ent-val   { font-size: 13px; color: var(--muted); }
+.vip .ent-val { color: #7A5500; font-weight: 700; }
+.drawer-order { font-size: 12px; color: #999; letter-spacing: .04em; }
+.drawer-close { background: var(--bg); border: 2px solid var(--border); border-radius: 10px; padding: 15px; font-size: 14px; font-weight: 700; color: var(--text); font-family: inherit; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; width: 100%; }
+.drawer-admit {
+  background: var(--ok); color: #fff; border: none; border-radius: 16px;
+  padding: 22px; font-size: 22px; font-weight: 900; letter-spacing: .12em;
+  text-transform: uppercase; cursor: pointer; font-family: inherit; width: 100%;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 4px 20px rgba(0,168,90,.35);
+  transition: transform .1s, box-shadow .1s;
+}
+.drawer-admit:active { transform: scale(.97); box-shadow: 0 2px 8px rgba(0,168,90,.2); }
 
-  /* Empty state */
-  .empty-state { text-align: center; padding: 40px 20px; }
-  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
-  .empty-state h3 { font-size: 16px; font-weight: 700; color: var(--navy); }
-  .empty-state p { font-size: 13px; color: var(--muted); margin-top: 6px; }
+/* ── Stats ── */
+#stats-screen { overflow-y: auto; background: var(--bg); }
+.stats-inner  { padding: 20px 16px; display: flex; flex-direction: column; gap: 16px; flex: 1; }
+.stat-grid    { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+.stat-card    { background: var(--white); border: 2px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
+.stat-card.accent { border-color: var(--pink); }
+.stat-num     { font-size: 36px; font-weight: 900; line-height: 1; color: var(--text); }
+.stat-card.accent .stat-num { color: var(--pink); }
+.stat-lbl     { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
 
-  /* Toast */
-  .toast {
-    position: fixed;
-    bottom: 28px;
-    left: 50%;
-    transform: translateX(-50%) translateY(80px);
-    background: var(--navy);
-    color: white;
-    padding: 12px 20px;
-    border-radius: 24px;
-    font-size: 14px;
-    font-weight: 600;
-    z-index: 400;
-    transition: transform 0.25s cubic-bezier(0.34,1.4,0.64,1);
-    white-space: nowrap;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-  }
-  .toast.show { transform: translateX(-50%) translateY(0); }
-  .toast.green { background: var(--green); }
-  .toast.red { background: var(--red); }
+/* ── Settings ── */
+#settings-screen { overflow-y: auto; background: var(--bg); }
+.settings-inner { padding: 22px 18px; display: flex; flex-direction: column; gap: 18px; flex: 1; }
 
-  /* QR code display */
-  .qr-container {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    box-shadow: var(--shadow);
-    margin-bottom: 14px;
-  }
-  #qrCanvas { max-width: 200px; }
-  .qr-url { font-size: 11px; color: var(--muted); margin-top: 8px; word-break: break-all; }
+/* spinner */
+.spin { display: inline-block; width: 18px; height: 18px; border: 2px solid #ddd; border-top-color: var(--pink); border-radius: 50%; animation: _spin .7s linear infinite; vertical-align: middle; }
+@keyframes _spin { to { transform: rotate(360deg); } }
 
-  /* Instructions */
-  .instruction-steps { counter-reset: step; }
-  .instruction-step {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 14px;
-    align-items: flex-start;
-  }
-  .step-num {
-    counter-increment: step;
-    width: 28px; height: 28px;
-    background: var(--navy);
-    color: var(--gold);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 13px;
-    font-weight: 800;
-    flex-shrink: 0;
-    font-variant-numeric: tabular-nums;
-  }
-  .step-text { font-size: 13px; color: var(--text); line-height: 1.5; padding-top: 4px; }
-  .step-text strong { color: var(--navy); }
-
-  /* Optimisation badge */
-  .perf-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 20px;
-    background: #e8f8ef;
-    color: var(--green-dark);
-  }
-
-  .section-label {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--muted);
-    margin-bottom: 8px;
-    margin-top: 4px;
-    padding-left: 2px;
-  }
-
-  /* vibration feedback flash */
-  @keyframes flash-green { 0%,100% { background: var(--card); } 50% { background: #d4f5e4; } }
-  .flash-ok { animation: flash-green 0.35s ease; }
+/* sync dot */
+.sync-dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:#555; transition:background .4s; flex-shrink:0; }
+.sync-dot.ok      { background: #00C875; }
+.sync-dot.offline { background: #FF9500; animation: pulse-warn 1.5s ease-in-out infinite; }
+@keyframes pulse-warn { 0%,100%{opacity:1} 50%{opacity:.4} }
 </style>
 </head>
 <body>
+<div id="app">
 
-<div class="header">
-  <div class="header-title">
-    <div style="width:32px;height:32px;background:var(--gold);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;">⚓</div>
+<!-- HEADER -->
+<header id="main-header" class="hidden">
   <div>
-    <h1>Henley Royal Regatta</h1>
-    <p>Gate Entry System</p>
+    <div class="brand-name">Funky Dory</div>
+    <div class="brand-sub">Door Scanner · HRR 2026 · v5.0</div>
   </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span id="sync-dot" class="sync-dot" title="Sync status"></span>
+    <div class="hdr-right">
+      <strong id="hdr-count">0</strong>
+      admitted
+    </div>
   </div>
-  <div class="header-badge" id="liveTag">LIVE</div>
+</header>
+
+<!-- SETUP -->
+<div id="setup-screen" class="screen" style="display:flex;">
+  <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
+    <div>
+      <div class="brand-name" style="font-size:24px;">Funky Dory</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · HRR 2026 · v5.0</div>
+    </div>
+    <div class="setup-title" style="margin-top:8px;">Connect to WooCommerce</div>
+    <div class="field-group">
+      <label>WordPress Site URL</label>
+      <input type="url" id="site-url" placeholder="https://funkydorylove.co.uk" autocomplete="off" autocapitalize="none" spellcheck="false">
+    </div>
+    <div class="field-group">
+      <label>Consumer Key</label>
+      <input type="text" id="wc-key" placeholder="ck_xxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="field-group">
+      <label>Consumer Secret</label>
+      <input type="password" id="wc-secret" placeholder="cs_xxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="field-group">
+      <label>MEC API Key</label>
+      <input type="password" id="mec-key" placeholder="MEC Utility API key" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="setup-note">
+      Generate WooCommerce keys in <strong>WooCommerce → Settings → Advanced → REST API</strong>. MEC API key from <strong>MEC → Settings → RESTful API</strong>.
+    </div>
+    <button class="btn-primary" onclick="connect()">Connect &amp; Load Guest List</button>
+    <button class="btn-secondary" onclick="useDemoMode()">Try Demo Mode</button>
+  </div>
 </div>
 
-<div class="nav-tabs">
-  <button class="nav-tab active" onclick="switchTab('scan')">📷 Scan</button>
-  <button class="nav-tab" onclick="switchTab('guests')">👥 Guests</button>
-  <button class="nav-tab" onclick="switchTab('events')">📅 Events</button>
-  <button class="nav-tab" onclick="switchTab('upload')">⬆ Upload</button>
-  <button class="nav-tab" onclick="switchTab('info')">ℹ Info</button>
+<!-- SCAN TAB -->
+<div id="scan-screen" class="screen hidden">
+  <div class="cam-wrap">
+    <video id="qr-video" style="width:100%;height:100%;object-fit:cover;display:block;" autoplay muted playsinline></video>
+    <div class="scan-overlay">
+      <div class="scan-frame"><span></span></div>
+      <div class="scan-line"></div>
+    </div>
+  </div>
+  <div class="manual-bar">
+    <input type="text" id="manual-input" placeholder="Order number, email or barcode…" autocomplete="off" autocorrect="off" autocapitalize="none">
+    <button onclick="lookupManual()">Check</button>
+  </div>
+  <div id="debug-bar" style="padding:6px 14px;background:#FFF9C4;border-bottom:1px solid #E0D800;font-size:11px;color:#555;font-family:monospace;display:none;">
+    📷 Last scan: <span id="debug-code" style="font-weight:bold;color:#333;"></span>
+  </div>
+  <div id="result-area">
+    <div class="result-card" id="result-card">
+      <div class="rc-icon">🎟️</div>
+      <div class="rc-body">
+        <div class="rc-status">Ready</div>
+        <div class="rc-name">Scan a ticket</div>
+        <div class="rc-detail">Point camera at QR code, or type an order number or email below</div>
+      </div>
+    </div>
+    <!-- Ticketmaster manual confirm — hidden until TM scan -->
+    <div class="tm-actions hidden" id="tm-actions">
+      <button class="tm-admit"  onclick="admitTM()">✓ Admit</button>
+      <button class="tm-reject" onclick="rejectTM()">✕ Reject</button>
+    </div>
+    <!-- Entitlement banner -->
+    <div class="ent-banner std hidden" id="ent-banner">
+      <div class="eb-icon">🎽</div>
+      <div class="eb-body">
+        <div class="eb-title">Wristband</div>
+        <div class="eb-items" id="ent-items"></div>
+      </div>
+    </div>
+    <!-- Chips -->
+    <div class="chips hidden" id="result-chips"></div>
+    <!-- Log -->
+    <div>
+      <div class="log-hdr">
+        <span class="log-label">Recent scans</span>
+        <button class="log-clear" onclick="clearLog()">Clear</button>
+      </div>
+      <ul class="log-list" id="scan-log"></ul>
+    </div>
+  </div>
+  <nav class="bottom-nav">
+    <button class="nav-btn" onclick="showTab('scan')"><span class="nav-icon">📷</span>Scan</button>
+    <button class="nav-btn" onclick="showTab('guests')"><span class="nav-icon">👥</span>Guests</button>
+    <button class="nav-btn" onclick="showTab('stats')"><span class="nav-icon">📊</span>Stats</button>
+    <button class="nav-btn" onclick="showTab('settings')"><span class="nav-icon">⚙️</span>Settings</button>
+  </nav>
 </div>
 
-<!-- ═══════════════════════════════════════════ SCAN ═══ -->
-<div id="tab-scan" class="panel active">
-  <div class="card">
-    <div class="scan-area">
-      <video id="scanVideo" playsinline autoplay muted></video>
-      <div class="scan-overlay">
-        <div class="scan-frame">
-          <div class="c1"></div><div class="c2"></div>
-          <div class="scan-line"></div>
+<!-- GUEST LIST TAB -->
+<div id="guests-screen" class="screen hidden">
+  <div class="gl-toolbar">
+    <input class="gl-search" type="text" id="gl-search" placeholder="Search by name…" oninput="renderGuestList()" autocomplete="off" autocorrect="off" autocapitalize="none">
+    <button class="gl-refresh" onclick="refreshGuests()" title="Refresh">↻</button>
+  </div>
+  <!-- event-bar removed — replaced by dynamic event filter pills -->
+  <div class="gl-filter-bar" id="gl-filter-bar">
+    <button class="filter-pill active" onclick="setFilter('all',this)">All</button>
+    <!-- Event pills injected dynamically by renderFilterPills() -->
+    <button class="filter-pill" onclick="setFilter('vip',this)">⭐ VIP</button>
+    <button class="filter-pill" onclick="setFilter('comp',this)">🎁 Comp</button>
+    <button class="filter-pill" onclick="setFilter('tm',this)">🎫 Ticketmaster</button>
+    <button class="filter-pill" onclick="setFilter('artist',this)">🎵 Artist</button>
+    <button class="filter-pill" onclick="setFilter('sponsor',this)">🤝 Sponsor</button>
+    <button class="filter-pill" onclick="setFilter('influencer',this)">📱 Influencer</button>
+    <button class="filter-pill" onclick="setFilter('in',this)">✓ In</button>
+    <button class="filter-pill" onclick="setFilter('pending',this)">⏳ Not yet</button>
+  </div>
+  <div id="gl-list" class="gl-list">
+    <div class="gl-loading"><span class="spin"></span>&nbsp; Loading…</div>
+  </div>
+  <nav class="bottom-nav">
+    <button class="nav-btn" onclick="showTab('scan')"><span class="nav-icon">📷</span>Scan</button>
+    <button class="nav-btn active" onclick="showTab('guests')"><span class="nav-icon">👥</span>Guests</button>
+    <button class="nav-btn" onclick="showTab('stats')"><span class="nav-icon">📊</span>Stats</button>
+    <button class="nav-btn" onclick="showTab('settings')"><span class="nav-icon">⚙️</span>Settings</button>
+  </nav>
+</div>
+
+<!-- GUEST DETAIL DRAWER -->
+<div id="guest-drawer" class="hidden" onclick="closeDrawer(event)">
+  <div class="drawer-scrim"></div>
+  <div class="drawer-panel">
+    <div class="drawer-handle"></div>
+    <div>
+      <div class="drawer-name" id="dr-name"></div>
+      <div class="drawer-ticket" id="dr-ticket"></div>
+      <div id="dr-guest-of" class="hidden" style="margin-top:8px;padding:10px 14px;background:#F0F4FF;border-radius:10px;border-left:4px solid #0050B3;font-size:13px;color:#0050B3;font-weight:700;"></div>
+    </div>
+    <div class="drawer-ent std" id="dr-ent">
+      <div class="drawer-ent-title" id="dr-ent-title"></div>
+      <div id="dr-ent-rows"></div>
+    </div>
+    <div class="drawer-order" id="dr-order"></div>
+    <button class="drawer-admit hidden" id="dr-admit-btn" onclick="admitFromDrawer()">
+      <span style="font-size:28px;display:block;margin-bottom:4px;">✓</span>
+      ADMIT
+    </button>
+    <div id="dr-already-in" class="hidden" style="text-align:center;padding:16px;background:#E6F9EF;border-radius:12px;border:2px solid #00A85A;color:#00A85A;font-size:15px;font-weight:800;letter-spacing:.05em;">✓ Already checked in</div>
+    <button class="drawer-close" onclick="closeDrawer()">Close</button>
+  </div>
+</div>
+
+<!-- STATS TAB -->
+<div id="stats-screen" class="screen hidden">
+  <div style="padding:20px 16px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;flex:1;background:var(--bg);">
+    <div class="setup-title">This session</div>
+    <div class="stat-grid">
+      <div class="stat-card accent"><div class="stat-num" id="st-admitted">0</div><div class="stat-lbl">Admitted</div></div>
+      <div class="stat-card"><div class="stat-num" id="st-total">0</div><div class="stat-lbl">Total scans</div></div>
+      <div class="stat-card"><div class="stat-num" id="st-dupe">0</div><div class="stat-lbl">Duplicates</div></div>
+      <div class="stat-card"><div class="stat-num" id="st-invalid">0</div><div class="stat-lbl">Rejected</div></div>
+    </div>
+    <div class="setup-title">Guest list</div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-num" id="st-gl-total">—</div><div class="stat-lbl">Total guests</div></div>
+      <div class="stat-card"><div class="stat-num" id="st-gl-vip">—</div><div class="stat-lbl">VIP</div></div>
+      <div class="stat-card"><div class="stat-num" id="st-gl-comp">—</div><div class="stat-lbl">Comps</div></div>
+      <div class="stat-card accent"><div class="stat-num" id="st-gl-in">—</div><div class="stat-lbl">Checked in</div></div>
+    </div>
+    <div class="log-hdr"><span class="log-label">Full scan log</span></div>
+    <ul class="log-list" id="full-log" style="max-height:none;"></ul>
+  </div>
+  <nav class="bottom-nav">
+    <button class="nav-btn" onclick="showTab('scan')"><span class="nav-icon">📷</span>Scan</button>
+    <button class="nav-btn" onclick="showTab('guests')"><span class="nav-icon">👥</span>Guests</button>
+    <button class="nav-btn active" onclick="showTab('stats')"><span class="nav-icon">📊</span>Stats</button>
+    <button class="nav-btn" onclick="showTab('settings')"><span class="nav-icon">⚙️</span>Settings</button>
+  </nav>
+</div>
+
+<!-- SETTINGS TAB -->
+<div id="settings-screen" class="screen hidden">
+  <div style="padding:22px 18px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;flex:1;background:var(--bg);">
+    <div class="setup-title">WooCommerce Connection</div>
+    <div class="field-group"><label>Site URL</label><input type="url" id="s-url" autocomplete="off" autocapitalize="none"></div>
+    <div class="field-group"><label>Consumer Key</label><input type="text" id="s-key" autocomplete="off"></div>
+    <div class="field-group"><label>Consumer Secret</label><input type="password" id="s-secret" autocomplete="off"></div>
+    <div class="field-group"><label>MEC API Key</label><input type="password" id="s-mec-key" autocomplete="off"></div>
+    <button class="btn-primary" onclick="saveSettings()">Save &amp; Reload Guest List</button>
+    <button class="btn-secondary" onclick="clearLocalCheckins()">Clear local check-ins (testing)</button>
+    <button class="btn-secondary" onclick="undoLastCheckin()">↩ Undo last check-in</button>
+    <button class="btn-secondary" onclick="disconnectReset()">Disconnect &amp; Reset</button>
+
+    <div class="setup-title" style="margin-top:8px;">Device Options</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <label style="display:flex;align-items:center;justify-content:space-between;background:#fff;border-radius:10px;padding:14px 16px;border:2px solid var(--border);">
+        <div>
+          <div style="font-size:14px;font-weight:700;">Vibration on scan</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Haptic feedback for each scan</div>
+        </div>
+        <input type="checkbox" id="opt-vibrate" checked style="width:22px;height:22px;accent-color:var(--pink);">
+      </label>
+      <label style="display:flex;align-items:center;justify-content:space-between;background:#fff;border-radius:10px;padding:14px 16px;border:2px solid var(--border);">
+        <div>
+          <div style="font-size:14px;font-weight:700;">Keep screen awake</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Prevents lock screen while scanning</div>
+        </div>
+        <input type="checkbox" id="opt-wakelock" checked style="width:22px;height:22px;accent-color:var(--pink);" onchange="toggleWakeLock(this.checked)">
+      </label>
+      <label style="display:flex;align-items:center;justify-content:space-between;background:#fff;border-radius:10px;padding:14px 16px;border:2px solid var(--border);">
+        <div>
+          <div style="font-size:14px;font-weight:700;">🔋 Battery saver</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Reduces scan rate — saves ~40% battery</div>
+        </div>
+        <input type="checkbox" id="opt-batterysaver" style="width:22px;height:22px;accent-color:var(--pink);">
+      </label>
+    </div>
+
+    <div class="setup-title" style="margin-top:8px;">Battery tips</div>
+    <div class="setup-note">
+      • Enable Battery Saver above when not actively scanning<br>
+      • Use Guest tab for manual check-ins (no camera drain)<br>
+      • Reduce screen brightness at your gate station<br>
+      • Plug in where possible — power banks recommended
+    </div>
+
+    <div class="setup-title" style="margin-top:8px;">Load on team phones</div>
+    <div style="background:#fff;border-radius:10px;padding:16px;border:2px solid var(--border);text-align:center;">
+      <div id="settings-qr" style="display:inline-block;margin-bottom:8px;"></div>
+      <div style="font-size:11px;color:var(--muted);word-break:break-all;" id="settings-url"></div>
+      <button class="btn-secondary" style="margin-top:10px;" onclick="copyAppUrl()">Copy URL</button>
+    </div>
+
+    <div class="setup-title" style="margin-top:8px;">How to use</div>
+    <div class="setup-note" style="line-height:2;">
+      <strong>1.</strong> Connect with WooCommerce credentials above — guest list loads automatically<br>
+      <strong>2.</strong> Scan tab — point camera at QR code on ticket<br>
+      <strong>3.</strong> Green ✓ = admitted · Red ✗ = rejected · Yellow ⚠ = already in or too early<br>
+      <strong>4.</strong> Guests tab — search by name, tap to expand, admit individually or all at once<br>
+      <strong>5.</strong> Evening tickets — valid from <strong>5:00 PM</strong> only<br>
+      <strong>6.</strong> Ticketmaster barcodes — app flags for visual verify, then you admit/reject manually<br>
+      <strong>7.</strong> Scanner and guest list stay in sync automatically every 3 seconds
+    </div>
+
+    <div class="setup-note">
+      <strong>Ticketmaster guests:</strong> import into WooCommerce as £0 completed orders before the event. Add "Ticketmaster" to the product name and the app will flag them automatically when their name is searched.<br><br>
+      <strong>VIP:</strong> detected when product name contains "VIP".<br>
+      <strong>Comps:</strong> any completed order with a £0 total.
+    </div>
+  </div>
+  <nav class="bottom-nav">
+    <button class="nav-btn" onclick="showTab('scan')"><span class="nav-icon">📷</span>Scan</button>
+    <button class="nav-btn" onclick="showTab('guests')"><span class="nav-icon">👥</span>Guests</button>
+    <button class="nav-btn" onclick="showTab('stats')"><span class="nav-icon">📊</span>Stats</button>
+    <button class="nav-btn active" onclick="showTab('settings')"><span class="nav-icon">⚙️</span>Settings</button>
+  </nav>
+</div>
+
+</div><!-- /app -->
+<script>
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let cfg      = { siteUrl:'', wcKey:'', wcSecret:'', mecKey:'', demo:false };
+let guestMap   = {};  // orderNumber/mec-key → guest (individual)
+let bookingMap = {};  // bookingId → { name, email, tickets:[], source }
+let invoiceMap = {};  // invoiceId → booking (for QR lookup)
+let emailMap   = {};  // email lower → guest
+let idMap      = {};  // wc order id → guest
+let scanLog  = [];
+let stats    = { admitted:0, total:0, dupe:0, invalid:0 };
+let glFilter = 'all';
+let scanner  = null;
+let lastCode = ''; let lastAt = 0; let isScanning = false;
+let pendingTMCode = null;
+let drawerOrderNum = null;
+let syncTimer    = null;
+let offlineQueue = [];
+let isSyncing    = false;
+const SYNC_INTERVAL = 3000;
+const META_KEY = '_fd_checked_in';
+const TICKET_META_KEY = '_fd_checked_in_tickets';
+
+// ═══════════════════════════════════════════
+//  SYNC ENGINE
+// ═══════════════════════════════════════════
+async function writeCheckIn(orderId, ticketSuffix, checkedInTickets) {
+  if (cfg.demo) return true;
+  try {
+    const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
+    const allChecked = checkedInTickets;
+    const r = await fetch(`${cfg.siteUrl}/wp-json/wc/v3/orders/${orderId}`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Basic ${creds}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        meta_data: [
+          { key: TICKET_META_KEY, value: JSON.stringify(allChecked) },
+          { key: META_KEY, value: allChecked.length > 0 ? '1' : '' }
+        ]
+      })
+    });
+    if (!r.ok) throw new Error(`Write failed ${r.status}`);
+    return true;
+  } catch(e) {
+    console.warn('Check-in write failed, queuing:', e.message);
+    offlineQueue.push({ orderId, ticketSuffix, checkedInTickets });
+    showSyncStatus('offline');
+    return false;
+  }
+}
+
+async function syncCheckedIn() {
+  if (cfg.demo || isSyncing || !Object.keys(guestMap).length) return;
+  isSyncing = true;
+  try {
+    const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
+    const r = await fetch(
+      `${cfg.siteUrl}/wp-json/wc/v3/orders?status=completed,processing,on-hold&per_page=100&meta_key=${META_KEY}&meta_value=1&_fields=id,number,meta_data`,
+      { headers: { 'Authorization': `Basic ${creds}` } }
+    );
+    if (!r.ok) throw new Error(`Sync ${r.status}`);
+    const checked = await r.json();
+    let changed = false;
+    checked.forEach(o => {
+      const g = guestMap[String(o.number)] || idMap[o.id];
+      if (g) {
+        const ticketMeta = o.meta_data && o.meta_data.find(m => m.key === TICKET_META_KEY);
+        if (ticketMeta && ticketMeta.value) {
+          try {
+            const tickets = JSON.parse(ticketMeta.value);
+            if (tickets.length > g.checkedInTickets.length) {
+              g.checkedInTickets = tickets;
+              g.checkedIn = tickets.length >= g.qty;
+              changed = true;
+            }
+          } catch(e) {}
+        }
+      }
+    });
+    // Flush offline queue
+    if (offlineQueue.length) {
+      const toFlush = [...offlineQueue]; offlineQueue = [];
+      for (const id of toFlush) { await writeCheckIn(id); }
+    }
+    if (changed) { renderGuestList(); updateGLStats(); updateStats(); }
+    showSyncStatus('ok');
+  } catch(e) {
+    showSyncStatus('offline');
+  } finally {
+    isSyncing = false;
+  }
+}
+
+function startSync() {
+  if (syncTimer) clearInterval(syncTimer);
+  syncTimer = setInterval(syncCheckedIn, SYNC_INTERVAL);
+  syncCheckedIn();
+}
+
+function showSyncStatus(state) {
+  const el = document.getElementById('sync-dot');
+  if (!el) return;
+  el.className = 'sync-dot ' + state;
+}
+
+// ═══════════════════════════════════════════
+//  TICKETMASTER DETECTION
+//  TM barcodes: long numeric strings (13-18 digits), or start with known prefixes
+// ═══════════════════════════════════════════
+function isTicketmasterCode(code) {
+  const c = code.trim();
+  // Don't flag MEC QR URLs as Ticketmaster
+  if (c.includes('invoiceID') || c.includes('checkIn') || c.includes('Hash')) return false;
+  // Don't flag our own site URLs
+  if (c.includes(cfg.siteUrl)) return false;
+  // Pure long numeric (TM barcode format) — 10+ digits with no letters
+  if (/^\d{10,}$/.test(c)) return true;
+  // TM QR often contains URLs or known TM identifiers
+  if (/ticketmaster|livenation|tm\d{6}/i.test(c)) return true;
+  // TM may encode as alphanumeric with specific lengths
+  if (/^[A-Z0-9]{16,}$/.test(c) && !/^(ck_|cs_)/.test(c)) return true;
+  return false;
+}
+
+// ═══════════════════════════════════════════
+//  SETUP
+// ═══════════════════════════════════════════
+function connect() {
+  const url    = document.getElementById('site-url').value.trim().replace(/\/$/,'');
+  const key    = document.getElementById('wc-key').value.trim();
+  const secret = document.getElementById('wc-secret').value.trim();
+  const mecKey = document.getElementById('mec-key').value.trim();
+  if (!url||!key||!secret) { alert('Please fill in Site URL, Consumer Key and Consumer Secret.'); return; }
+  cfg = { siteUrl:url, wcKey:key, wcSecret:secret, mecKey, demo:false };
+  saveConfig(); launch();
+}
+function useDemoMode() { cfg = { siteUrl:'', wcKey:'', wcSecret:'', demo:true }; launch(); }
+function launch() {
+  document.getElementById('setup-screen').classList.add('hidden');
+  document.getElementById('main-header').classList.remove('hidden');
+  showTab('guests');
+  loadGuestList().then(() => startSync());
+  initCamera();
+  requestWakeLock();
+}
+function saveConfig() { localStorage.setItem('fd_cfg', JSON.stringify(cfg)); }
+function saveSettings() {
+  cfg.siteUrl  = document.getElementById('s-url').value.trim().replace(/\/$/,'');
+  cfg.wcKey    = document.getElementById('s-key').value.trim();
+  cfg.wcSecret = document.getElementById('s-secret').value.trim();
+  cfg.mecKey   = document.getElementById('s-mec-key').value.trim();
+  cfg.demo     = false;
+  saveConfig(); loadGuestList(); showTab('guests');
+}
+function disconnectReset() {
+  if (!confirm('Reset and disconnect?')) return;
+  localStorage.clear();
+  if (scanner) { try { scanner.reset(); } catch(e){} }
+  location.reload();
+}
+
+// ═══════════════════════════════════════════
+//  WOOCOMMERCE
+// ═══════════════════════════════════════════
+// Upcoming MEC event names for filtering
+let upcomingEventNames = [];
+let upcomingEvents = [];
+
+async function fetchUpcomingEvents() {
+  if (!cfg.mecKey || !cfg.siteUrl || cfg.demo) return;
+  try {
+    const now  = new Date();
+    const in10 = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
+    const fmt  = d => d.toISOString().split('T')[0];
+
+    // Try multiple endpoint formats MEC Utility supports
+    // Try multiple auth methods and endpoints
+    const authHeaders = [
+      { 'X-MEC-KEY': cfg.mecKey },
+      { 'Authorization': `Bearer ${cfg.mecKey}` },
+      { 'X-MEC-KEY': cfg.mecKey, 'Authorization': `Bearer ${cfg.mecKey}` },
+    ];
+    const baseUrls = [
+      `${cfg.siteUrl}/wp-json/mec-utility/v1/events?date_filter=upcoming&start_date=${fmt(now)}&end_date=${fmt(in10)}&per_page=50&status=publish`,
+      `${cfg.siteUrl}/wp-json/mec-utility/v1/events?start_date=${fmt(now)}&end_date=${fmt(in10)}&per_page=50`,
+      `${cfg.siteUrl}/wp-json/mec-utility/v1/events?date_filter=upcoming&per_page=50&api_key=${encodeURIComponent(cfg.mecKey)}`,
+      `${cfg.siteUrl}/wp-json/mec-utility/v1/event-list?date_filter=upcoming&start_date=${fmt(now)}&end_date=${fmt(in10)}&per_page=50`,
+    ];
+
+    for (const hdrs of authHeaders) {
+      for (const url of baseUrls) {
+        try {
+          const r = await fetch(url, { headers: hdrs });
+          console.log('MEC events:', url.split('?')[0], 'auth:', Object.keys(hdrs)[0], 'status:', r.status);
+          if (!r.ok) continue;
+          const data = await r.json();
+          console.log('MEC events response keys:', Object.keys(data));
+          const events = Array.isArray(data) ? data : (data.events || data.data || data.results || []);
+          console.log('Events found in response:', events.length);
+          if (events.length > 0) {
+            upcomingEventNames = events.map(e => (e.title || e.name || e.post_title || '').toLowerCase());
+            upcomingEvents = events;
+            console.log('✓ Upcoming events loaded:', upcomingEventNames.length, upcomingEventNames);
+            return;
+          }
+        } catch(e) {
+          console.warn('MEC endpoint failed:', e.message);
+        }
+      }
+    }
+    console.warn('✗ No upcoming events found — check MEC API key and permissions');
+  } catch(e) {
+    console.warn('Could not fetch upcoming events:', e.message);
+  }
+}
+
+function isUpcomingGuest(g) {
+  if (showAll) return true;
+  // MEC guests are already from upcoming events — always show
+  if (g._source === 'mec') return true;
+  // WC comp guests — show if no upcoming events loaded (fallback) or always show comps
+  if (g.isComp || g._source === 'wc') return true;
+  return true;
+}
+
+async function fetchMecAttendees(events) {
+  // For each upcoming event, fetch attendees from each occurrence
+  const mecGuests = {};
+  for (const ev of events) {
+    try {
+      const occurrences = ev.occurrences || [];
+      for (const occ of occurrences) {
+        // Use attendees already embedded in the occurrence if available
+        if (occ.attendees && occ.attendees.attendees && occ.attendees.attendees.length > 0) {
+          for (const a of occ.attendees.attendees) {
+            const key = `mec-${a.booking_id}-${a.attendee_key}`;
+            const ticketId = String(a.ticket_id || '1');
+            const ticket   = ev.tickets ? ev.tickets.find(t => String(t.id) === ticketId) : null;
+            const ticketName = ticket ? ticket.name : (a.ticket_name || ev.title || 'MEC Ticket');
+            mecGuests[key] = {
+              id:              `${a.booking_id}-${a.attendee_key}`,
+              orderNumber:     String(a.invoice_id || a.booking_id),
+              name:            a.name || [a.first_name, a.last_name].filter(Boolean).join(' ') || 'Guest',
+              email:           (a.email || '').toLowerCase(),
+              ticketName,
+              isVip:           /vip/i.test(ticketName),
+              isTM:            false,
+              isComp:          false,
+              table:           null,
+              guestOf:         null,
+              hostCategory:    null,
+              guestNotes:      null,
+              qty:             1,
+              checkedInTickets: a.checkin_status ? [`${a.booking_id}-${a.attendee_key}`] : [],
+              checkedIn:       !!a.checkin_status,
+              eventDay:        detectDay(ev.title || ''),
+              orderDate:       ev.mec_data ? ev.mec_data.start_date : null,
+              _mecTicket:      true,
+              _bookingId:      String(a.booking_id),
+              _attendeeKey:    String(a.attendee_key),
+              _invoiceID:      String(a.invoice_id || a.booking_id),
+              _eventId:        String(ev.id),
+              _eventTitle:     ev.title || '',
+              _source:         'mec'
+            };
+          }
+        } else {
+          // Fetch attendees for this occurrence from API
+          const r = await fetch(
+            `${cfg.siteUrl}/wp-json/mec-utility/v1/events/${ev.id}/occurrences/${occ.start_timestamp}/attendees?include_details=true`,
+            { headers: { 'X-MEC-KEY': cfg.mecKey } }
+          );
+          if (!r.ok) continue;
+          const data = await r.json();
+          const attendees = Array.isArray(data) ? data : (data.attendees || []);
+          for (const a of attendees) {
+            const key = `mec-${a.booking_id}-${a.attendee_key}`;
+            const ticketId   = String(a.ticket_id || '1');
+            const ticket     = ev.tickets ? ev.tickets.find(t => String(t.id) === ticketId) : null;
+            const ticketName = ticket ? ticket.name : (a.ticket_name || ev.title || 'MEC Ticket');
+            mecGuests[key] = {
+              id:              `${a.booking_id}-${a.attendee_key}`,
+              orderNumber:     String(a.invoice_id || a.booking_id),
+              name:            a.name || [a.first_name, a.last_name].filter(Boolean).join(' ') || 'Guest',
+              email:           (a.email || '').toLowerCase(),
+              ticketName,
+              isVip:           /vip/i.test(ticketName),
+              isTM:            false,
+              isComp:          false,
+              table:           null,
+              guestOf:         null,
+              hostCategory:    null,
+              guestNotes:      null,
+              qty:             1,
+              checkedInTickets: a.checkin_status ? [`${a.booking_id}-${a.attendee_key}`] : [],
+              checkedIn:       !!a.checkin_status,
+              eventDay:        detectDay(ev.title || ''),
+              orderDate:       ev.mec_data ? ev.mec_data.start_date : null,
+              _mecTicket:      true,
+              _bookingId:      String(a.booking_id),
+              _attendeeKey:    String(a.attendee_key),
+              _invoiceID:      String(a.invoice_id || a.booking_id),
+              _eventId:        String(ev.id),
+              _eventTitle:     ev.title || '',
+              _source:         'mec'
+            };
+          }
+        }
+      }
+    } catch(e) {
+      console.warn('MEC attendee fetch failed for event', ev.id, e.message);
+    }
+  }
+  // Build bookingMap from MEC guests
+  Object.values(mecGuests).forEach(g => {
+    const bid = g._bookingId;
+    if (!bookingMap[bid]) {
+      bookingMap[bid] = {
+        bookingId:   bid,
+        invoiceID:   g._invoiceId,
+        name:        g.name,
+        email:       g.email,
+        eventTitle:  g._eventTitle,
+        eventDay:    g.eventDay,
+        _eventId:    g._eventId,
+        tickets:     [],
+        source:      'mec'
+      };
+      // Also index by invoice ID for QR code lookup
+      if (g._invoiceID) invoiceMap[g._invoiceId] = bookingMap[bid];
+    }
+    bookingMap[bid].tickets.push({
+      key:          `${bid}-${g._attendeeKey}`,
+      attendeeKey:  g._attendeeKey,
+      name:         g.name,
+      ticketName:   g.ticketName,
+      isVip:        g.isVip,
+      checkedIn:    g.checkedIn
+    });
+  });
+
+  console.log(`MEC attendees fetched: ${Object.keys(mecGuests).length}, bookings: ${Object.keys(bookingMap).length}`);
+  return mecGuests;
+}
+
+async function loadGuestList() {
+  document.getElementById('gl-list').innerHTML = '<div class="gl-loading"><span class="spin"></span>&nbsp; Loading…</div>';
+  guestMap = {}; bookingMap = {}; invoiceMap = {}; emailMap = {}; idMap = {};
+  if (cfg.demo) { loadDemoGuests(); renderGuestList(); updateGLStats(); return; }
+  try {
+    // 1. Fetch upcoming MEC events
+    await fetchUpcomingEvents();
+
+    // 2. Fetch MEC attendees and WC orders in parallel
+    const [mecGuests, wcGuests] = await Promise.all([
+      upcomingEvents.length > 0 ? fetchMecAttendees(upcomingEvents) : Promise.resolve({}),
+      fetchWooOrders()
+    ]);
+
+    // 3. Add MEC guests first (source of truth for ticketed attendees)
+    Object.entries(mecGuests).forEach(([key, g]) => {
+      guestMap[key] = g;
+      if (g.email) emailMap[g.email] = g;
+    });
+
+    // 4. Add WC guests — only those NOT already covered by MEC (comps, TM, Remenham Farm)
+    // A WC order is "already in MEC" if its order number matches an MEC invoice ID
+    const mecInvoiceIds = new Set(Object.values(bookingMap).map(b => String(b.invoiceID)));
+    wcGuests.forEach(g => {
+      // Skip if this WC order is already represented by an MEC booking
+      if (mecInvoiceIds.has(String(g.orderNumber))) return;
+
+      // Universal rule: only show WC orders whose ticket name matches an upcoming MEC event
+      // This applies to ALL orders — paid, comp, TM, manual
+      // If no MEC events loaded, show everything (fallback)
+      if (upcomingEvents.length > 0) {
+        const ticketLower = (g.ticketName || '').toLowerCase();
+        const mecEventTitles = upcomingEvents.map(e => (e.title || '').toLowerCase());
+        const relatesToUpcoming = mecEventTitles.some(title => {
+          // Get significant words (5+ chars) from the MEC event title
+          const words = title.split(' ').filter(w => w.length > 4);
+          // Need at least 2 significant words to match
+          return words.filter(w => ticketLower.includes(w)).length >= 2;
+        });
+        if (!relatesToUpcoming) return; // skip orders not related to upcoming events
+      }
+      g._source = 'wc';
+      guestMap[`wc-${g.orderNumber}`] = g;
+      if (g.email && !emailMap[g.email]) emailMap[g.email] = g;
+      if (g.id) idMap[g.id] = g;
+
+      // Add to bookingMap
+      const wcKey = `wc-${g.orderNumber}`;
+      if (!bookingMap[wcKey]) {
+        bookingMap[wcKey] = {
+          bookingId:  wcKey,
+          invoiceID:  g.orderNumber,
+          name:       g.name,
+          email:      g.email,
+          eventTitle: g.ticketName,
+          eventDay:   g.eventDay,
+          tickets:    Array.from({length: g.qty || 1}, (_, i) => ({
+            key:        `${wcKey}-${i}`,
+            attendeeKey: String(i),
+            name:       g.name,
+            ticketName: g.ticketName,
+            isVip:      g.isVip,
+            checkedIn:  g.checkedInTickets.includes(String(i))
+          })),
+          source: 'wc',
+          isComp: g.isComp,
+          isTM:   g.isTM
+        };
+      }
+    });
+
+    console.log(`Guest list: ${Object.keys(guestMap).length} total (MEC: ${Object.keys(mecGuests).length}, WC comps: ${wcGuests.length})`);
+    renderFilterPills();
+    renderGuestList(); updateGLStats();
+  } catch(e) {
+    console.error('Guest list load error:', e);
+    document.getElementById('gl-list').innerHTML =
+      `<div class="gl-empty">⚠️ Could not load guest list<br><small style="opacity:.5">${e.message}</small></div>`;
+  }
+}
+
+async function fetchWooOrders() {
+  const base  = `${cfg.siteUrl}/wp-json/wc/v3/orders`;
+  const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
+  const hdrs  = { 'Authorization': `Basic ${creds}` };
+  let page = 1, all = [];
+
+  // Build date filter from upcoming MEC event dates
+  // Orders for an event can be placed up to a year in advance
+  // so we fetch from 1 year before the earliest event to the latest event date
+  let dateParams = '';
+  if (upcomingEvents.length > 0) {
+    const eventDates = upcomingEvents
+      .map(e => e.mec_data ? e.mec_data.start_date : null)
+      .filter(Boolean)
+      .sort();
+    if (eventDates.length > 0) {
+      const earliest = new Date(eventDates[0]);
+      const latest   = new Date(eventDates[eventDates.length - 1]);
+      earliest.setFullYear(earliest.getFullYear() - 1); // 1 year before earliest event
+      latest.setDate(latest.getDate() + 1); // day after latest event
+      // WC REST API needs ISO 8601 datetime format
+      const fmt = d => d.toISOString().replace('.000Z', '');
+      dateParams = `&after=${fmt(earliest)}&before=${fmt(latest)}`;
+      console.log(`WC date filter: ${fmt(earliest)} to ${fmt(latest)}`);
+    }
+  }
+
+  while (true) {
+    const url = `${base}?status=completed,processing,on-hold&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data,date_created${dateParams}`;
+    console.log(`Fetching WC orders page ${page}`);
+    const r = await fetch(url, { headers: hdrs });
+    if (!r.ok) throw new Error(`WooCommerce API ${r.status} — check credentials`);
+    const orders = await r.json();
+    if (!orders.length) break;
+    all = all.concat(orders);
+    const totalPages = parseInt(r.headers.get('X-WP-TotalPages') || r.headers.get('x-wp-totalpages') || '1');
+    const total      = parseInt(r.headers.get('X-WP-Total')      || r.headers.get('x-wp-total')      || '0');
+    console.log(`WC page ${page}: got ${orders.length} orders (total: ${total})`);
+    if (page >= totalPages || !total || all.length >= total) break;
+    page++;
+  }
+  console.log(`WC fetch complete: ${all.length} orders`);
+  return all.map(parseOrder);
+}
+
+function parseOrder(o) {
+  const item       = o.line_items && o.line_items[0];
+  const ticketName = item ? item.name : 'Ticket';
+  const isVip      = /vip/i.test(ticketName);
+  const isTM       = /ticketmaster/i.test(ticketName);
+  const isComp     = parseFloat(o.total) === 0;
+  const allMeta    = [...(o.meta_data||[]), ...(item&&item.meta_data?item.meta_data:[])];
+  const tableMeta  = allMeta.find(m => /table/i.test(m.key));
+  const table      = tableMeta ? tableMeta.value : null;
+  const name       = [o.billing.first_name, o.billing.last_name].filter(Boolean).join(' ') || 'Guest';
+  const guestOfMeta   = allMeta.find(m => m.key === '_fd_guest_of');
+  const hostCatMeta   = allMeta.find(m => m.key === '_fd_host_category');
+  const notesMeta     = allMeta.find(m => m.key === '_fd_notes');
+  const guestOf       = guestOfMeta ? guestOfMeta.value : null;
+  const hostCategory  = hostCatMeta ? hostCatMeta.value : null;
+  const guestNotes    = notesMeta   ? notesMeta.value   : null;
+
+  // Per-ticket check-in tracking — stored as JSON array of scanned ticket suffixes
+  const checkedInMeta = allMeta.find(m => m.key === '_fd_checked_in_tickets');
+  let checkedInTickets = [];
+  if (checkedInMeta && checkedInMeta.value) {
+    try { checkedInTickets = JSON.parse(checkedInMeta.value); } catch(e) {}
+  }
+  const qty = item ? (item.quantity || 1) : 1;
+  const checkedIn = checkedInTickets.length >= qty; // fully checked in only if ALL tickets scanned
+
+  // Detect event day from product name or meta
+  const dayMeta = allMeta.find(m => m.key === '_fd_day');
+  let eventDay = dayMeta ? dayMeta.value : 'All';
+  if (eventDay === 'All' || !eventDay) {
+    eventDay = detectDay(ticketName);
+  }
+
+  const guest = { id:o.id, orderNumber:String(o.number), name, email:(o.billing.email||'').toLowerCase(), ticketName, isVip, isTM, isComp, table, guestOf, hostCategory, guestNotes, qty, checkedInTickets, checkedIn, eventDay, orderDate: o.date_created || null };
+  idMap[o.id] = guest;
+  return guest;
+}
+
+async function fetchSingleOrder(code) {
+  const clean = code.replace(/^#/,'').trim();
+  const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
+  const r = await fetch(
+    `${cfg.siteUrl}/wp-json/wc/v3/orders?number=${encodeURIComponent(clean)}&status=completed,processing,on-hold&_fields=id,number,status,billing,line_items,total,meta_data,date_created`,
+    { headers: { 'Authorization': `Basic ${creds}` } }
+  );
+  if (!r.ok) throw new Error(`WC API ${r.status}`);
+  const orders = await r.json();
+  return orders.length ? parseOrder(orders[0]) : null;
+}
+
+async function refreshGuests() {
+  const btn = document.querySelector('.gl-refresh');
+  btn.style.opacity = '.4';
+  await loadGuestList();
+  btn.style.opacity = '1';
+}
+
+// ═══════════════════════════════════════════
+//  RENDER GUEST LIST
+// ═══════════════════════════════════════════
+let showAll = false;
+
+function admitSpecific(bookingId, attendeeKey) {
+  const b = bookingMap[bookingId];
+  if (!b) return;
+  const ticket = b.tickets.find(t => String(t.attendeeKey) === String(attendeeKey));
+  if (!ticket || ticket.checkedIn) return;
+
+  ticket.checkedIn = true;
+  const admitted = getBookingAdmittedCount(b);
+
+  if (b.source === 'mec') {
+    fetch(`${cfg.siteUrl}/wp-json/mec-utility/v1/attendees/${b.bookingId}/${attendeeKey}/checkin`, {
+      method: 'POST', headers: { 'X-MEC-KEY': cfg.mecKey }
+    }).catch(e => console.warn('MEC checkin failed:', e));
+  } else {
+    const wcGuest = guestMap[`wc-${b.invoiceID}`];
+    if (wcGuest) { wcGuest.checkedInTickets.push(ticket.key); writeCheckIn(wcGuest.id, ticket.key, wcGuest.checkedInTickets); }
+  }
+
+  addLog({ name: ticket.name || b.name, ticket: `${ticket.ticketName} (${admitted} of ${b.tickets.length})`, status:'ok', note:'Individual' });
+  stats.admitted++; stats.total++;
+  document.getElementById('hdr-count').textContent = stats.admitted;
+  updateStats(); updateGLStats(); renderGuestList();
+  vibrate([80]);
+}
+
+function quickAdmit(bookingId) {
+  const b = bookingMap[bookingId];
+  if (!b) return;
+  const nextTicket = b.tickets.find(t => !t.checkedIn);
+  if (!nextTicket) return;
+
+  nextTicket.checkedIn = true;
+  const admitted  = getBookingAdmittedCount(b);
+  const remaining = b.tickets.length - admitted;
+
+  // Write to MEC or WC
+  if (b.source === 'mec') {
+    fetch(`${cfg.siteUrl}/wp-json/mec-utility/v1/attendees/${b.bookingId}/${nextTicket.attendeeKey}/checkin`, {
+      method: 'POST', headers: { 'X-MEC-KEY': cfg.mecKey }
+    }).catch(e => console.warn('MEC checkin failed:', e));
+  } else {
+    const wcGuest = guestMap[`wc-${b.invoiceID}`];
+    if (wcGuest) { wcGuest.checkedInTickets.push(nextTicket.key); writeCheckIn(wcGuest.id, nextTicket.key, wcGuest.checkedInTickets); }
+  }
+
+  addLog({ name:b.name, ticket:`${nextTicket.ticketName} (${admitted} of ${b.tickets.length})`, status:'ok', note:'Guest list' });
+  stats.admitted++; stats.total++;
+  document.getElementById('hdr-count').textContent = stats.admitted;
+  updateStats(); updateGLStats(); renderGuestList();
+  vibrate([80]);
+}
+
+// Dynamic event filter pills
+function renderFilterPills() {
+  const bar = document.getElementById('gl-filter-bar');
+  if (!bar || upcomingEvents.length === 0) return;
+
+  // Remove any existing event pills
+  bar.querySelectorAll('.event-pill').forEach(p => p.remove());
+
+  // Insert event pills after the "All" button
+  const allBtn = bar.querySelector('.filter-pill');
+  upcomingEvents.forEach(ev => {
+    const pill = document.createElement('button');
+    pill.className = 'filter-pill event-pill';
+    pill.dataset.eventId = String(ev.id);
+    // Shorten title for pill — use first meaningful words
+    // Show date + shortened title so events are distinguishable
+    const cleanTitle = (ev.title || 'Event')
+      .replace(/copy of /i, '')
+      .replace(/ticket scan test[^]*/i, '')
+      .replace(/- \d+\/\d+/g, '')
+      .trim();
+    const shortTitle = cleanTitle.substring(0, 20) + (cleanTitle.length > 20 ? '…' : '');
+    const eventDate  = ev.mec_data ? ev.mec_data.start_date.substring(5) : ''; // MM-DD
+    pill.textContent = shortTitle + (eventDate ? ' · ' + eventDate : '');
+    pill.onclick = function() { setFilter('event:' + ev.id, this); };
+    allBtn.insertAdjacentElement('afterend', pill);
+  });
+}
+
+function toggleBooking(bookingId) {
+  const att     = document.getElementById(`att-${bookingId}`);
+  const chevron = document.getElementById(`chevron-${bookingId}`);
+  if (!att) return;
+  const isOpen = !att.classList.contains('hidden');
+  att.classList.toggle('hidden');
+  if (chevron) chevron.textContent = isOpen ? '›' : '⌄';
+}
+
+function showAllGuests() {
+  showAll = true;
+  document.getElementById('event-bar').innerHTML = 
+    'Showing all guests · <button onclick="hideOldGuests()" style="background:none;border:none;color:var(--pink);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;">Next 10 days only</button>';
+  renderGuestList();
+}
+
+function hideOldGuests() {
+  showAll = false;
+  document.getElementById('event-bar').innerHTML = 
+    'Showing next 10 days · <button onclick="showAllGuests()" style="background:none;border:none;color:var(--pink);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;">Show all</button>';
+  renderGuestList();
+}
+
+function setFilter(f, el) {
+  glFilter = f;
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  renderGuestList();
+}
+
+function getBookingAdmittedCount(booking) {
+  return booking.tickets.filter(t => t.checkedIn).length;
+}
+
+function renderGuestList() {
+  const q = (document.getElementById('gl-search').value || '').toLowerCase();
+  const all = Object.values(bookingMap);
+  const filtered = all.filter(b => {
+    const mq = !q || b.name.toLowerCase().includes(q) || 
+                String(b.bookingId).includes(q) || 
+                (b.email && b.email.includes(q)) ||
+                b.tickets.some(t => t.name && t.name.toLowerCase().includes(q));
+    if (!mq) return false;
+    // Apply type filters
+    // Dynamic event filter — show only MEC attendees for this specific event
+    // WC-only comps appear under All but not under specific event pills
+    if (glFilter.startsWith('event:')) {
+      const evId = glFilter.replace('event:', '');
+      if (b.source === 'wc') return false; // comps only show under All
+      return b._eventId === evId;
+    }
+    if (glFilter === 'vip')        return b.tickets.some(t => t.isVip);
+    if (glFilter === 'comp')       return b.isComp;
+    if (glFilter === 'tm')         return b.isTM;
+    if (glFilter === 'in')         return getBookingAdmittedCount(b) > 0;
+    if (glFilter === 'pending')    return getBookingAdmittedCount(b) < b.tickets.length;
+    if (glFilter === 'artist')     return (b.tickets[0] && b.tickets[0].hostCategory||'').toLowerCase() === 'artist';
+    if (glFilter === 'sponsor')    return (b.tickets[0] && b.tickets[0].hostCategory||'').toLowerCase() === 'sponsor';
+    if (glFilter === 'influencer') return (b.tickets[0] && b.tickets[0].hostCategory||'').toLowerCase() === 'influencer';
+    return true;
+  }).sort((a,b) => {
+    const aVip = a.tickets.some(t => t.isVip);
+    const bVip = b.tickets.some(t => t.isVip);
+    if (aVip && !bVip) return -1;
+    if (!aVip && bVip) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  // Show/update event filter bar
+  const evBar = document.getElementById('event-bar');
+  if (evBar) evBar.style.display = upcomingEventNames.length > 0 ? 'block' : 'none';
+
+  if (!filtered.length) {
+    document.getElementById('gl-list').innerHTML =
+      `<div class="gl-empty">No guests match${q ? ` "<strong>${q}</strong>"` : ' this filter'}${!showAll && upcomingEventNames.length > 0 ? '<br><small style="color:var(--muted)">Try tapping "Show all" above</small>' : ''}</div>`;
+    return;
+  }
+
+  const totalTickets = filtered.reduce((sum, b) => sum + b.tickets.length, 0);
+  const countHTML = `<div class="gl-count">${filtered.length} booking${filtered.length!==1?'s':''} · ${totalTickets} ticket${totalTickets!==1?'s':''}</div>`;
+
+  const rows = filtered.map(b => {
+    const admitted = getBookingAdmittedCount(b);
+    const total    = b.tickets.length;
+    const allIn    = admitted === total;
+    const someIn   = admitted > 0 && !allIn;
+    const initials = b.name.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase() || 'G';
+    const hasVip   = b.tickets.some(t => t.isVip);
+    const avCls    = allIn ? 'checked' : b.isTM ? 'tm' : hasVip ? 'vip' : '';
+    const avTxt    = allIn ? '✓' : initials;
+    const badges   = [
+      hasVip        ? '<span class="badge vip">⭐ VIP</span>' : '',
+      b.isTM        ? '<span class="badge tm">🎫 TM</span>'  : '',
+      b.isComp      ? '<span class="badge comp">Comp</span>' : '',
+      admitted > 0  ? `<span class="badge in">${admitted}/${total} ✓</span>` : '',
+    ].filter(Boolean).join('');
+
+    // Attendee sub-rows (expandable) with individual admit buttons
+    const subRows = b.tickets.map((t, i) => `
+      <div class="gl-attendee ${t.checkedIn?'gl-attendee-in':''}">
+        <span class="gl-att-dot ${t.checkedIn?'ok':''}"></span>
+        <span class="gl-att-name">${t.name || b.name}</span>
+        <span class="gl-att-ticket">${t.ticketName}</span>
+        ${t.checkedIn 
+          ? '<span class="gl-att-in">✓ In</span>' 
+          : '<button onclick="event.stopPropagation();admitSpecific(\'' + b.bookingId + '\',\'' + t.attendeeKey + '\')" style="background:var(--ok);color:#fff;border:none;border-radius:16px;padding:4px 12px;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;font-family:inherit;flex-shrink:0;-webkit-tap-highlight-color:transparent;">✓</button>'
+        }
+      </div>`).join('');
+
+    // Admit next button — only shown in sub-row expansion, NOT on main row tap
+    const admitBtnHtml = allIn 
+      ? `<span style="font-size:11px;font-weight:800;color:var(--ok);letter-spacing:.05em;">✓ ALL IN</span>`
+      : `<span style="font-size:11px;font-weight:700;color:var(--muted);">${admitted}/${total} in</span>`;
+
+    // Expand chevron — separate tap target from admit
+    return `<div class="gl-booking" id="bk-${b.bookingId}">
+      <div class="gl-item${allIn?' checked-in':''}" onclick="toggleBooking('${b.bookingId}')" style="cursor:pointer;">
+        <div class="gl-avatar ${avCls}">${avTxt}</div>
+        <div class="gl-info">
+          <div class="gl-name">${b.name}</div>
+          <div class="gl-ticket">${b.eventDay&&b.eventDay!=='All'?'<span style="font-weight:800;color:var(--navy);margin-right:4px;">'+b.eventDay+'</span>':''}${b.eventTitle||''}</div>
+        </div>
+        <div class="gl-badges">
+          ${badges}
+          ${admitBtnHtml}
+          <span style="color:var(--muted);font-size:18px;margin-left:6px;" id="chevron-${b.bookingId}">›</span>
         </div>
       </div>
-    </div>
-    <div class="scan-status-bar">
-      <div id="scanStatusMsg">Point camera at a QR code</div>
-      <div class="scan-hint" id="scanHint">Hold steady — scanning automatically</div>
-    </div>
-  </div>
-
-  <div class="stats-grid">
-    <div class="stat-tile">
-      <div class="stat-tile-num" id="statCheckedIn">0</div>
-      <div class="stat-tile-label">Checked In Today</div>
-    </div>
-    <div class="stat-tile">
-      <div class="stat-tile-num" id="statTotal">0</div>
-      <div class="stat-tile-label">Total Tickets</div>
-    </div>
-    <div class="stat-tile">
-      <div class="stat-tile-num" id="statEvents">0</div>
-      <div class="stat-tile-label">Events Today</div>
-    </div>
-    <div class="stat-tile">
-      <div class="stat-tile-num" id="statScanned">0</div>
-      <div class="stat-tile-label">Scanned This Session</div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">Recent Scans <span id="recentCount"></span></div>
-    <div id="recentScans" style="padding:0 14px;">
-      <div class="empty-state" style="padding:20px;">
-        <div>No scans yet this session</div>
+      <div class="gl-attendees hidden" id="att-${b.bookingId}">
+        ${subRows}
+        ${!allIn ? `<div style="padding:10px 16px 14px;">
+          <button onclick="event.stopPropagation();quickAdmit('${b.bookingId}')" style="width:100%;background:var(--ok);color:#fff;border:none;border-radius:10px;padding:14px;font-size:14px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">✓ Admit Next Ticket</button>
+        </div>` : ''}
       </div>
-    </div>
-  </div>
-</div>
+    </div>`;
+  }).join('');
 
-<!-- ═══════════════════════════════════════════ GUESTS ═══ -->
-<div id="tab-guests" class="panel">
-  <div class="search-bar">
-    <input id="guestSearch" type="text" placeholder="Search by name or ticket number…" oninput="renderGuests()">
-    <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">All</button>
-  </div>
-  <div class="section-label" id="guestCountLabel"></div>
-  <div id="guestList"></div>
-</div>
+  document.getElementById('gl-list').innerHTML = countHTML + rows;
+}
 
-<!-- ═══════════════════════════════════════════ EVENTS ═══ -->
-<div id="tab-events" class="panel">
-  <div class="section-label">Today's events</div>
-  <div class="events-grid" id="eventsList"></div>
-</div>
+// ═══════════════════════════════════════════
+//  GUEST DRAWER
+// ═══════════════════════════════════════════
+function openDrawer(bookingId) {
+  // Find booking in bookingMap
+  const b = bookingMap[bookingId];
+  if (!b) return;
+  drawerOrderNum = bookingId;
 
-<!-- ═══════════════════════════════════════════ UPLOAD ═══ -->
-<div id="tab-upload" class="panel">
-  <div class="section-label">Load guest list from CSV</div>
-  <div class="card" style="overflow:visible;">
-    <div class="card-header">Import Guest List</div>
-    <div style="padding:16px;">
-      <div class="upload-zone" id="dropZone">
-        <input type="file" id="csvFile" accept=".csv,.txt" onchange="handleFileUpload(this.files[0])">
-        <div class="upload-icon">📋</div>
-        <div class="upload-title">Tap to select CSV file</div>
-        <div class="upload-sub">Or drag and drop here</div>
-        <div class="upload-btn">Choose File</div>
-      </div>
-      <div class="upload-progress" id="uploadProgress">
-        <div id="uploadStatus" style="font-size:14px;font-weight:700;color:var(--navy);">Processing…</div>
-        <div class="progress-bar-wrap"><div class="progress-bar" id="uploadBar"></div></div>
-        <div class="upload-log" id="uploadLog"></div>
-      </div>
-    </div>
-  </div>
+  // Build a guest-like object from the booking for the drawer
+  const admitted = getBookingAdmittedCount(b);
+  const total    = b.tickets.length;
+  const hasVip   = b.tickets.some(t => t.isVip);
+  const g = {
+    name:            b.name,
+    email:           b.email,
+    ticketName:      b.eventTitle || b.tickets[0]?.ticketName || 'Ticket',
+    isVip:           hasVip,
+    isTM:            b.isTM,
+    isComp:          b.isComp,
+    table:           b.table || null,
+    guestOf:         b.guestOf || null,
+    hostCategory:    b.hostCategory || null,
+    guestNotes:      b.guestNotes || null,
+    qty:             total,
+    checkedInTickets: b.tickets.filter(t => t.checkedIn).map(t => t.key),
+    checkedIn:       admitted === total,
+    orderNumber:     b.invoiceID,
+    _source:         b.source,
+    _bookingId:      b.bookingId
+  };
 
-  <div class="section-label" style="margin-top:8px;">Expected CSV format</div>
-  <div class="info-card">
-    <h3>Column headers (flexible — we auto-detect)</h3>
-    <p style="margin-top:4px;">We look for: <code>Order ID</code>, <code>First Name</code>, <code>Last Name</code>, <code>Event</code>, <code>Date</code>, <code>Time</code>, <code>Ticket Type</code>, <code>Barcode</code> (or Ticket Number)</p>
-    <p style="margin-top:8px;color:var(--green-dark);font-weight:600;">✓ Remenham Farm format supported</p>
-  </div>
+  drawerOrderNum = bookingId;
 
-  <div class="section-label">Loaded data</div>
-  <div class="info-card">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <div>
-        <div style="font-size:20px;font-weight:800;color:var(--navy);" id="uploadedCount">0</div>
-        <div style="font-size:12px;color:var(--muted);">tickets loaded</div>
-      </div>
-      <button onclick="clearData()" style="padding:8px 14px;background:#fdecea;color:var(--red);border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Clear All</button>
-    </div>
-  </div>
-</div>
+  document.getElementById('dr-name').textContent   = g.name;
+  const admitStatus = g.qty > 1
+    ? ` · ${g.checkedInTickets.length} of ${g.qty} admitted`
+    : (g.checkedIn ? ' · Checked in ✓' : '');
+  document.getElementById('dr-ticket').textContent = g.ticketName + admitStatus;
+  document.getElementById('dr-order').textContent  = `Order #${g.orderNumber}${g.email?' · '+g.email:''}`;
 
-<!-- ═══════════════════════════════════════════ INFO ═══ -->
-<div id="tab-info" class="panel">
+  // Guest of
+  const goEl = document.getElementById('dr-guest-of');
+  if (g.guestOf) {
+    const catLabel = g.hostCategory ? ` (${g.hostCategory})` : '';
+    goEl.innerHTML = `🎟 Guest of: <strong>${g.guestOf}</strong>${catLabel}${g.guestNotes?' · '+g.guestNotes:''}`;
+    goEl.classList.remove('hidden');
+  } else {
+    goEl.classList.add('hidden');
+  }
 
-  <div class="section-label">Load on your phone</div>
-  <div class="qr-container">
-    <canvas id="qrCanvas"></canvas>
-    <div class="qr-url" id="appUrlDisplay"></div>
-    <button onclick="copyUrl()" style="margin-top:10px;padding:8px 20px;background:var(--navy);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Copy URL</button>
-  </div>
+  const entEl   = document.getElementById('dr-ent');
+  const titleEl = document.getElementById('dr-ent-title');
+  const rowsEl  = document.getElementById('dr-ent-rows');
+  const admitBtn = document.getElementById('dr-admit-btn');
 
-  <div class="section-label">How to use</div>
-  <div class="info-card">
-    <div class="instruction-steps">
-      <div class="instruction-step">
-        <div class="step-num">1</div>
-        <div class="step-text"><strong>Load the guest list</strong> — go to ⬆ Upload and import the CSV from Remenham Farm (or your ticketing provider)</div>
-      </div>
-      <div class="instruction-step">
-        <div class="step-num">2</div>
-        <div class="step-text"><strong>Open on each device</strong> — scan the QR code above or share the URL. Data stays on each device (offline capable)</div>
-      </div>
-      <div class="instruction-step">
-        <div class="step-num">3</div>
-        <div class="step-text"><strong>Scan tickets</strong> — point camera at QR/barcode. Green flash + vibration = admitted. Red = problem.</div>
-      </div>
-      <div class="instruction-step">
-        <div class="step-num">4</div>
-        <div class="step-text"><strong>Manual lookup</strong> — use the Guests tab to find by name. Tap individual ticket to check in one person, or use the big button to admit the whole party at once</div>
-      </div>
-      <div class="instruction-step">
-        <div class="step-num">5</div>
-        <div class="step-text"><strong>Evening tickets</strong> — admitted from 5:00 PM only. Scanner will flag if too early.</div>
-      </div>
-    </div>
-  </div>
+  if (g.isTM) {
+    entEl.className   = 'drawer-ent tm tm-dr';
+    titleEl.textContent = 'Ticketmaster — verify ticket visually';
+    rowsEl.innerHTML  = `
+      <div class="ent-row"><span class="ent-icon">🎫</span><span class="ent-label">Check Ticketmaster app / printout matches this name</span></div>
+      <div class="ent-row"><span class="ent-icon">🎽</span><span class="ent-label">Wristband</span><span class="ent-val">${g.isVip?'VIP band':'Standard'}</span></div>
+      ${g.isVip ? `<div class="ent-row"><span class="ent-icon">🍽️</span><span class="ent-label">Food tokens</span><span class="ent-val">Issue now</span></div>` : ''}
+      ${g.table ? `<div class="ent-row"><span class="ent-icon">🪑</span><span class="ent-label">Table</span><span class="ent-val">${g.table}</span></div>` : ''}
+    `;
+  } else if (g.isVip) {
+    entEl.className   = 'drawer-ent vip';
+    titleEl.textContent = 'VIP Entitlements';
+    rowsEl.innerHTML  = `
+      <div class="ent-row"><span class="ent-icon">🎽</span><span class="ent-label">Wristband</span><span class="ent-val">VIP band</span></div>
+      <div class="ent-row"><span class="ent-icon">🍽️</span><span class="ent-label">Food tokens</span><span class="ent-val">Issue now</span></div>
+      ${g.table ? `<div class="ent-row"><span class="ent-icon">🪑</span><span class="ent-label">Allocated table</span><span class="ent-val">${g.table}</span></div>` : ''}
+    `;
+  } else {
+    entEl.className   = 'drawer-ent std';
+    titleEl.textContent = 'Entitlements';
+    rowsEl.innerHTML  = `
+      <div class="ent-row"><span class="ent-icon">🎽</span><span class="ent-label">Wristband</span><span class="ent-val">Standard</span></div>
+    `;
+  }
 
-  <div class="section-label">Settings</div>
+  // Show admit button or already-in state
+  const alreadyIn = document.getElementById('dr-already-in');
+  if (!g.checkedIn) {
+    admitBtn.classList.remove('hidden');
+    alreadyIn.classList.add('hidden');
+    const remaining = g.qty - g.checkedInTickets.length;
+    admitBtn.innerHTML = g.qty > 1
+      ? `<span style="font-size:28px;display:block;margin-bottom:4px;">✓</span>ADMIT NEXT (${remaining} of ${g.qty} remaining)`
+      : `<span style="font-size:28px;display:block;margin-bottom:4px;">✓</span>ADMIT`;
+  } else {
+    admitBtn.classList.add('hidden');
+    alreadyIn.classList.remove('hidden');
+    alreadyIn.textContent = g.qty > 1 ? `✓ All ${g.qty} tickets admitted` : '✓ Already checked in';
+  }
 
-  <div class="setting-row">
-    <div>
-      <div class="setting-label">Vibration on scan</div>
-      <div class="setting-sub">Haptic feedback when ticket scanned</div>
-    </div>
-    <button class="toggle on" id="toggleVibrate" onclick="toggleSetting('vibrate')"></button>
-  </div>
+  document.getElementById('guest-drawer').classList.remove('hidden');
+}
 
-  <div class="setting-row">
-    <div>
-      <div class="setting-label">Sound on scan</div>
-      <div class="setting-sub">Beep on successful check-in</div>
-    </div>
-    <button class="toggle on" id="toggleSound" onclick="toggleSetting('sound')"></button>
-  </div>
+function admitFromDrawer() {
+  const g = guestMap[drawerOrderNum];
+  if (!g || g.checkedIn) return;
+  // Find next unscanned ticket suffix
+  let nextSuffix = '0';
+  // For manual admit, use a placeholder since we don't have the ticket code
+  nextSuffix = `manual-${Date.now()}`;
+  g.checkedInTickets.push(nextSuffix);
+  g.checkedIn = g.checkedInTickets.length >= g.qty;
+  writeCheckIn(g.id, nextSuffix, g.checkedInTickets);
+  addLog({ name:g.name, ticket:`${g.ticketName} (${g.checkedInTickets.length} of ${g.qty})`, status:'ok', note:'Manual' });
+  stats.admitted++; stats.total++;
+  document.getElementById('hdr-count').textContent = stats.admitted;
+  updateStats(); updateGLStats(); renderGuestList();
 
-  <div class="setting-row">
-    <div>
-      <div class="setting-label">Torch / flashlight</div>
-      <div class="setting-sub">Turn on camera flash for dark areas</div>
-    </div>
-    <button class="toggle" id="toggleTorch" onclick="toggleSetting('torch')"></button>
-  </div>
+  // Update drawer
+  const remaining = g.qty - g.checkedInTickets.length;
+  const admitStatus = ` · ${g.checkedInTickets.length} of ${g.qty} admitted`;
+  document.getElementById('dr-ticket').textContent = g.ticketName + admitStatus;
 
-  <div class="setting-row">
-    <div>
-      <div class="setting-label">Battery saver mode</div>
-      <div class="setting-sub">Reduces scan rate to 2fps (saves ~40% battery)</div>
-    </div>
-    <button class="toggle" id="toggleBatterySaver" onclick="toggleSetting('batterySaver')"></button>
-  </div>
+  if (g.checkedIn) {
+    document.getElementById('dr-admit-btn').classList.add('hidden');
+    document.getElementById('dr-already-in').classList.remove('hidden');
+    document.getElementById('dr-already-in').textContent = `✓ All ${g.qty} tickets admitted`;
+  } else {
+    // Update button to show remaining
+    document.getElementById('dr-admit-btn').innerHTML = `<span style="font-size:28px;display:block;margin-bottom:4px;">✓</span>ADMIT NEXT (${remaining} remaining)`;
+  }
+  vibrate([80]);
+}
 
-  <div class="setting-row">
-    <div>
-      <div class="setting-label">Keep screen awake</div>
-      <div class="setting-sub">Prevents screen lock while scanning</div>
-    </div>
-    <button class="toggle on" id="toggleWakeLock" onclick="toggleSetting('wakeLock')"></button>
-  </div>
+function closeDrawer(e) {
+  if (e && !e.target.classList.contains('drawer-scrim') && e.target.id !== 'guest-drawer' && !e.target.classList.contains('drawer-close')) return;
+  document.getElementById('guest-drawer').classList.add('hidden');
+  drawerOrderNum = null;
+}
 
-  <div class="section-label" style="margin-top:8px;">Battery optimisation tips</div>
-  <div class="info-card">
-    <ul>
-      <li>Enable <strong>Battery saver mode</strong> above — reduces camera polling rate</li>
-      <li>Use <strong>Guest list tab</strong> for manual check-ins instead of keeping camera active</li>
-      <li>Reduce screen brightness to minimum comfortable level</li>
-      <li>Turn off torch when not needed</li>
-      <li>Keep phone plugged in at gate stations where possible</li>
-      <li>Close other apps running in background</li>
-    </ul>
-  </div>
+// ═══════════════════════════════════════════
+//  CAMERA
+// ═══════════════════════════════════════════
+function isTouchDevice() {
+  return ('ontouchstart' in window) || 
+         (navigator.maxTouchPoints > 0) || 
+         /iPad|iPhone|iPod|Android|Mobile|Tablet/i.test(navigator.userAgent);
+}
 
-  <div class="section-label">About</div>
-  <div class="info-card">
-    <p>Henley Royal Regatta · Gate Entry System<br>
-    Built for offline-first use — works without internet once loaded.<br>
-    All data stays on this device.</p>
-  </div>
-</div>
+function initCamera() {
+  if (!isTouchDevice()) {
+    console.log('Desktop detected — camera disabled. Use manual entry or guest list.');
+    document.querySelector('.cam-wrap').style.display = 'none';
+    return;
+  }
+  const videoEl = document.getElementById('qr-video');
+  const codeReader = new ZXing.BrowserMultiFormatReader();
+  scanner = codeReader;
 
-<!-- ─── OVERLAYS ─── -->
-<div class="scan-result-overlay" id="resultOverlay">
-  <div class="result-card" id="resultCard">
-    <div class="result-header">
-      <div class="result-icon" id="resultIcon"></div>
-      <div>
-        <div class="result-title" id="resultTitle"></div>
-        <div class="result-subtitle" id="resultSubtitle"></div>
-      </div>
-    </div>
-    <div class="result-body" id="resultBody"></div>
-    <button class="result-dismiss" id="resultDismiss" onclick="dismissResult()">Continue Scanning</button>
-  </div>
-</div>
+  codeReader.listVideoInputDevices().then(devices => {
+    // Prefer back camera
+    const backCam = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
+    const deviceId = backCam ? backCam.deviceId : undefined;
 
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="big-spinner"></div>
-  <div id="loadingMsg">Loading guest list…</div>
-</div>
+    const hints = new Map();
+  // Only scan QR codes — ignore barcodes
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
+  codeReader.hints = hints;
 
-<div class="toast" id="toast"></div>
+  codeReader.decodeFromVideoDevice(deviceId, 'qr-video', (result, err) => {
+      if (result) {
+        // Only process QR codes
+        if (result.getBarcodeFormat && result.getBarcodeFormat() !== ZXing.BarcodeFormat.QR_CODE) return;
+        const code = result.getText();
+        const now = Date.now();
+        // Show debug bar
+        const dbg = document.getElementById('debug-bar');
+        const dbgCode = document.getElementById('debug-code');
+        if (dbg && dbgCode) { dbg.style.display='block'; dbgCode.textContent = code.length > 60 ? code.substring(0,60)+'…' : code; }
+        // Strict cooldown — block if processing OR same code within 8 seconds
+        if (isScanning) return;
+        if (code === lastCode && now - lastAt < 8000) return;
+        lastCode = code; lastAt = now;
+        lookupTicket(code);
+      }
+    });
+  }).catch(e => console.warn('Camera error:', e));
+}
 
-<script>
-// ═══════════════════════════════════════════════════════════════
-//  STATE
-// ═══════════════════════════════════════════════════════════════
-let tickets = [];       // raw ticket objects
-let checkedIn = {};     // ticketId -> { time, method }
-let sessionScans = 0;
-let filterMode = 'all'; // 'all' | 'pending' | 'checked'
-let expandedGuests = {}; // guestKey -> true/false
-
-let settings = {
-  vibrate: true,
-  sound: true,
-  torch: false,
-  batterySaver: false,
-  wakeLock: true
-};
-
-let wakeLockObj = null;
-let torchTrack = null;
-let scanning = false;
-let scanCooldown = false;
-let animFrameId = null;
-let jsQRLib = null;
-
-// ── EVENTS CONFIG ──────────────────────────────────────────────
-// Evening start rule: evening tickets valid from 17:00
-const EVENING_START_HOUR = 17;
-
-// ═══════════════════════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════════════════════
-window.addEventListener('DOMContentLoaded', async () => {
-  loadFromStorage();
-  updateStats();
-  renderGuests();
-  renderEvents();
-  generateQR();
-  applySettings();
-  await loadJsQR();
-  startCamera();
-  requestWakeLock();
+// ═══════════════════════════════════════════
+//  LOOKUP
+// ═══════════════════════════════════════════
+function lookupManual() {
+  const v = document.getElementById('manual-input').value.trim();
+  if (!v) return;
+  lookupTicket(v);
+  document.getElementById('manual-input').value = '';
+}
+document.addEventListener('keydown', e => {
+  if (e.key==='Enter' && document.activeElement===document.getElementById('manual-input')) lookupManual();
 });
 
-function loadFromStorage() {
+async function lookupTicket(code) {
+  if (isScanning) return;
+  isScanning = true;
+
+  // Reset UI
+  document.getElementById('ent-banner').classList.add('hidden');
+  document.getElementById('result-chips').classList.add('hidden');
+  document.getElementById('tm-actions').classList.add('hidden');
+  pendingTMCode = null;
+
+  setResult('','⏳','Checking…','');
+
   try {
-    const t = localStorage.getItem('hrr_tickets');
-    if (t) tickets = JSON.parse(t);
-    const c = localStorage.getItem('hrr_checkins');
-    if (c) checkedIn = JSON.parse(c);
-  } catch(e) {}
-}
+    // 1. Try MEC API first — covers all native MEC/WooCommerce tickets
+    if (cfg.mecKey && !cfg.demo) {
+      // Clear any stale result before API call
+      setResult('', '⏳', 'Checking ticket…', code);
+      document.getElementById('ent-banner').classList.add('hidden');
+      document.getElementById('result-chips').classList.add('hidden');
+      document.getElementById('tm-actions').classList.add('hidden');
 
-function saveToStorage() {
-  try {
-    localStorage.setItem('hrr_tickets', JSON.stringify(tickets));
-    localStorage.setItem('hrr_checkins', JSON.stringify(checkedIn));
-  } catch(e) {}
-}
+      const mecGuest = await mecLookupAndCheckin(code);
+      if (mecGuest) {
+        // Check local bookingMap state first (catches same-session rescans)
+        const invoiceId = mecGuest._invoiceID || mecGuest.orderNumber;
+        const place     = mecGuest._place;
+        const localBooking = invoiceMap[invoiceId];
+        const localTicket  = localBooking?.tickets.find(t => String(t.attendeeKey) === String(place));
+        const alreadyIn    = mecGuest.checkedIn || (localTicket && localTicket.checkedIn);
 
-// ═══════════════════════════════════════════════════════════════
-//  TABS
-// ═══════════════════════════════════════════════════════════════
-function switchTab(name) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  event.currentTarget.classList.add('active');
-  if (name === 'guests') renderGuests();
-  if (name === 'events') renderEvents();
-}
+        if (alreadyIn) {
+          // Already checked in (either MEC reports it or we already scanned this session)
+          vibrate([200,80,200]);
+          addLog({ name:mecGuest.name, ticket:`${mecGuest.ticketName} (${code})`, status:'warn', code });
+          stats.dupe++; stats.total++;
+          setResult('warn','⚠️', mecGuest.name, `Ticket already checked in`);
+          showEnt(mecGuest);
+          showChips([{ label:mecGuest.ticketName, cls:'' }, { label:'DUPLICATE', cls:'hi' }]);
+          updateStats();
+        } else {
+          // Check time restriction before admitting
+          const timeBlock = checkTimeRestriction(mecGuest.ticketName, mecGuest.ticketStartTime);
+          if (timeBlock) {
+            vibrate([300, 100, 300]);
+            setResult('err','🚫', 'Too Early', 
+              `This ticket is not valid until ${timeBlock.validFrom}. Current time: ${timeBlock.currentTime}`);
+            showChips([
+              { label: mecGuest.name, cls:'' },
+              { label: `Valid from ${timeBlock.validFrom}`, cls:'hi' }
+            ]);
+            addLog({ name:mecGuest.name, ticket:`Too early — valid from ${timeBlock.validFrom}`, status:'err', code });
+            stats.invalid++; stats.total++;
+            updateStats();
+          } else {
+            // Valid MEC ticket — write check-in
+            mecWriteCheckin(code, mecGuest);
+            vibrate([50, 30, 80]); // success: double pulse
+            addLog({ name:mecGuest.name, ticket:`${mecGuest.ticketName} (${code})`, status:'ok', code });
+            stats.admitted++; stats.total++;
+            document.getElementById('hdr-count').textContent = stats.admitted;
+            setResult('ok','✓', mecGuest.name, mecGuest.ticketName, true);
+            showEnt(mecGuest);
+            showChips([
+              { label: code, cls:'' },
+              { label: mecGuest.ticketName, cls:'' },
+              ...(mecGuest.isVip ? [{ label:'VIP', cls:'vip' }] : [])
+            ]);
+            updateStats();
+            // Update bookingMap — find booking by invoice ID using invoiceMap
+            const invId   = mecGuest._invoiceID || mecGuest.orderNumber;
+            const placeNo = mecGuest._place;
+            const booking = invoiceMap[invId] || bookingMap[invId];
+            console.log('Scan update: invoiceID='+invId+' place='+placeNo+' booking='+(booking?booking.name:'NOT FOUND')+' invoiceMap keys='+Object.keys(invoiceMap).slice(0,5).join(','));
+            if (booking) {
+              const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(placeNo))
+                          || booking.tickets.find(t => !t.checkedIn);
+              if (ticket) {
+                ticket.checkedIn = true;
+                console.log('✓ Marked', booking.name, 'ticket', ticket.attendeeKey, 'as checked in');
+              } else {
+                console.warn('No matching ticket found for place', placeNo, 'in', booking.tickets.map(t=>t.attendeeKey));
+              }
+              renderGuestList(); updateGLStats();
+            }
+          }
+        }
+        isScanning = false;
+        return;
+      }
+      // MEC returned nothing — don't fall back to stale local data
+      // Continue to WC lookup below
+    }
 
-// ═══════════════════════════════════════════════════════════════
-//  CAMERA & SCANNING
-// ═══════════════════════════════════════════════════════════════
-async function loadJsQR() {
-  return new Promise((resolve) => {
-    if (window.jsQR) { jsQRLib = window.jsQR; resolve(); return; }
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js';
-    s.onload = () => { jsQRLib = window.jsQR; resolve(); };
-    s.onerror = () => resolve();
-    document.head.appendChild(s);
-  });
-}
+    // 2. Try local guest map (WC orders already loaded)
+    const guest = resolveGuest(code);
+    if (guest) { handleGuest(guest, code); isScanning = false; return; }
 
-async function startCamera() {
-  const video = document.getElementById('scanVideo');
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
-    video.srcObject = stream;
-    torchTrack = stream.getVideoTracks()[0];
-    scanning = true;
-    document.getElementById('scanStatusMsg').textContent = 'Ready — point at QR code';
-    scheduleScan();
-  } catch(e) {
-    document.getElementById('scanStatusMsg').textContent = 'Camera unavailable';
-    document.getElementById('scanHint').textContent = 'Check permissions in browser settings';
-  }
-}
+    // 3. Try WC external ticket lookup (Ticketmaster barcodes stored as meta)
+    if (!cfg.demo) {
+      const extGuest = await wcExternalTicketLookup(code);
+      if (extGuest) {
+        guestMap[extGuest.orderNumber] = extGuest;
+        if (extGuest.email) emailMap[extGuest.email] = extGuest;
+        handleGuest(extGuest, code); isScanning = false; return;
+      }
+    }
 
-function scheduleScan() {
-  if (!scanning) return;
-  const fps = settings.batterySaver ? 2 : 10;
-  const delay = 1000 / fps;
-  setTimeout(() => {
-    doScanFrame();
-    scheduleScan();
-  }, delay);
-}
+    // 4. Try WC by order number directly
+    if (!cfg.demo) {
+      const g = await fetchSingleOrder(code);
+      if (g) {
+        guestMap[g.orderNumber] = g;
+        if (g.email) emailMap[g.email] = g;
+        renderGuestList(); updateGLStats();
+        handleGuest(g, code); isScanning = false; return;
+      }
+    }
 
-function doScanFrame() {
-  if (scanCooldown || !jsQRLib) return;
-  const video = document.getElementById('scanVideo');
-  if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
-  const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0);
-  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const code = jsQRLib(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-  if (code) handleScan(code.data);
-}
-
-function handleScan(raw) {
-  if (scanCooldown) return;
-  scanCooldown = true;
-  setTimeout(() => { scanCooldown = false; }, 2500);
-  sessionScans++;
-  document.getElementById('statScanned').textContent = sessionScans;
-
-  // find ticket
-  const ticket = findTicket(raw.trim());
-  if (!ticket) {
-    showResult('fail', '❌', 'Not Found', 'Ticket not in guest list', raw, []);
-    vibrate([200, 50, 200]);
-    return;
-  }
-
-  const id = ticketId(ticket);
-
-  // evening rule
-  if (isEveningTicket(ticket)) {
-    const now = new Date();
-    const hour = now.getHours();
-    if (hour < EVENING_START_HOUR) {
-      const readyAt = `5:00 PM`;
-      showResult('warn', '🌙', 'Too Early', `Evening ticket — entry from ${readyAt}`, raw, [
-        { label: 'Ticket', value: id },
-        { label: 'Name', value: guestName(ticket) },
-        { label: 'Event', value: ticket.event || '—' },
-        { label: 'Valid from', value: readyAt }
-      ]);
-      vibrate([100, 50, 100, 50, 100]);
+    // 5. Looks like a Ticketmaster barcode but not found — flag for manual verify
+    if (isTicketmasterCode(code)) {
+      handleTMScan(code);
+      isScanning = false;
       return;
     }
-  }
 
-  // already checked in?
-  if (checkedIn[id]) {
-    const t = checkedIn[id];
-    showResult('fail', '⚠️', 'Already In', 'This ticket was already scanned', raw, [
-      { label: 'Ticket', value: id },
-      { label: 'Name', value: guestName(ticket) },
-      { label: 'Event', value: ticket.event || '—' },
-      { label: 'Checked in', value: t.time }
-    ]);
-    vibrate([300, 100, 300]);
-    return;
-  }
+    // 6. Not found anywhere
+    rejectCode(code, 'Not found in MEC or WooCommerce');
 
-  // admit!
-  const now = new Date();
-  checkedIn[id] = { time: now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }), method: 'scan' };
-  saveToStorage();
-  updateStats();
-  addRecentScan(ticket, 'ok');
-  vibrate([50, 30, 80]); // success vibration pattern
-  playBeep();
-
-  showResult('ok', '✅', 'Admitted', guestName(ticket), raw, [
-    { label: 'Ticket', value: id },
-    { label: 'Event', value: ticket.event || '—' },
-    { label: 'Type', value: ticket.ticketType || '—' },
-    { label: 'Time', value: now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) }
-  ]);
-}
-
-function findTicket(raw) {
-  return tickets.find(t =>
-    t.barcode === raw || t.orderId === raw ||
-    String(t.barcode).trim() === raw || String(t.orderId).trim() === raw
-  );
-}
-
-function ticketId(t) {
-  return t.barcode || t.orderId || JSON.stringify(t);
-}
-
-function guestName(t) {
-  return [t.firstName, t.lastName].filter(Boolean).join(' ') || t.name || 'Unknown';
-}
-
-function isEveningTicket(t) {
-  const ev = (t.event || t.ticketType || '').toLowerCase();
-  const tm = (t.time || '').toLowerCase();
-  return ev.includes('evening') || ev.includes('pm') || tm.includes('pm') ||
-         (t.time && parseInt(t.time) >= 17);
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  RESULT OVERLAY
-// ═══════════════════════════════════════════════════════════════
-let resultTimer = null;
-function showResult(type, icon, title, subtitle, raw, rows) {
-  const overlay = document.getElementById('resultOverlay');
-  document.getElementById('resultIcon').textContent = icon;
-  document.getElementById('resultIcon').className = 'result-icon ' + type;
-  document.getElementById('resultTitle').textContent = title;
-  document.getElementById('resultTitle').className = 'result-title ' + type;
-  document.getElementById('resultSubtitle').textContent = subtitle;
-  const body = document.getElementById('resultBody');
-  body.innerHTML = rows.map(r => `
-    <div class="result-row">
-      <span class="result-label">${r.label}</span>
-      <span class="result-value">${r.value}</span>
-    </div>`).join('');
-  overlay.classList.add('show');
-  clearTimeout(resultTimer);
-  const autoClose = type === 'ok' ? 3000 : 5000;
-  resultTimer = setTimeout(dismissResult, autoClose);
-}
-
-function dismissResult() {
-  document.getElementById('resultOverlay').classList.remove('show');
-  clearTimeout(resultTimer);
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  RECENT SCANS
-// ═══════════════════════════════════════════════════════════════
-let recentScans = [];
-function addRecentScan(ticket, status) {
-  const now = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
-  recentScans.unshift({ name: guestName(ticket), event: ticket.event || '—', time: now, status });
-  if (recentScans.length > 20) recentScans.pop();
-  const el = document.getElementById('recentScans');
-  document.getElementById('recentCount').textContent = recentScans.length;
-  el.innerHTML = recentScans.map(s => `
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0ede6;">
-      <span style="font-size:18px;">${s.status === 'ok' ? '✅' : '❌'}</span>
-      <div style="flex:1;">
-        <div style="font-size:13px;font-weight:700;">${s.name}</div>
-        <div style="font-size:11px;color:var(--muted);">${s.event}</div>
-      </div>
-      <div style="font-size:12px;color:var(--muted);">${s.time}</div>
-    </div>`).join('');
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  GUEST LIST  — redesigned interaction model
-// ═══════════════════════════════════════════════════════════════
-function renderGuests() {
-  const search = (document.getElementById('guestSearch')?.value || '').toLowerCase();
-  const el = document.getElementById('guestList');
-
-  // Group by guest (first+last name or orderId)
-  const groups = {};
-  tickets.forEach(t => {
-    const key = guestName(t);
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(t);
-  });
-
-  // Filter
-  let entries = Object.entries(groups).filter(([name, tix]) => {
-    if (search) {
-      const match = name.toLowerCase().includes(search) ||
-        tix.some(t => String(t.barcode || '').includes(search) || String(t.orderId || '').includes(search));
-      if (!match) return false;
-    }
-    if (filterMode === 'pending') return tix.some(t => !checkedIn[ticketId(t)]);
-    if (filterMode === 'checked') return tix.some(t => checkedIn[ticketId(t)]);
-    return true;
-  });
-
-  entries.sort((a,b) => a[0].localeCompare(b[0]));
-  document.getElementById('guestCountLabel').textContent = `${entries.length} guest${entries.length !== 1 ? 's' : ''}`;
-
-  if (entries.length === 0) {
-    el.innerHTML = tickets.length === 0
-      ? `<div class="empty-state"><div class="icon">📋</div><h3>No guest list loaded</h3><p>Go to ⬆ Upload to import a CSV</p></div>`
-      : `<div class="empty-state"><div class="icon">🔍</div><h3>No results</h3><p>Try a different search</p></div>`;
-    return;
-  }
-
-  el.innerHTML = entries.map(([name, tix]) => {
-    const allChecked = tix.every(t => checkedIn[ticketId(t)]);
-    const someChecked = tix.some(t => checkedIn[ticketId(t)]);
-    const checkedCount = tix.filter(t => checkedIn[ticketId(t)]).length;
-    const initials = name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
-    const expanded = expandedGuests[name];
-    const gKey = encodeURIComponent(name);
-
-    const ticketRows = tix.map(t => {
-      const id = ticketId(t);
-      const isIn = !!checkedIn[id];
-      const shortId = String(id).slice(-6);
-      return `
-        <div class="ticket-row" id="trow-${id}">
-          <div class="ticket-info">
-            <div class="ticket-number">#${shortId}</div>
-            <div class="ticket-event">${t.event || t.ticketType || 'General Admission'}</div>
-          </div>
-          <button class="ticket-checkin-btn ${isIn ? 'checked' : 'pending'}"
-            onclick="checkInSingle('${id}','${gKey}'); event.stopPropagation();">
-            ${isIn ? '✓ In' : 'Check In'}
-          </button>
-        </div>`;
-    }).join('');
-
-    return `
-      <div class="guest-item" id="guest-${gKey}">
-        <div class="guest-main">
-          <div class="guest-avatar" style="background:${avatarColor(name)}">${initials}</div>
-          <div class="guest-info">
-            <div class="guest-name">${name}</div>
-            <div class="guest-meta">${tix[0]?.event || ''} · ${checkedCount}/${tix.length} checked in</div>
-          </div>
-          <div class="guest-party-count" onclick="toggleExpand('${gKey}'); event.stopPropagation();">
-            ${tix.length} ticket${tix.length>1?'s':''} ${expanded ? '▲' : '▼'}
-          </div>
-        </div>
-        <button class="checkin-all-btn ${allChecked ? 'done' : 'pending'}"
-          onclick="checkInAllGuest('${gKey}')">
-          ${allChecked
-            ? `<span class="all-checked-badge">✓ All ${tix.length} admitted</span>`
-            : `Admit all ${tix.length} ticket${tix.length>1?'s':''}`}
-        </button>
-        <div class="ticket-list ${expanded ? '' : 'collapsed'}" id="tickets-${gKey}">
-          ${ticketRows}
-        </div>
-      </div>`;
-  }).join('');
-}
-
-function toggleExpand(gKey) {
-  const name = decodeURIComponent(gKey);
-  expandedGuests[name] = !expandedGuests[name];
-  // Just toggle the collapsed class — no full re-render
-  const ticketsEl = document.getElementById('tickets-' + gKey);
-  const btn = document.querySelector(`#guest-${gKey} .guest-party-count`);
-  if (ticketsEl) {
-    const isNowExpanded = !ticketsEl.classList.contains('collapsed') === false;
-    if (expandedGuests[name]) {
-      ticketsEl.classList.remove('collapsed');
-      if (btn) btn.textContent = btn.textContent.replace('▼', '▲');
-    } else {
-      ticketsEl.classList.add('collapsed');
-      if (btn) btn.textContent = btn.textContent.replace('▲', '▼');
-    }
+  } catch(err) {
+    setResult('err','⚠️','Connection error', err.message || 'Check connection');
+  } finally {
+    isScanning = false;
+    // After 8 seconds reset lastCode so same ticket CAN be scanned again if needed
+    setTimeout(() => { lastCode = ''; }, 8000);
   }
 }
 
-function checkInAllGuest(gKey) {
-  const name = decodeURIComponent(gKey);
-  const groups = {};
-  tickets.forEach(t => { const k = guestName(t); if (!groups[k]) groups[k] = []; groups[k].push(t); });
-  const tix = groups[name] || [];
-  const now = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
-  let newly = 0;
-  tix.forEach(t => {
-    const id = ticketId(t);
-    if (!checkedIn[id]) {
-      checkedIn[id] = { time: now, method: 'guestlist' };
-      newly++;
-    }
-  });
-  if (newly > 0) {
-    saveToStorage();
-    updateStats();
-    vibrate([50, 30, 80]);
-    showToast(`✅ ${name} — ${newly} ticket${newly>1?'s':''} admitted`, 'green');
+function resolveGuest(code) {
+  const clean = code.replace(/^#/,'').trim();
+  return guestMap[clean] || guestMap[code] || emailMap[code.toLowerCase()] || null;
+}
+
+// ═══════════════════════════════════════════
+//  TIME RESTRICTION
+// ═══════════════════════════════════════════
+function getTicketValidFrom(ticketName) {
+  // Returns [hours, minutes] that this ticket is valid from
+  const tn = (ticketName || '').toUpperCase();
+
+  // Evening tickets — valid from 5:00pm (new rule)
+  if (/EVENING|LATE ENTRY|LATE|6PM|7PM|NIGHT/.test(tn)) return [17, 0];
+
+  // Saturday Brunch — valid from 11am
+  if (/BRUNCH/.test(tn)) return [11, 0];
+
+  // Default — all other tickets valid from 2pm
+  return [14, 0];
+}
+
+function checkTimeRestriction(ticketName, mecStartTime) {
+  // If MEC returns a start time, use that; otherwise fall back to name-based rules
+  let validHour, validMin;
+  if (mecStartTime) {
+    // mecStartTime expected as "HH:MM" or "HH:MM:SS"
+    const parts = mecStartTime.split(':');
+    validHour = parseInt(parts[0]);
+    validMin  = parseInt(parts[1] || 0);
+    // Apply 15-minute grace
+    const totalMins = validHour * 60 + validMin - 15;
+    validHour = Math.floor(totalMins / 60);
+    validMin  = totalMins % 60;
   } else {
-    showToast(`Already fully checked in`, '');
-  }
-  renderGuests();
-}
-
-function checkInSingle(id, gKey) {
-  if (checkedIn[id]) {
-    showToast('Already checked in', '');
-    return;
-  }
-  const now = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
-  checkedIn[id] = { time: now, method: 'guestlist' };
-  saveToStorage();
-  updateStats();
-  vibrate([50, 30, 80]);
-  // Update just the button — no full re-render
-  const btn = document.querySelector(`#trow-${id} .ticket-checkin-btn`);
-  if (btn) {
-    btn.textContent = '✓ In';
-    btn.className = 'ticket-checkin-btn checked';
-    const row = document.getElementById(`trow-${id}`);
-    if (row) row.classList.add('flash-ok');
-  }
-  // Update meta line
-  const gEl = document.getElementById('guest-' + gKey);
-  if (gEl) {
-    const name = decodeURIComponent(gKey);
-    const groups = {};
-    tickets.forEach(t => { const k = guestName(t); if (!groups[k]) groups[k] = []; groups[k].push(t); });
-    const tix = groups[name] || [];
-    const checkedCount = tix.filter(t => checkedIn[ticketId(t)]).length;
-    const metaEl = gEl.querySelector('.guest-meta');
-    if (metaEl) metaEl.textContent = `${tix[0]?.event || ''} · ${checkedCount}/${tix.length} checked in`;
-    // Update the big button
-    const allChecked = tix.every(t => checkedIn[ticketId(t)]);
-    const bigBtn = gEl.querySelector('.checkin-all-btn');
-    if (bigBtn && allChecked) {
-      bigBtn.className = 'checkin-all-btn done';
-      bigBtn.innerHTML = `<span class="all-checked-badge">✓ All ${tix.length} admitted</span>`;
-    }
-  }
-  showToast(`✓ Ticket #${String(id).slice(-6)} checked in`, 'green');
-}
-
-function avatarColor(name) {
-  const colors = ['#1a2744','#243460','#2c4a8f','#7b4ea6','#c9a84c','#2d6a4f','#c0392b','#e67e22'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
-}
-
-function toggleFilter() {
-  const modes = ['all', 'pending', 'checked'];
-  const labels = ['All', 'Pending', 'Checked'];
-  filterMode = modes[(modes.indexOf(filterMode) + 1) % modes.length];
-  const btn = document.getElementById('filterBtn');
-  btn.textContent = labels[modes.indexOf(filterMode)];
-  btn.classList.toggle('active-filter', filterMode !== 'all');
-  renderGuests();
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  EVENTS
-// ═══════════════════════════════════════════════════════════════
-function renderEvents() {
-  const el = document.getElementById('eventsList');
-  const eventMap = {};
-  tickets.forEach(t => {
-    const ev = t.event || 'General Admission';
-    if (!eventMap[ev]) eventMap[ev] = { tickets: [], color: eventColor(ev) };
-    eventMap[ev].tickets.push(t);
-  });
-
-  const colors = ['#c9a84c','#1a7a4a','#c0392b','#2980b9','#8e44ad','#16a085'];
-  let ci = 0;
-
-  if (Object.keys(eventMap).length === 0) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">📅</div><h3>No events loaded</h3><p>Import a guest list first</p></div>`;
-    return;
+    [validHour, validMin] = getTicketValidFrom(ticketName);
   }
 
-  el.innerHTML = Object.entries(eventMap).map(([name, data]) => {
-    const total = data.tickets.length;
-    const inCount = data.tickets.filter(t => checkedIn[ticketId(t)]).length;
-    const pct = total > 0 ? Math.round(inCount / total * 100) : 0;
-    const col = colors[ci++ % colors.length];
-    const times = data.tickets.map(t => t.time).filter(Boolean);
-    const timeStr = times.length ? [...new Set(times)].join(' / ') : '';
-    const isEvening = name.toLowerCase().includes('evening') || (timeStr && timeStr.includes('PM') && parseInt(timeStr) >= 17);
-    return `
-      <div class="event-card">
-        <div class="event-stripe" style="background:${col}"></div>
-        <div class="event-body">
-          <div class="event-name">${name}</div>
-          ${timeStr ? `<div class="event-time">🕐 ${timeStr}${isEvening ? ' · Evening (5pm entry)' : ''}</div>` : ''}
-          <div class="event-stats">
-            <div class="event-stat">
-              <div class="event-stat-num" style="color:${col}">${inCount}</div>
-              <div class="event-stat-label">Admitted</div>
-            </div>
-            <div class="event-stat">
-              <div class="event-stat-num">${total - inCount}</div>
-              <div class="event-stat-label">Remaining</div>
-            </div>
-            <div class="event-stat">
-              <div class="event-stat-num">${total}</div>
-              <div class="event-stat-label">Total</div>
-            </div>
-            <div class="event-stat">
-              <div class="event-stat-num" style="color:${col}">${pct}%</div>
-              <div class="event-stat-label">Admitted</div>
-            </div>
-          </div>
-          <div class="event-progress">
-            <div class="event-progress-bar" style="width:${pct}%;background:${col}"></div>
-          </div>
-        </div>
-      </div>`;
-  }).join('');
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const validMins = validHour * 60 + validMin;
 
-  document.getElementById('statEvents').textContent = Object.keys(eventMap).length;
+  if (nowMins < validMins) {
+    const validTimeStr = `${String(validHour).padStart(2,'0')}:${String(validMin).padStart(2,'0')}`;
+    const nowTimeStr   = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    return { validFrom: validTimeStr, currentTime: nowTimeStr };
+  }
+  return null;
 }
 
-function eventColor(name) {
-  const n = name.toLowerCase();
-  if (n.includes('evening')) return '#8e44ad';
-  if (n.includes('royal')) return '#c9a84c';
-  return '#1a2744';
-}
+// ═══════════════════════════════════════════
+//  MEC UTILITY API
+//  QR URL format:
+//  https://site.com/?invoiceID=30554&checkIn=email@x.com&place=12&Hash=abc123
+// ═══════════════════════════════════════════
 
-// ═══════════════════════════════════════════════════════════════
-//  CSV UPLOAD
-// ═══════════════════════════════════════════════════════════════
-function handleFileUpload(file) {
-  if (!file) return;
-  const progress = document.getElementById('uploadProgress');
-  const bar = document.getElementById('uploadBar');
-  const log = document.getElementById('uploadLog');
-  const status = document.getElementById('uploadStatus');
-  progress.classList.add('show');
-  log.innerHTML = '';
-  bar.style.width = '10%';
-  status.textContent = 'Reading file…';
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const text = e.target.result;
-    bar.style.width = '40%';
-    status.textContent = 'Parsing CSV…';
-    setTimeout(() => {
-      try {
-        const parsed = parseCSV(text);
-        bar.style.width = '80%';
-        if (parsed.length === 0) {
-          addLog(log, 'No valid rows found — check column headers', 'err');
-          status.textContent = 'Import failed';
-          bar.style.width = '100%';
-          return;
-        }
-        tickets = parsed;
-        saveToStorage();
-        updateStats();
-        renderGuests();
-        renderEvents();
-        bar.style.width = '100%';
-        status.textContent = `✓ Imported ${parsed.length} tickets`;
-        addLog(log, `${parsed.length} tickets loaded`, 'ok');
-        const events = [...new Set(parsed.map(t => t.event).filter(Boolean))];
-        events.forEach(ev => addLog(log, `Event: ${ev}`, 'ok'));
-        document.getElementById('uploadedCount').textContent = parsed.length;
-        showToast(`✓ ${parsed.length} tickets imported`, 'green');
-      } catch(err) {
-        addLog(log, 'Error: ' + err.message, 'err');
-        status.textContent = 'Import error';
+function parseMecQrUrl(code) {
+  // Handle full URL with parameters
+  try {
+    if (code.startsWith('http')) {
+      const url = new URL(code);
+      const invoiceID = url.searchParams.get('invoiceID');
+      const place     = url.searchParams.get('place');
+      const hash      = url.searchParams.get('Hash');
+      const email     = url.searchParams.get('checkIn');
+      if (invoiceID) return { invoiceID, place, hash, email, shortUrl: null };
+      
+      // Short URL format e.g. /invoice/stG.wC5G.J.WQ — return for redirect fetch
+      if (url.pathname.includes('/invoice/')) {
+        return { shortUrl: code, invoiceID: null, place: null, hash: null, email: null };
       }
-    }, 200);
-  };
-  reader.readAsText(file);
-}
-
-function parseCSV(text) {
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
-  if (lines.length < 2) return [];
-
-  const headers = parseCSVRow(lines[0]).map(h => h.trim().toLowerCase().replace(/[^a-z0-9 ]/g,''));
-
-  // Column mapping — flexible
-  const find = (...keys) => {
-    for (const k of keys) {
-      const i = headers.findIndex(h => h.includes(k));
-      if (i >= 0) return i;
     }
-    return -1;
-  };
+  } catch(e) {}
+  return null;
+}
 
-  const cols = {
-    orderId:    find('order id', 'order', 'booking ref', 'reference'),
-    firstName:  find('first name', 'firstname', 'forename', 'first'),
-    lastName:   find('last name', 'lastname', 'surname', 'last'),
-    name:       find('name', 'guest name', 'attendee'),
-    event:      find('event', 'session', 'experience'),
-    date:       find('date'),
-    time:       find('time'),
-    ticketType: find('ticket type', 'type', 'category', 'tier'),
-    barcode:    find('barcode', 'ticket number', 'ticket no', 'code', 'qr', 'scan'),
-    email:      find('email'),
-    qty:        find('qty', 'quantity', 'tickets')
-  };
+async function resolveShortUrl(shortUrl) {
+  // Fetch the short URL to get the full check-in URL with parameters
+  try {
+    const r = await fetch(shortUrl, { 
+      method: 'GET',
+      redirect: 'follow',
+      headers: { 'Accept': 'text/html' }
+    });
+    const finalUrl = r.url;  // URL after redirect
+    const url = new URL(finalUrl);
+    const invoiceID = url.searchParams.get('invoiceID');
+    const place     = url.searchParams.get('place');
+    const hash      = url.searchParams.get('Hash');
+    const email     = url.searchParams.get('checkIn');
+    if (invoiceID) return { invoiceID, place, hash, email, shortUrl };
+    
+    // Also try to get from page HTML if params not in URL
+    const html = await r.text();
+    const invMatch   = html.match(/invoiceID[=\"':]+(\d+)/);
+    const placeMatch = html.match(/place[=\"':]+(\d+)/);
+    const hashMatch  = html.match(/Hash[=\"':]+([a-f0-9]+)/i);
+    const emailMatch = html.match(/checkIn[=\"':]+([^&\"'<\s]+)/);
+    if (invMatch) {
+      return {
+        invoiceID: invMatch[1],
+        place:     placeMatch ? placeMatch[1] : null,
+        hash:      hashMatch  ? hashMatch[1]  : null,
+        email:     emailMatch ? emailMatch[1] : null,
+        shortUrl
+      };
+    }
+  } catch(e) {
+    console.warn('Short URL resolve failed:', e.message);
+  }
+  return null;
+}
 
-  const results = [];
-  for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const row = parseCSVRow(lines[i]);
-    const get = (col) => col >= 0 ? (row[col] || '').trim() : '';
-    const ticket = {
-      orderId:    get(cols.orderId),
-      firstName:  get(cols.firstName) || get(cols.name).split(' ')[0] || '',
-      lastName:   get(cols.lastName) || get(cols.name).split(' ').slice(1).join(' ') || '',
-      event:      get(cols.event),
-      date:       get(cols.date),
-      time:       get(cols.time),
-      ticketType: get(cols.ticketType),
-      barcode:    get(cols.barcode) || get(cols.orderId),
-      email:      get(cols.email)
+function detectDay(ticketName) {
+  const tn = (ticketName || '').toUpperCase();
+  if (/THURSDAY|THU|THU|LADIES.DAY/.test(tn))       return 'Thu';
+  if (/FRIDAY|FRI|FRI|IBIZA|WHITE.PARTY/.test(tn))   return 'Fri';
+  if (/SATURDAY|SAT|SAT|STUDIO.54|BRUNCH/.test(tn))  return 'Sat';
+  return 'All';
+}
+
+async function mecLookupAndCheckin(code) {
+  if (!cfg.mecKey || !cfg.siteUrl) return null;
+
+  let parsed = parseMecQrUrl(code);
+  if (!parsed) return null;
+
+  // Resolve short URL if needed
+  if (parsed.shortUrl && !parsed.invoiceID) {
+    parsed = await resolveShortUrl(parsed.shortUrl);
+    if (!parsed) return null;
+  }
+
+  try {
+    // GET all invoice attendees with pagination
+    let attendees = [];
+    let page = 1;
+    while (true) {
+      const r = await fetch(
+        `${cfg.siteUrl}/wp-json/mec-utility/v1/invoices/${parsed.invoiceID}/attendees?per_page=100&page=${page}`,
+        { headers: { 'X-MEC-KEY': cfg.mecKey } }
+      );
+      if (!r.ok) {
+        console.warn('MEC invoice attendees failed:', r.status);
+        break;
+      }
+      const data = await r.json();
+      if (!data) break;
+      const batch = Array.isArray(data) ? data : (data.attendees || data.data || []);
+      if (!batch.length) break;
+      attendees = attendees.concat(batch);
+      // Check if there are more pages
+      const total = parseInt(r.headers.get('X-WP-Total') || r.headers.get('x-wp-total') || '0');
+      if (!total || attendees.length >= total) break;
+      page++;
+    }
+
+    console.log(`MEC invoice ${parsed.invoiceID}: found ${attendees.length} attendees`);
+
+    // Find the specific attendee by place number
+    let attendee = null;
+    if (parsed.place && attendees.length > 0) {
+      attendee = attendees.find(a => 
+        String(a.place)        === String(parsed.place) || 
+        String(a.ticket_place) === String(parsed.place) ||
+        String(a.attendee_place) === String(parsed.place) ||
+        String(a.index)        === String(parseInt(parsed.place) - 1) ||
+        String(a.id)           === String(parsed.place)
+      );
+      // If still not found, try by position in array
+      if (!attendee) {
+        const placeNum = parseInt(parsed.place);
+        if (!isNaN(placeNum) && placeNum > 0 && placeNum <= attendees.length) {
+          attendee = attendees[placeNum - 1];
+        }
+      }
+    }
+    // Fallback to first attendee if place not found
+    if (!attendee && attendees.length > 0) attendee = attendees[0];
+    if (!attendee) {
+      attendee = { email: parsed.email };
+    }
+
+    const name = [attendee.first_name || '', attendee.last_name || ''].join(' ').trim() 
+               || attendee.name || parsed.email || 'Guest';
+    
+    // Get ticket name — try attendee field first, then look up from booking's event tickets
+    let ticketName = attendee.ticket_name || attendee.ticket_label || attendee.type || '';
+    if (!ticketName && attendee.ticket_id) {
+      // Look up ticket name from the booking in bookingMap
+      const bk = bookingMap[parsed.invoiceID];
+      if (bk) {
+        const t = bk.tickets.find(t => String(t.attendeeKey) === String(parsed.place));
+        if (t) ticketName = t.ticketName;
+      }
+      // Or look up from upcomingEvents ticket list
+      if (!ticketName) {
+        for (const ev of upcomingEvents) {
+          const evTicket = (ev.tickets || []).find(t => String(t.id) === String(attendee.ticket_id));
+          if (evTicket) { ticketName = evTicket.name; break; }
+        }
+      }
+    }
+    if (!ticketName) ticketName = 'MEC Ticket';
+    
+    const checkedIn  = !!(attendee.checked_in || attendee.checkin_status || attendee.status === 'checked_in');
+    const ticketKey  = `${parsed.invoiceID}-${parsed.place || '0'}`;
+
+    return {
+      id: parsed.invoiceID,
+      orderNumber: String(parsed.invoiceID),
+      name,
+      email: (attendee.email || parsed.email || '').toLowerCase(),
+      ticketName,
+      isVip: /vip/i.test(ticketName),
+      isTM: false, isComp: false,
+      table: attendee.table || null,
+      guestOf: null, hostCategory: null, guestNotes: null,
+      qty: attendees.length || parseInt(parsed.place) || 1,
+      checkedInTickets: checkedIn ? [ticketKey] : [],
+      checkedIn,
+      eventDay: detectDay(ticketName),
+      ticketStartTime: attendee.start_time || null,
+      _mecTicket: true,
+      _mecCode: code,
+      _invoiceID: parsed.invoiceID,
+      _place: parsed.place,
+      _hash: parsed.hash,
+      _ticketKey: ticketKey
     };
-    if (ticket.barcode || ticket.orderId) results.push(ticket);
+  } catch(e) {
+    console.warn('MEC lookup failed:', e.message);
+    return null;
   }
-  return results;
 }
 
-function parseCSVRow(line) {
-  const result = [];
-  let cur = '';
-  let inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') { inQ = !inQ; }
-    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
-    else cur += c;
+async function mecWriteCheckin(code, mecGuest) {
+  if (!cfg.mecKey || !cfg.siteUrl) return;
+  try {
+    // Use invoice attendees check endpoint with the hash from QR
+    let parsed = parseMecQrUrl(code);
+    if (parsed && parsed.shortUrl && !parsed.invoiceID) {
+      parsed = await resolveShortUrl(parsed.shortUrl);
+    }
+    if (parsed) {
+      const r = await fetch(
+        `${cfg.siteUrl}/wp-json/mec-utility/v1/invoices/${parsed.invoiceID}/attendees/check`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-MEC-KEY': cfg.mecKey },
+          body: JSON.stringify({ 
+            place: parsed.place,
+            hash: parsed.hash,
+            email: parsed.email,
+            invoice_id: parsed.invoiceID
+          })
+        }
+      );
+      if (!r.ok) console.warn('MEC checkin write status:', r.status);
+    }
+  } catch(e) {
+    console.warn('MEC check-in write failed:', e.message);
   }
-  result.push(cur);
-  return result;
 }
 
-function addLog(el, msg, cls) {
-  el.innerHTML += `<p class="${cls}">${cls === 'ok' ? '✓ ' : '✗ '}${msg}</p>`;
+// WC external ticket lookup — for Ticketmaster etc stored as _fd_external_ticket meta
+async function wcExternalTicketLookup(barcode) {
+  if (!cfg.wcKey || cfg.demo) return null;
+  try {
+    const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
+    const r = await fetch(
+      `${cfg.siteUrl}/wp-json/wc/v3/orders?status=completed,processing,on-hold&meta_key=_fd_external_ticket&meta_value=${encodeURIComponent(barcode)}&_fields=id,number,status,billing,line_items,total,meta_data,date_created`,
+      { headers: { 'Authorization': `Basic ${creds}` } }
+    );
+    if (!r.ok) return null;
+    const orders = await r.json();
+    if (!orders.length) return null;
+    return parseOrder(orders[0]);
+  } catch(e) { return null; }
 }
 
-function clearData() {
-  if (!confirm('Clear all ticket data and check-ins?')) return;
-  tickets = [];
-  checkedIn = {};
-  saveToStorage();
+// ── Ticketmaster flow ───────────────────────
+function handleTMScan(code) {
+  pendingTMCode = code;
+  vibrate([100,50,100]);
+  setResult('tm','🎫','Ticketmaster Ticket','Verify the name on their app or printout matches the guest list, then admit or reject.');
+  document.getElementById('tm-actions').classList.remove('hidden');
+  showChips([{ label:'Ticketmaster', cls:'tm' }]);
+  // Pulse
+  const card = document.getElementById('result-card');
+  card.classList.add('pulse-tm');
+  setTimeout(() => card.classList.remove('pulse-tm'), 700);
+}
+
+function admitTM() {
+  if (!pendingTMCode) return;
+  vibrate([80]);
+  addLog({ name:'TM Guest', ticket:'Ticketmaster', status:'ok', note:'Manual verify' });
+  stats.admitted++; stats.total++;
+  document.getElementById('hdr-count').textContent = stats.admitted;
+  document.getElementById('tm-actions').classList.add('hidden');
+  setResult('ok','✓','Ticketmaster — Admitted','Wristband issued', true);
+  showEnt({ isVip:false, isTM:true, table:null });
   updateStats();
-  renderGuests();
-  renderEvents();
-  document.getElementById('uploadedCount').textContent = 0;
-  showToast('Data cleared', '');
+  pendingTMCode = null;
 }
 
-// ═══════════════════════════════════════════════════════════════
+function rejectTM() {
+  if (!pendingTMCode) return;
+  vibrate([400]);
+  addLog({ name:'TM Guest', ticket:'Ticketmaster', status:'err', note:'Rejected by staff' });
+  stats.invalid++; stats.total++;
+  document.getElementById('tm-actions').classList.add('hidden');
+  setResult('err','✗','Ticketmaster — Rejected','Ticket not admitted');
+  updateStats();
+  pendingTMCode = null;
+}
+
+// ── WooCommerce guest flow ──────────────────
+function handleGuest(g, code) {
+  // MEC ticket codes are independent per ticket e.g. 30554-O, 30555-1, 30556-2
+  // The suffix is the full ticket code itself, not derived from order number
+  const suffix = code;
+
+  // Check if this specific ticket already scanned
+  if (g.checkedInTickets.includes(code)) {
+    vibrate([200,80,200]);
+    addLog({ name:g.name, ticket:`${g.ticketName} (ticket ${parseInt(suffix)+1} of ${g.qty})`, status:'warn', code });
+    stats.dupe++; stats.total++;
+    setResult('warn','⚠️', g.name, `Ticket ${parseInt(suffix)+1} of ${g.qty} already scanned`);
+    showEnt(g);
+    showChips([{ label:`${parseInt(suffix)+1} of ${g.qty} tickets`, cls:'' }, { label:'DUPLICATE', cls:'hi' }]);
+    updateStats();
+    return;
+  }
+
+  // Check time restriction before admitting
+  const timeBlock = checkTimeRestriction(g.ticketName);
+  if (timeBlock) {
+    vibrate([300, 100, 300]);
+    setResult('err','🚫', 'Too Early',
+      `This ticket is not valid until ${timeBlock.validFrom}. Current time: ${timeBlock.currentTime}`);
+    showChips([
+      { label: g.name, cls:'' },
+      { label: `Valid from ${timeBlock.validFrom}`, cls:'hi' }
+    ]);
+    addLog({ name:g.name, ticket:`Too early — valid from ${timeBlock.validFrom}`, status:'err', code });
+    stats.invalid++; stats.total++;
+    updateStats();
+    return;
+  }
+
+  // Admit this ticket
+  g.checkedInTickets.push(suffix);
+  g.checkedIn = g.checkedInTickets.length >= g.qty;
+  writeCheckIn(g.id, suffix, g.checkedInTickets);
+  vibrate([50, 30, 80]); // success: double pulse
+
+  const ticketNum = g.checkedInTickets.length;
+  const remaining = g.qty - g.checkedInTickets.length;
+  const admitDetail = g.qty > 1
+    ? `Ticket ${ticketNum} of ${g.qty} admitted${remaining > 0 ? ' · ' + remaining + ' still to arrive' : ' · All admitted'}`
+    : g.ticketName;
+
+  addLog({ name:g.name, ticket:admitDetail, status:'ok', code });
+  stats.admitted++; stats.total++;
+  document.getElementById('hdr-count').textContent = stats.admitted;
+  setResult('ok','✓', g.name, admitDetail, true);
+  showEnt(g);
+  const chips = [{ label:`${g.checkedInTickets.length} of ${g.qty} admitted`, cls: remaining > 0 ? '' : 'vip' }];
+  if (g.isVip)  chips.push({ label:'VIP', cls:'vip' });
+  if (g.isComp) chips.push({ label:'Comp', cls:'hi' });
+  if (g.isTM)   chips.push({ label:'Ticketmaster', cls:'tm' });
+  showChips(chips);
+  updateStats(); updateGLStats(); renderGuestList();
+}
+
+function rejectCode(code, msg) {
+  vibrate([500]);
+  addLog({ name:'Unknown', ticket:code, status:'err' });
+  stats.invalid++; stats.total++;
+  setResult('err','✗','Invalid ticket', msg);
+  updateStats();
+}
+
+// ─── UI helpers ────────────────────────────
+function setResult(state, icon, name, detail, pulse) {
+  const el = document.getElementById('result-card');
+  el.className = 'result-card' + (state==='ok'?' ok':state==='err'?' err':state==='warn'?' warn':state==='tm'?' tm':'');
+  if (pulse) {
+    el.classList.add('pulse-ok');
+    setTimeout(() => el.classList.remove('pulse-ok'), 700);
+  }
+  el.querySelector('.rc-icon').textContent   = icon;
+  el.querySelector('.rc-status').textContent = state==='ok'?'Admitted':state==='err'?'Rejected':state==='warn'?'Already In':state==='tm'?'Ticketmaster':'';
+  el.querySelector('.rc-name').textContent   = name;
+  el.querySelector('.rc-detail').textContent = detail;
+}
+
+function showEnt(g) {
+  const el    = document.getElementById('ent-banner');
+  const items = document.getElementById('ent-items');
+  if (g.isVip) {
+    el.className = 'ent-banner vip';
+    el.querySelector('.eb-icon').textContent  = '⭐';
+    el.querySelector('.eb-title').textContent = 'VIP — Issue now:';
+    items.innerHTML = `🎽 Wristband &nbsp;·&nbsp; 🍽️ Food tokens${g.table?' &nbsp;·&nbsp; 🪑 Table '+g.table:''}`;
+  } else {
+    el.className = 'ent-banner std';
+    el.querySelector('.eb-icon').textContent  = '🎽';
+    el.querySelector('.eb-title').textContent = 'Wristband';
+    items.textContent = 'Standard wristband';
+  }
+  el.classList.remove('hidden');
+}
+
+function showChips(chips) {
+  const el = document.getElementById('result-chips');
+  if (!chips||!chips.length) { el.classList.add('hidden'); return; }
+  el.innerHTML = chips.map(c => `<span class="chip ${c.cls||''}">${c.label}</span>`).join('');
+  el.classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════
+//  LOG
+// ═══════════════════════════════════════════
+function addLog(e) {
+  e.time = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  scanLog.unshift(e);
+  renderLogs();
+}
+function renderLogs() {
+  const row = e => `<li class="log-item">
+    <span class="log-dot ${e.status}"></span>
+    <span class="log-name">${e.name} <span class="log-sub">${e.ticket||''}${e.note?' ('+e.note+')':''}</span></span>
+    <span class="log-time">${e.time}</span>
+  </li>`;
+  document.getElementById('scan-log').innerHTML = scanLog.slice(0,6).map(row).join('');
+  document.getElementById('full-log').innerHTML = scanLog.map(row).join('');
+}
+function clearLog() {
+  if (!confirm('Clear scan log?')) return;
+  scanLog = []; renderLogs();
+}
+
+// ═══════════════════════════════════════════
 //  STATS
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 function updateStats() {
-  document.getElementById('statCheckedIn').textContent = Object.keys(checkedIn).length;
-  document.getElementById('statTotal').textContent = tickets.length;
-  document.getElementById('uploadedCount').textContent = tickets.length;
+  document.getElementById('st-admitted').textContent = stats.admitted;
+  document.getElementById('st-total').textContent    = stats.total;
+  document.getElementById('st-dupe').textContent     = stats.dupe;
+  document.getElementById('st-invalid').textContent  = stats.invalid;
+  document.getElementById('hdr-count').textContent   = stats.admitted;
+}
+function updateGLStats() {
+  const bookings  = Object.values(bookingMap);
+  const allTickets = bookings.reduce((sum, b) => sum + b.tickets.length, 0);
+  const admittedTickets = bookings.reduce((sum, b) => sum + getBookingAdmittedCount(b), 0);
+  document.getElementById('st-gl-total').textContent = bookings.length;
+  document.getElementById('st-gl-vip').textContent   = bookings.filter(b => b.tickets.some(t=>t.isVip)).length;
+  document.getElementById('st-gl-comp').textContent  = bookings.filter(b => b.isComp).length;
+  document.getElementById('st-gl-in').textContent    = admittedTickets + '/' + allTickets;
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  SETTINGS & DEVICE
-// ═══════════════════════════════════════════════════════════════
-function toggleSetting(key) {
-  settings[key] = !settings[key];
-  const btn = document.getElementById('toggle' + key.charAt(0).toUpperCase() + key.slice(1));
-  if (btn) btn.classList.toggle('on', settings[key]);
-  if (key === 'torch') applyTorch();
-  if (key === 'wakeLock') { if (settings.wakeLock) requestWakeLock(); else releaseWakeLock(); }
+// ═══════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════
+function showTab(tab) {
+  ['scan','guests','stats','settings'].forEach(t => document.getElementById(t+'-screen').classList.add('hidden'));
+  document.getElementById(tab+'-screen').classList.remove('hidden');
+  if (tab==='stats') renderLogs();
+  if (tab==='settings') renderSettingsQR();
 }
 
-function applySettings() {
-  Object.keys(settings).forEach(k => {
-    const btn = document.getElementById('toggle' + k.charAt(0).toUpperCase() + k.slice(1));
-    if (btn) btn.classList.toggle('on', settings[k]);
+// ═══════════════════════════════════════════
+//  DEMO DATA
+// ═══════════════════════════════════════════
+function loadDemoGuests() {
+  const demo = [
+    { id:1, orderNumber:'1001', name:'Sophie Marchetti',  email:'sophie@example.com',  ticketName:'VIP Weekend Pass',            isVip:true,  isTM:false, isComp:false, table:'Table 4', eventDay:'All', qty:2, checkedInTickets:[], checkedIn:false },
+    { id:2, orderNumber:'1002', name:'James Whitfield',   email:'james@example.com',   ticketName:'General Admission — Thu',     isVip:false, isTM:false, isComp:false, table:null,      eventDay:'Thu', qty:3, checkedInTickets:[], checkedIn:false },
+    { id:3, orderNumber:'1003', name:'Cressida Baxter',   email:'cress@example.com',   ticketName:'VIP Saturday',                isVip:true,  isTM:false, isComp:false, table:'Table 1', eventDay:'Sat', checkedIn:false },
+    { id:4, orderNumber:'1004', name:'Tom Hargreaves',    email:'tom@example.com',     ticketName:'General Admission — Fri',     isVip:false, isTM:false, isComp:false, table:null,      eventDay:'Fri',      checkedIn:true  },
+    { id:5, orderNumber:'1005', name:'Allegra Fontaine',  email:'allegra@example.com', ticketName:'VIP Weekend Pass',            isVip:true,  isTM:false, isComp:false, table:'Table 2', checkedIn:false },
+    { id:6, orderNumber:'1006', name:'Ronnie Herel',      email:'ronnie@example.com',  ticketName:'Complimentary — Staff',       isVip:false, isTM:false, isComp:true,  table:null,      checkedIn:false },
+    { id:7, orderNumber:'1007', name:'Caroline Daniels',  email:'caro@example.com',    ticketName:'Complimentary — VIP Guest',   isVip:true,  isTM:false, isComp:true,  table:'Table 3', checkedIn:false },
+    { id:8, orderNumber:'1008', name:'Marcus Reid',       email:'marcus@example.com',  ticketName:'Ticketmaster — General',      isVip:false, isTM:true,  isComp:true,  table:null,      checkedIn:false },
+    { id:9, orderNumber:'1009', name:'Priya Nair',        email:'priya@example.com',   ticketName:'Ticketmaster — VIP Weekend',  isVip:true,  isTM:true,  isComp:true,  table:'Table 6', checkedIn:false },
+  ];
+  demo.forEach(g => {
+    guestMap[g.orderNumber] = g;
+    if (g.email) emailMap[g.email] = g;
   });
 }
 
-function applyTorch() {
-  if (!torchTrack) return;
-  try {
-    torchTrack.applyConstraints({ advanced: [{ torch: settings.torch }] });
-  } catch(e) {}
+// ═══════════════════════════════════════════
+//  TEST HELPERS
+// ═══════════════════════════════════════════
+function clearLocalCheckins() {
+  if (!confirm('Clear all local check-in data? This resets the app state but does NOT undo WooCommerce records.')) return;
+  Object.values(guestMap).forEach(g => {
+    g.checkedIn = false;
+    g.checkedInTickets = [];
+  });
+  stats.admitted = 0; stats.total = 0; stats.dupe = 0; stats.invalid = 0;
+  scanLog = [];
+  renderGuestList(); updateGLStats(); updateStats(); renderLogs();
+  document.getElementById('hdr-count').textContent = 0;
+  alert('Local check-in data cleared.');
 }
 
-function vibrate(pattern) {
-  if (!settings.vibrate) return;
-  if (navigator.vibrate) navigator.vibrate(pattern);
+function undoLastCheckin() {
+  // Find last admitted log entry
+  const last = scanLog.find(e => e.status === 'ok');
+  if (!last) { alert('No check-ins to undo.'); return; }
+  // Find the guest
+  const g = resolveGuest(last.code || '');
+  if (!g) { alert('Could not find guest to undo.'); return; }
+  if (!confirm(`Undo check-in for ${g.name}?`)) return;
+  // Remove last ticket from checkedInTickets
+  g.checkedInTickets.pop();
+  g.checkedIn = false;
+  stats.admitted = Math.max(0, stats.admitted - 1);
+  // Remove from log
+  const idx = scanLog.indexOf(last);
+  if (idx > -1) scanLog.splice(idx, 1);
+  // Write back to WC
+  writeCheckIn(g.id, null, g.checkedInTickets);
+  renderGuestList(); updateGLStats(); updateStats(); renderLogs();
+  alert(`Check-in undone for ${g.name}.`);
 }
 
-function playBeep() {
-  if (!settings.sound) return;
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-    osc.start(); osc.stop(ctx.currentTime + 0.2);
-  } catch(e) {}
-}
-
+// ═══════════════════════════════════════════
+//  WAKE LOCK
+// ═══════════════════════════════════════════
+let wakeLockObj = null;
 async function requestWakeLock() {
-  if (!settings.wakeLock) return;
   try {
     if ('wakeLock' in navigator) {
       wakeLockObj = await navigator.wakeLock.request('screen');
     }
   } catch(e) {}
 }
-
 function releaseWakeLock() {
   if (wakeLockObj) { wakeLockObj.release(); wakeLockObj = null; }
 }
-
-// Re-acquire wake lock when tab becomes visible again
+function toggleWakeLock(on) {
+  if (on) requestWakeLock(); else releaseWakeLock();
+}
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && settings.wakeLock) requestWakeLock();
+  if (document.visibilityState === 'visible') {
+    const opt = document.getElementById('opt-wakelock');
+    if (opt && opt.checked) requestWakeLock();
+  }
 });
 
-// ═══════════════════════════════════════════════════════════════
-//  QR CODE (for loading app)
-// ═══════════════════════════════════════════════════════════════
-function generateQR() {
-  const url = window.location.href;
-  document.getElementById('appUrlDisplay').textContent = url;
-  // Simple QR code using a public API rendered as img
-  const canvas = document.getElementById('qrCanvas');
-  // Use qrcode library
+// ═══════════════════════════════════════════
+//  QR CODE FOR SETTINGS
+// ═══════════════════════════════════════════
+function renderSettingsQR() {
+  const url = window.location.href.split('?')[0];
+  document.getElementById('settings-url').textContent = url;
+  const qrDiv = document.getElementById('settings-qr');
+  if (!qrDiv || qrDiv.dataset.rendered) return;
   const script = document.createElement('script');
   script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
   script.onload = () => {
-    canvas.parentElement.innerHTML = `
-      <div id="qrCodeDiv" style="display:inline-block;"></div>
-      <div class="qr-url" id="appUrlDisplay">${url}</div>
-      <button onclick="copyUrl()" style="margin-top:10px;padding:8px 20px;background:var(--navy);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Copy URL</button>`;
-    new QRCode(document.getElementById('qrCodeDiv'), {
-      text: url,
-      width: 200,
-      height: 200,
-      colorDark: '#1a2744',
-      colorLight: '#ffffff',
-    });
+    new QRCode(qrDiv, { text: url, width: 180, height: 180, colorDark: '#22224C', colorLight: '#ffffff' });
+    qrDiv.dataset.rendered = '1';
   };
-  document.head.appendChild(script);
+  if (!document.querySelector('script[src*="qrcode"]')) document.head.appendChild(script);
+  else if (window.QRCode) {
+    new QRCode(qrDiv, { text: url, width: 180, height: 180, colorDark: '#22224C', colorLight: '#ffffff' });
+    qrDiv.dataset.rendered = '1';
+  }
 }
 
-function copyUrl() {
-  navigator.clipboard?.writeText(window.location.href).then(() => showToast('URL copied!', 'green'));
+function copyAppUrl() {
+  const url = window.location.href.split('?')[0];
+  navigator.clipboard?.writeText(url).then(() => alert('URL copied!')).catch(() => prompt('Copy this URL:', url));
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  TOAST
-// ═══════════════════════════════════════════════════════════════
-let toastTimer;
-function showToast(msg, type) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show' + (type ? ' ' + type : '');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+// ═══════════════════════════════════════════
+//  HAPTICS
+// ═══════════════════════════════════════════
+function vibrate(p) {
+  try {
+    const opt = document.getElementById('opt-vibrate');
+    if (opt && !opt.checked) return;
+    navigator.vibrate && navigator.vibrate(p);
+  } catch(e){}
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  DRAG & DROP on upload zone
-// ═══════════════════════════════════════════════════════════════
-const dropZone = document.getElementById('dropZone');
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file) handleFileUpload(file);
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  // 1. Check URL for QR-encoded credentials (?fd=base64payload)
+  const params = new URLSearchParams(window.location.search);
+  const fd = params.get('fd');
+  if (fd) {
+    try {
+      const decoded = JSON.parse(atob(decodeURIComponent(fd)));
+      if (decoded.u && decoded.k && decoded.s) {
+        cfg = { siteUrl: decoded.u, wcKey: decoded.k, wcSecret: decoded.s, demo: false };
+        saveConfig();
+        // Clean the URL so keys don't sit in browser history
+        window.history.replaceState({}, '', window.location.pathname);
+        launch();
+        return;
+      }
+    } catch(e) { console.warn('QR decode failed', e); }
+  }
+
+  // 2. Fall back to saved config
+  const saved = localStorage.getItem('fd_cfg');
+  if (saved) {
+    try {
+      const c = JSON.parse(saved);
+      if (c.siteUrl && c.wcKey) {
+        cfg = c;
+        ['site-url','s-url'].forEach(id => document.getElementById(id).value = c.siteUrl);
+        ['wc-key','s-key'].forEach(id => document.getElementById(id).value = c.wcKey);
+        ['wc-secret','s-secret'].forEach(id => document.getElementById(id).value = c.wcSecret);
+        ['mec-key','s-mec-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = c.mecKey||''; });
+        // Auto-launch if we have saved creds
+        launch();
+        return;
+      }
+    } catch(e){}
+  }
+  // 3. Show setup screen
 });
 </script>
 </body>
