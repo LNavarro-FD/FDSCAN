@@ -271,10 +271,36 @@ input::placeholder { color: #999; }
 .gl-filter-bar::-webkit-scrollbar { display: none; }
 .filter-pill {
   flex-shrink: 0; background: var(--bg); border: 2px solid var(--border);
-  border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 700;
+  border-radius: 20px; padding: 9px 16px; font-size: 13px; font-weight: 700;
   color: var(--muted);
   cursor: pointer; -webkit-tap-highlight-color: transparent; white-space: nowrap; font-family: inherit;
 }
+
+/* Event cards in stats */
+.ev-card {
+  background: var(--white); border-radius: 14px; overflow: hidden;
+  border: 2px solid var(--border); margin-bottom: 14px;
+}
+.ev-card-header {
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.ev-card-title {
+  font-size: 22px; font-weight: 900; color: var(--text); line-height: 1.2;
+  margin-bottom: 4px;
+}
+.ev-card-sub { font-size: 13px; color: var(--muted); }
+.ev-card-stats {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0;
+}
+.ev-stat {
+  padding: 18px 16px; text-align: center; border-right: 1px solid var(--border);
+}
+.ev-stat:last-child { border-right: none; }
+.ev-stat-num { font-size: 34px; font-weight: 900; line-height: 1; }
+.ev-stat-lbl { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.ev-progress-wrap { height: 8px; background: var(--bg); }
+.ev-progress-bar  { height: 100%; background: var(--ok); transition: width .4s; }
 .filter-pill.active { background: var(--pink); border-color: var(--pink); color: #fff; }
 .filter-pill.day-pill.active { background: var(--navy); border-color: var(--navy); color: #fff; }
 
@@ -394,7 +420,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · HRR 2026 · v5.0</div>
+    <div class="brand-sub">Door Scanner · v5.0</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -410,7 +436,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · HRR 2026 · v5.0</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.0</div>
     </div>
     <div class="setup-title" style="margin-top:8px;">Connect to WooCommerce</div>
     <div class="field-group">
@@ -565,6 +591,8 @@ input::placeholder { color: #999; }
       <div class="stat-card"><div class="stat-num" id="st-gl-comp">—</div><div class="stat-lbl">Comps</div></div>
       <div class="stat-card accent"><div class="stat-num" id="st-gl-in">—</div><div class="stat-lbl">Checked in</div></div>
     </div>
+    <div class="setup-title">By event</div>
+    <div id="event-cards"></div>
     <div class="log-hdr"><span class="log-label">Full scan log</span></div>
     <ul class="log-list" id="full-log" style="max-height:none;"></ul>
   </div>
@@ -1214,31 +1242,80 @@ function admitSpecific(bookingId, attendeeKey) {
   vibrate([80]);
 }
 
-function quickAdmit(bookingId) {
+function undoSpecific(bookingId, attendeeKey) {
   const b = bookingMap[bookingId];
   if (!b) return;
-  const nextTicket = b.tickets.find(t => !t.checkedIn);
-  if (!nextTicket) return;
+  const ticket = b.tickets.find(t => String(t.attendeeKey) === String(attendeeKey));
+  if (!ticket || !ticket.checkedIn) return;
+  if (!confirm(`Undo check-in for ${ticket.name || b.name}?`)) return;
 
-  nextTicket.checkedIn = true;
-  const admitted  = getBookingAdmittedCount(b);
-  const remaining = b.tickets.length - admitted;
+  ticket.checkedIn = false;
 
-  // Write to MEC or WC
+  // Write back to source
   if (b.source === 'mec') {
-    fetch(`${cfg.siteUrl}/wp-json/mec-utility/v1/attendees/${b.bookingId}/${nextTicket.attendeeKey}/checkin`, {
-      method: 'POST', headers: { 'X-MEC-KEY': cfg.mecKey }
-    }).catch(e => console.warn('MEC checkin failed:', e));
+    // MEC — no undo API, just update local state
+    console.warn('MEC undo: local only — MEC API does not support undo');
   } else {
     const wcGuest = guestMap[`wc-${b.invoiceID}`];
-    if (wcGuest) { wcGuest.checkedInTickets.push(nextTicket.key); writeCheckIn(wcGuest.id, nextTicket.key, wcGuest.checkedInTickets); }
+    if (wcGuest) {
+      wcGuest.checkedInTickets = wcGuest.checkedInTickets.filter(k => k !== ticket.key);
+      wcGuest.checkedIn = false;
+      writeCheckIn(wcGuest.id, null, wcGuest.checkedInTickets);
+    }
   }
 
-  addLog({ name:b.name, ticket:`${nextTicket.ticketName} (${admitted} of ${b.tickets.length})`, status:'ok', note:'Guest list' });
-  stats.admitted++; stats.total++;
+  addLog({ name: ticket.name || b.name, ticket: `${ticket.ticketName} — UNDONE`, status:'warn', note:'Undo' });
+  stats.admitted = Math.max(0, stats.admitted - 1);
   document.getElementById('hdr-count').textContent = stats.admitted;
   updateStats(); updateGLStats(); renderGuestList();
-  vibrate([80]);
+  vibrate([100, 50, 100]);
+}
+
+function undoAllBooking(bookingId) {
+  const b = bookingMap[bookingId];
+  if (!b) return;
+  const count = b.tickets.filter(t => t.checkedIn).length;
+  if (!count) return;
+  if (!confirm(`Undo ALL ${count} check-in${count>1?'s':''} for ${b.name}?`)) return;
+
+  b.tickets.forEach(t => { t.checkedIn = false; });
+
+  if (b.source !== 'mec') {
+    const wcGuest = guestMap[`wc-${b.invoiceID}`];
+    if (wcGuest) {
+      wcGuest.checkedInTickets = [];
+      wcGuest.checkedIn = false;
+      writeCheckIn(wcGuest.id, null, []);
+    }
+  }
+
+  addLog({ name: b.name, ticket: `All ${count} tickets — UNDONE`, status:'warn', note:'Undo all' });
+  stats.admitted = Math.max(0, stats.admitted - count);
+  document.getElementById('hdr-count').textContent = stats.admitted;
+  updateStats(); updateGLStats(); renderGuestList();
+  vibrate([100, 50, 100]);
+}
+
+function admitAllBooking(bookingId) {
+  const b = bookingMap[bookingId];
+  if (!b) return;
+  const pending = b.tickets.filter(t => !t.checkedIn);
+  if (!pending.length) return;
+  pending.forEach(t => {
+    t.checkedIn = true;
+    if (b.source === 'mec') {
+      fetch(`${cfg.siteUrl}/wp-json/mec-utility/v1/attendees/${b.bookingId}/${t.attendeeKey}/checkin`,
+        { method:'POST', headers:{'X-MEC-KEY':cfg.mecKey} }).catch(e => console.warn('MEC checkin:',e));
+    } else {
+      const wcGuest = guestMap[`wc-${b.invoiceID}`];
+      if (wcGuest) { wcGuest.checkedInTickets.push(t.key); wcGuest.checkedIn = wcGuest.checkedInTickets.length >= wcGuest.qty; writeCheckIn(wcGuest.id, t.key, wcGuest.checkedInTickets); }
+    }
+    stats.admitted++; stats.total++;
+  });
+  document.getElementById('hdr-count').textContent = stats.admitted;
+  addLog({ name:b.name, ticket:`All ${b.tickets.length} tickets admitted`, status:'ok', note:'Check in all' });
+  updateStats(); updateGLStats(); renderGuestList();
+  vibrate([50, 30, 80]);
 }
 
 // Dynamic event filter pills
@@ -1367,42 +1444,76 @@ function renderGuestList() {
       admitted > 0  ? `<span class="badge in">${admitted}/${total} ✓</span>` : '',
     ].filter(Boolean).join('');
 
-    // Attendee sub-rows (expandable) with individual admit buttons
-    const subRows = b.tickets.map((t, i) => `
+    // Individual ticket rows — each has its own check in / undo
+    const ticketRows = b.tickets.map((t, i) => {
+      const num = i + 1;
+      return `
       <div class="gl-attendee ${t.checkedIn?'gl-attendee-in':''}">
-        <span class="gl-att-dot ${t.checkedIn?'ok':''}"></span>
-        <span class="gl-att-name">${t.name || b.name}</span>
-        <span class="gl-att-ticket">${t.ticketName}</span>
-        ${t.checkedIn 
-          ? '<span class="gl-att-in">✓ In</span>' 
-          : '<button onclick="event.stopPropagation();admitSpecific(\'' + b.bookingId + '\',\'' + t.attendeeKey + '\')" style="background:var(--ok);color:#fff;border:none;border-radius:16px;padding:4px 12px;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;font-family:inherit;flex-shrink:0;-webkit-tap-highlight-color:transparent;">✓</button>'
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);">Ticket ${num} of ${total}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:1px;">${t.ticketName}</div>
+        </div>
+        ${t.checkedIn
+          ? `<div style="display:flex;align-items:center;gap:8px;">
+               <span style="font-size:12px;font-weight:800;color:var(--ok);">✓ In</span>
+               <button onclick="event.stopPropagation();undoSpecific('${b.bookingId}','${t.attendeeKey}')"
+                 style="background:#fff;color:var(--err);border:2px solid var(--err);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">↩ Undo</button>
+             </div>`
+          : `<button onclick="event.stopPropagation();admitSpecific('${b.bookingId}','${t.attendeeKey}')"
+               style="background:var(--ok);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">✓ Check In</button>`
         }
-      </div>`).join('');
+      </div>`;
+    }).join('');
 
-    // Admit next button — only shown in sub-row expansion, NOT on main row tap
-    const admitBtnHtml = allIn 
-      ? `<span style="font-size:11px;font-weight:800;color:var(--ok);letter-spacing:.05em;">✓ ALL IN</span>`
-      : `<span style="font-size:11px;font-weight:700;color:var(--muted);">${admitted}/${total} in</span>`;
+    const statusText = allIn
+      ? `<span style="font-size:12px;font-weight:800;color:var(--ok);">✓ ALL IN</span>`
+      : admitted > 0
+        ? `<span style="font-size:12px;font-weight:700;color:var(--warn);">${admitted}/${total} in</span>`
+        : `<span style="font-size:12px;font-weight:700;color:var(--muted);">0/${total} in</span>`;
 
-    // Expand chevron — separate tap target from admit
+    // Name row — NO tap action. Expand is chevron button only.
+    // Action buttons are ONLY inside expanded panel.
     return `<div class="gl-booking" id="bk-${b.bookingId}">
-      <div class="gl-item${allIn?' checked-in':''}" onclick="toggleBooking('${b.bookingId}')" style="cursor:pointer;">
-        <div class="gl-avatar ${avCls}">${avTxt}</div>
-        <div class="gl-info">
+
+      <!-- NAME ROW — display only, no tap action -->
+      <div class="gl-item${allIn?' checked-in':''}" style="cursor:default;">
+        <div class="gl-avatar ${avCls}" style="flex-shrink:0;">${avTxt}</div>
+        <div class="gl-info" style="flex:1;min-width:0;pointer-events:none;">
           <div class="gl-name">${b.name}</div>
           <div class="gl-ticket">${b.eventDay&&b.eventDay!=='All'?'<span style="font-weight:800;color:var(--navy);margin-right:4px;">'+b.eventDay+'</span>':''}${b.eventTitle||''}</div>
         </div>
-        <div class="gl-badges">
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
           ${badges}
-          ${admitBtnHtml}
-          <span style="color:var(--muted);font-size:18px;margin-left:6px;" id="chevron-${b.bookingId}">›</span>
+          ${statusText}
         </div>
+        <!-- Chevron is the ONLY expand trigger -->
+        <button onclick="toggleBooking('${b.bookingId}')"
+          style="background:none;border:none;padding:10px 6px 10px 12px;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;flex-shrink:0;-webkit-tap-highlight-color:transparent;"
+          id="chevron-${b.bookingId}" aria-label="Expand">›</button>
       </div>
+
+      <!-- EXPANDED PANEL — all actions live here -->
       <div class="gl-attendees hidden" id="att-${b.bookingId}">
-        ${subRows}
-        ${!allIn ? `<div style="padding:10px 16px 14px;">
-          <button onclick="event.stopPropagation();quickAdmit('${b.bookingId}')" style="width:100%;background:var(--ok);color:#fff;border:none;border-radius:10px;padding:14px;font-size:14px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">✓ Admit Next Ticket</button>
-        </div>` : ''}
+
+        <!-- Check in ALL button always at top -->
+        <div style="padding:12px 16px 8px;border-bottom:1px solid var(--border);">
+          ${allIn
+            ? `<button onclick="event.stopPropagation();undoAllBooking('${b.bookingId}')"
+                style="width:100%;background:#fff;color:var(--err);border:2px solid var(--err);border-radius:10px;padding:13px;font-size:14px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">
+                ↩ Undo All ${total} Check-ins
+              </button>`
+            : `<button onclick="event.stopPropagation();admitAllBooking('${b.bookingId}')"
+                style="width:100%;background:var(--ok);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 12px rgba(0,168,90,.3);">
+                ✓ Check In All ${total} Ticket${total>1?'s':''}
+              </button>`
+          }
+        </div>
+
+        <!-- Individual tickets -->
+        <div style="padding:8px 0;">
+          ${ticketRows}
+        </div>
+
       </div>
     </div>`;
   }).join('');
@@ -1631,16 +1742,17 @@ async function lookupTicket(code) {
 
       const mecGuest = await mecLookupAndCheckin(code);
       if (mecGuest) {
-        // Check local bookingMap state first (catches same-session rescans)
-        const invoiceId = mecGuest._invoiceID || mecGuest.orderNumber;
-        const place     = mecGuest._place;
-        const localBooking = invoiceMap[invoiceId];
-        const localTicket  = localBooking?.tickets.find(t => String(t.attendeeKey) === String(place));
-        const alreadyIn    = mecGuest.checkedIn || (localTicket && localTicket.checkedIn);
+        // Check local bookingMap state FIRST — catches same-session rescans before API responds
+        const invoiceId    = mecGuest._invoiceID || mecGuest.orderNumber;
+        const place        = mecGuest._place;
+        const localBooking = invoiceMap[invoiceId] || bookingMap[invoiceId];
+        const localTicket  = localBooking?.tickets.find(t => String(t.attendeeKey) === String(place))
+                          || localBooking?.tickets.find(t => t.checkedIn); // fallback for single-ticket bookings
+        const alreadyInLocal = localTicket && localTicket.checkedIn;
+        const alreadyIn      = alreadyInLocal || mecGuest.checkedIn;
 
         if (alreadyIn) {
           // Already checked in (either MEC reports it or we already scanned this session)
-          vibrate([200,80,200]);
           addLog({ name:mecGuest.name, ticket:`${mecGuest.ticketName} (${code})`, status:'warn', code });
           stats.dupe++; stats.total++;
           setResult('warn','⚠️', mecGuest.name, `Ticket already checked in`);
@@ -1664,34 +1776,31 @@ async function lookupTicket(code) {
           } else {
             // Valid MEC ticket — write check-in
             mecWriteCheckin(code, mecGuest);
-            vibrate([50, 30, 80]); // success: double pulse
             addLog({ name:mecGuest.name, ticket:`${mecGuest.ticketName} (${code})`, status:'ok', code });
             stats.admitted++; stats.total++;
             document.getElementById('hdr-count').textContent = stats.admitted;
-            setResult('ok','✓', mecGuest.name, mecGuest.ticketName, true);
-            showEnt(mecGuest);
-            showChips([
-              { label: code, cls:'' },
-              { label: mecGuest.ticketName, cls:'' },
-              ...(mecGuest.isVip ? [{ label:'VIP', cls:'vip' }] : [])
-            ]);
-            updateStats();
-            // Update bookingMap — find booking by invoice ID using invoiceMap
+            // Enrich mecGuest with bookingMap ticket data for correct VIP/entitlement display
             const invId   = mecGuest._invoiceID || mecGuest.orderNumber;
             const placeNo = mecGuest._place;
             const booking = invoiceMap[invId] || bookingMap[invId];
-            console.log('Scan update: invoiceID='+invId+' place='+placeNo+' booking='+(booking?booking.name:'NOT FOUND')+' invoiceMap keys='+Object.keys(invoiceMap).slice(0,5).join(','));
             if (booking) {
               const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(placeNo))
                           || booking.tickets.find(t => !t.checkedIn);
               if (ticket) {
                 ticket.checkedIn = true;
-                console.log('✓ Marked', booking.name, 'ticket', ticket.attendeeKey, 'as checked in');
-              } else {
-                console.warn('No matching ticket found for place', placeNo, 'in', booking.tickets.map(t=>t.attendeeKey));
+                // Use bookingMap ticket data to ensure correct name/VIP status
+                if (!mecGuest.ticketName || mecGuest.ticketName === 'MEC Ticket') mecGuest.ticketName = ticket.ticketName;
+                mecGuest.isVip = mecGuest.isVip || ticket.isVip || /vip/i.test(ticket.ticketName);
               }
               renderGuestList(); updateGLStats();
             }
+            setResult('ok','✓', mecGuest.name, mecGuest.ticketName, true);
+            showEnt(mecGuest);
+            showChips([
+              { label: mecGuest.ticketName, cls:'' },
+              ...(mecGuest.isVip ? [{ label:'VIP', cls:'vip' }] : [])
+            ]);
+            updateStats();
           }
         }
         isScanning = false;
@@ -1737,6 +1846,7 @@ async function lookupTicket(code) {
     rejectCode(code, 'Not found in MEC or WooCommerce');
 
   } catch(err) {
+    vibrate([300, 100, 300]);
     setResult('err','⚠️','Connection error', err.message || 'Check connection');
   } finally {
     isScanning = false;
@@ -1928,26 +2038,36 @@ async function mecLookupAndCheckin(code) {
       attendee = { email: parsed.email };
     }
 
-    const name = [attendee.first_name || '', attendee.last_name || ''].join(' ').trim() 
-               || attendee.name || parsed.email || 'Guest';
+    const bookingMapEntry = invoiceMap[parsed.invoiceID] || bookingMap[parsed.invoiceID];
+    const bookingMapName  = bookingMapEntry ? bookingMapEntry.name : '';
+
+    const name = [attendee.first_name || '', attendee.last_name || ''].filter(Boolean).join(' ').trim()
+               || attendee.name
+               || bookingMapName
+               || 'Guest';
+    // Never show email as the name
     
-    // Get ticket name — try attendee field first, then look up from booking's event tickets
+    // Get ticket name — try attendee field first, then always fall back to bookingMap
     let ticketName = attendee.ticket_name || attendee.ticket_label || attendee.type || '';
-    if (!ticketName && attendee.ticket_id) {
-      // Look up ticket name from the booking in bookingMap
-      const bk = bookingMap[parsed.invoiceID];
+
+    if (!ticketName) {
+      // Look up from bookingMap by place/attendeeKey
+      const bk = bookingMapEntry || bookingMap[parsed.invoiceID];
       if (bk) {
-        const t = bk.tickets.find(t => String(t.attendeeKey) === String(parsed.place));
+        const t = bk.tickets.find(t => String(t.attendeeKey) === String(parsed.place))
+               || bk.tickets[parseInt(parsed.place) - 1];
         if (t) ticketName = t.ticketName;
       }
-      // Or look up from upcomingEvents ticket list
-      if (!ticketName) {
-        for (const ev of upcomingEvents) {
-          const evTicket = (ev.tickets || []).find(t => String(t.id) === String(attendee.ticket_id));
-          if (evTicket) { ticketName = evTicket.name; break; }
-        }
+    }
+
+    if (!ticketName && attendee.ticket_id) {
+      // Look up from upcomingEvents ticket list
+      for (const ev of upcomingEvents) {
+        const evTicket = (ev.tickets || []).find(t => String(t.id) === String(attendee.ticket_id));
+        if (evTicket) { ticketName = evTicket.name; break; }
       }
     }
+
     if (!ticketName) ticketName = 'MEC Ticket';
     
     const checkedIn  = !!(attendee.checked_in || attendee.checkin_status || attendee.status === 'checked_in');
@@ -2142,6 +2262,11 @@ function setResult(state, icon, name, detail, pulse) {
   el.querySelector('.rc-status').textContent = state==='ok'?'Admitted':state==='err'?'Rejected':state==='warn'?'Already In':state==='tm'?'Ticketmaster':'';
   el.querySelector('.rc-name').textContent   = name;
   el.querySelector('.rc-detail').textContent = detail;
+  // Vibrate on every result — distinct patterns per outcome
+  if (state === 'ok')   vibrate([50, 30, 80]);        // success: double pulse
+  if (state === 'warn') vibrate([200, 80, 200]);       // duplicate: double long
+  if (state === 'err')  vibrate([500]);                // rejected: single long
+  if (state === 'tm')   vibrate([100, 50, 100]);       // ticketmaster: attention
 }
 
 function showEnt(g) {
@@ -2216,8 +2341,66 @@ function updateGLStats() {
 function showTab(tab) {
   ['scan','guests','stats','settings'].forEach(t => document.getElementById(t+'-screen').classList.add('hidden'));
   document.getElementById(tab+'-screen').classList.remove('hidden');
-  if (tab==='stats') renderLogs();
+  if (tab==='stats') { renderLogs(); renderEventCards(); }
   if (tab==='settings') renderSettingsQR();
+}
+
+// ═══════════════════════════════════════════
+//  EVENT CARDS
+// ═══════════════════════════════════════════
+function renderEventCards() {
+  const el = document.getElementById('event-cards');
+  if (!el) return;
+
+  // Group bookings by event title
+  const eventMap = {};
+  Object.values(bookingMap).forEach(b => {
+    const key = b.eventTitle || b.eventDay || 'General';
+    if (!eventMap[key]) eventMap[key] = { bookings:[], title: key };
+    eventMap[key].bookings.push(b);
+  });
+
+  if (!Object.keys(eventMap).length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">No events loaded</div>';
+    return;
+  }
+
+  const colors = ['var(--pink)','#0050B3','#00A85A','#C06000','#8e44ad','#16a085'];
+  let ci = 0;
+
+  el.innerHTML = Object.values(eventMap).map(ev => {
+    const totalTickets   = ev.bookings.reduce((s,b) => s + b.tickets.length, 0);
+    const admittedTickets = ev.bookings.reduce((s,b) => s + getBookingAdmittedCount(b), 0);
+    const remaining      = totalTickets - admittedTickets;
+    const pct            = totalTickets > 0 ? Math.round(admittedTickets / totalTickets * 100) : 0;
+    const col            = colors[ci++ % colors.length];
+    // Shorten long event titles
+    const shortTitle = ev.title.replace(/funky dory\s*/i,'').replace(/during henley\s*(royal\s*)?regatta\s*/i,'').replace(/\s*-\s*(Early Bird|2nd Release)[^£]*/i,'').trim();
+
+    return `<div class="ev-card">
+      <div class="ev-card-header">
+        <div class="ev-card-title" style="color:${col}">${shortTitle || ev.title}</div>
+        <div class="ev-card-sub">${ev.bookings.length} booking${ev.bookings.length!==1?'s':''} · ${totalTickets} ticket${totalTickets!==1?'s':''}</div>
+      </div>
+      <div class="ev-card-stats">
+        <div class="ev-stat">
+          <div class="ev-stat-num" style="color:${col}">${admittedTickets}</div>
+          <div class="ev-stat-lbl">In</div>
+        </div>
+        <div class="ev-stat">
+          <div class="ev-stat-num">${remaining}</div>
+          <div class="ev-stat-lbl">Remaining</div>
+        </div>
+        <div class="ev-stat">
+          <div class="ev-stat-num" style="color:${col}">${pct}%</div>
+          <div class="ev-stat-lbl">Admitted</div>
+        </div>
+      </div>
+      <div class="ev-progress-wrap">
+        <div class="ev-progress-bar" style="width:${pct}%;background:${col}"></div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ═══════════════════════════════════════════
