@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FD Door Scanner · Team Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f0ede6;
+    color: #1a2744;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: #1a2744;
+    padding: 28px 24px 24px;
+    text-align: center;
+  }
+  .header-logo {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #c9a84c;
+    margin-bottom: 6px;
+  }
+  .header h1 {
+    font-size: 32px;
+    font-weight: 900;
+    color: white;
+    letter-spacing: -0.5px;
+  }
+  .header p {
+    font-size: 13px;
+    color: rgba(255,255,255,0.45);
+    margin-top: 6px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .pink-bar {
+    height: 4px;
+    background: linear-gradient(to right, #e91e8c, #c9a84c);
+  }
+
+  /* ── CONTENT ── */
+  .content { padding: 24px 20px 48px; max-width: 480px; margin: 0 auto; }
+
+  /* ── CARDS ── */
+  .card {
+    background: white;
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 12px rgba(26,39,68,0.08);
+  }
+  .card-header {
+    background: #1a2744;
+    color: white;
+    padding: 11px 18px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-header.pink { background: #e91e8c; }
+  .card-header.gold { background: #c9a84c; color: #1a2744; }
+  .card-body { padding: 18px; }
+
+  /* ── QR ── */
+  .qr-wrap {
+    padding: 24px 20px 16px;
+    text-align: center;
+    background: white;
+  }
+  #qrDiv { display: inline-block; }
+  .qr-caption {
+    margin-top: 12px;
+    font-size: 12px;
+    color: #6b7a99;
+    line-height: 1.5;
+  }
+  .qr-caption strong { color: #1a2744; display: block; font-size: 14px; margin-bottom: 2px; }
+
+  /* ── STEPS ── */
+  .step {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 11px 0;
+    border-bottom: 1px solid #f0ede6;
+  }
+  .step:last-child { border-bottom: none; }
+  .step-num {
+    width: 26px; height: 26px;
+    background: #e91e8c;
+    color: white;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .step-text { font-size: 14px; color: #1a2744; line-height: 1.5; }
+  .step-text strong { font-weight: 700; }
+
+  /* ── FLASH COLOURS ── */
+  .flash-row { display: flex; gap: 8px; }
+  .flash {
+    flex: 1; border-radius: 10px; padding: 12px 8px;
+    text-align: center; font-size: 12px; font-weight: 800;
+    line-height: 1.4;
+  }
+  .flash.green { background: #d4f5e4; color: #1e8449; }
+  .flash.red   { background: #fdecea; color: #c0392b; }
+  .flash.amber { background: #fff4e5; color: #d35400; }
+
+  /* ── RULES ── */
+  .rule {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 10px 0; border-bottom: 1px solid #f0ede6;
+    font-size: 13px; color: #1a2744; line-height: 1.5;
+  }
+  .rule:last-child { border-bottom: none; }
+  .rule-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── BADGE ── */
+  .badge {
+    display: inline-block;
+    background: #1a2744;
+    color: #c9a84c;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-left: 6px;
+  }
+  .badge.pink { background: #e91e8c; color: white; }
+
+  /* ── PRINT ── */
+  .print-btn {
+    display: block; width: 100%;
+    padding: 16px;
+    background: #e91e8c;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px; font-weight: 800;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+    font-family: inherit;
+  }
+  .print-btn:active { opacity: 0.85; }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #6b7a99;
+    margin: 20px 0 8px;
+    padding-left: 2px;
+  }
+
+  @media print {
+    body { background: white; }
+    .print-btn { display: none; }
+    .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .card-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .flash { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">Funky Dory</div>
+  <h1>Door Scanner</h1>
+  <p>Henley Royal Regatta 2026 · Staff Guide</p>
+</div>
+<div class="pink-bar"></div>
+
+<div class="content">
+
+  <!-- QR -->
+  <div class="section-label">Load the app</div>
+  <div class="card">
+    <div class="card-header gold">📱 Scan to open &amp; log in automatically</div>
+    <div class="qr-wrap">
+      <div id="qrDiv"></div>
+      <div class="qr-caption">
+        <strong>Scan with your phone camera</strong>
+        Opens the app and logs in automatically — no typing needed
+      </div>
+    </div>
+  </div>
+
+  <!-- SETUP -->
+  <div class="section-label">First time setup</div>
+  <div class="card">
+    <div class="card-header">Getting started</div>
+    <div class="card-body">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">Scan the QR code above — it opens the app and logs in automatically</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">On iPhone: tap <strong>Share → Add to Home Screen</strong> so it works like a proper app and stays full screen</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">Allow <strong>camera access</strong> when prompted</div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-text">Tap your <strong>event pill</strong> in the Guests tab to filter to your gate — the pill bar will collapse and show only your event's guests</div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-text">Switch to <strong>Scan tab</strong> and you're ready to go</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH COLOURS -->
+  <div class="section-label">What the screen flash means</div>
+  <div class="card">
+    <div class="card-body">
+      <div class="flash-row">
+        <div class="flash green">✅ GREEN<br>Admitted</div>
+        <div class="flash red">🔴 RED<br>Rejected /<br>Not found</div>
+        <div class="flash amber">🟠 AMBER<br>Already in /<br>Too early</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOOR RULES -->
+  <div class="section-label">Door rules</div>
+  <div class="card">
+    <div class="card-body">
+      <div class="rule">
+        <span class="rule-icon">🌙</span>
+        <div><strong>Evening tickets</strong> — valid from <strong>5:00 PM</strong> only. Scanner flags if too early — ask guest to return later.</div>
+      </div>
+      <div class="rule">
+        <span class="rule-icon">⭐</span>
+        <div><strong>VIP guests</strong> — scan result shows VIP. Issue <strong>gold wristband + food tokens</strong>.</div>
+      </div>
+      <div class="rule">
+        <span class="rule-icon">🎫</span>
+        <div><strong>Ticketmaster guests</strong> — app flags these. Ask to see their Ticketmaster email, then admit manually in Guests tab.</div>
+      </div>
+      <div class="rule">
+        <span class="rule-icon">👥</span>
+        <div><strong>Manual lookup</strong> — Guests tab → search by name → tap name to expand → check in one ticket or all at once.</div>
+      </div>
+      <div class="rule">
+        <span class="rule-icon">↩</span>
+        <div><strong>Accidental check-in</strong> — expand the booking and tap <strong>↩ Undo</strong> on the ticket.</div>
+      </div>
+      <div class="rule">
+        <span class="rule-icon">📵</span>
+        <div><strong>No signal</strong> — app works offline once loaded. Check-ins sync when connection returns.</div>
+      </div>
+      <div class="rule">
+        <span class="rule-icon">🔋</span>
+        <div><strong>Battery</strong> — use Guests tab for manual check-ins (no camera drain). Keep plugged in at gate where possible.</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="print-btn" onclick="handlePrint()">🖨️ Print this guide</button>
+
+<script>
+  function handlePrint() {
+    // iOS Safari blocks window.print() — detect and show instructions
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      alert('On iPhone:\n\nTap the Share button (□↑) at the bottom of your browser, then tap "Print".');
+    } else {
+      window.print();
+    }
+  }
+</script>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  // Credentials encoded in QR — scans directly into app and auto-logs in
+  const url = 'https://lnavarro-fd.github.io/FDSCAN?fd=eyJ1IjoiaHR0cHM6Ly9mZC50ZHdkZXYuY28udWsiLCJrIjoiY2tfZjE5MzAyMmJhZTliNTRhY2E3NTJkMzYyNDhmOTI3OGYwOWIzMzQ3MiIsInMiOiJjc183Y2JhODA1Yzk3NmFjZGQ4YzgxNjk1MzU4MmE3MmY4ZmU3NDc2ZDlmIiwibSI6IktvOW5PTFRtS1JoN3VuVHptaTRJYlVTMGNBSXFLWFpqV3ZTNk9qN0sifQ==';
+
+  new QRCode(document.getElementById('qrDiv'), {
+    text: url,
+    width: 220,
+    height: 220,
+    colorDark: '#1a2744',
+    colorLight: '#ffffff',
+  });
+</script>
+</body>
+</html>
