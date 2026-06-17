@@ -2154,9 +2154,10 @@ async function lookupTicket(code) {
       if (mecGuest) {
         const invoiceId    = mecGuest._invoiceID || mecGuest.orderNumber;
         const place        = mecGuest._place;
-        const localBooking = invoiceMap[invoiceId] || bookingMap[invoiceId];
-        // Only match the specific ticket by attendeeKey — no fallback to avoid false positives
-        const localTicket  = localBooking?.tickets.find(t => String(t.attendeeKey) === String(place));
+        const localBooking = invoiceMap[invoiceId] || bookingMap[invoiceId]
+                          || Object.values(bookingMap).find(b => String(b.invoiceID) === String(invoiceId));
+        const localTicket  = localBooking?.tickets.find(t => String(t.attendeeKey) === String(place))
+                          || localBooking?.tickets[parseInt(place) - 1];
         const alreadyInLocal = localTicket?.checkedIn === true;
 
         // If not caught locally, check our database proxy to catch cross-session duplicates
