@@ -1,0 +1,14 @@
+{
+  "name": "FD Door Scanner",
+  "short_name": "FD Scanner",
+  "description": "Funky Dory door scanning app for Henley Royal Regatta",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#22224C",
+  "theme_color": "#22224C",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
