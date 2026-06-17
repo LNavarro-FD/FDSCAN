@@ -271,6 +271,7 @@ input::placeholder { color: #999; }
 .gl-toolbar {
   flex-shrink: 0; padding: 12px 14px; display: flex; gap: 8px; align-items: center;
   border-bottom: 2px solid var(--border); background: var(--white);
+  width: 100%; overflow: hidden; box-sizing: border-box;
 }
 .gl-search {
   flex: 1; background: var(--bg); border: 2px solid var(--border);
@@ -382,8 +383,8 @@ input::placeholder { color: #999; }
 .gl-ticket { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gl-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
 .badge {
-  font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
-  padding: 3px 9px; border-radius: 20px;
+  font-size: 9px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 20px; white-space: nowrap; display: inline-block;
 }
 .badge.vip  { background: #FFF3B0; color: #7A5500;  border: 1.5px solid #C89500; }
 .badge.comp { background: #FFD6E3; color: #C0004A;  border: 1.5px solid var(--pink); }
@@ -483,7 +484,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.31</div>
+    <div class="brand-sub">Door Scanner · v5.32</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -499,7 +500,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.31</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.32</div>
     </div>
     <div class="setup-title" style="margin-top:8px;">Connect to WooCommerce</div>
     <div class="field-group">
@@ -1727,16 +1728,16 @@ function renderGuestList() {
     return `<div class="gl-booking" id="bk-${b.bookingId}">
 
       <!-- NAME ROW — tap name to expand -->
-      <div class="gl-item${allIn?' checked-in':''}" style="cursor:default;">
+      <div class="gl-item${allIn?' checked-in':''}" style="cursor:default;width:100%;overflow:hidden;box-sizing:border-box;">
         <div class="gl-avatar ${avCls}" style="flex-shrink:0;">${avTxt}</div>
-        <div class="gl-info" onclick="toggleBooking('${b.bookingId}')" style="flex:1;min-width:0;cursor:pointer;-webkit-tap-highlight-color:transparent;">
-          <div class="gl-name" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-            <span style="flex:1;">${b.name}</span>
+        <div class="gl-info" onclick="toggleBooking('${b.bookingId}')" style="flex:1;min-width:0;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;">
+          <div class="gl-name" style="display:flex;align-items:center;justify-content:space-between;gap:6px;overflow:hidden;">
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.name}</span>
             <span style="color:var(--muted);font-size:22px;line-height:1;flex-shrink:0;" id="chevron-${b.bookingId}">›</span>
           </div>
-          <div class="gl-ticket">${b.eventDay&&b.eventDay!=='All'?'<span style="font-weight:800;color:var(--navy);margin-right:4px;">'+b.eventDay+'</span>':''}${b.eventTitle||''}</div>
+          <div class="gl-ticket" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.eventDay&&b.eventDay!=='All'?'<span style="font-weight:800;color:var(--navy);margin-right:4px;">'+b.eventDay+'</span>':''}${b.eventTitle||''}</div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-left:10px;">
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;max-width:80px;margin-left:6px;overflow:hidden;">
           ${badges}
           ${statusText}
         </div>
