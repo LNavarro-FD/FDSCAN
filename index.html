@@ -494,7 +494,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.51</div>
+    <div class="brand-sub">Door Scanner · v5.52</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -510,7 +510,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.51</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.52</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -3336,6 +3336,21 @@ function vibrate(p) {
 // ═══════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════
+// Pre-parse QR credentials immediately so they're in localStorage before DOMContentLoaded
+(function() {
+  try {
+    const fd = new URLSearchParams(window.location.search).get('fd');
+    if (!fd) return;
+    const b64 = decodeURIComponent(fd).replace(/-/g,'+').replace(/_/g,'/');
+    const padded = b64 + '=='.slice(0,(4-b64.length%4)%4);
+    const d = JSON.parse(atob(padded));
+    if (d.u && d.k && d.s) {
+      localStorage.setItem('fd_cfg', JSON.stringify({siteUrl:d.u,wcKey:d.k,wcSecret:d.s,mecKey:d.m||'',demo:false}));
+      window.history.replaceState({},'',window.location.pathname);
+    }
+  } catch(e) {}
+})();
+
 window.addEventListener('DOMContentLoaded', () => {
   // 1. Check URL for QR-encoded credentials (?fd=base64payload)
   const params = new URLSearchParams(window.location.search);
