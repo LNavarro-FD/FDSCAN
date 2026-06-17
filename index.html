@@ -494,7 +494,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.45</div>
+    <div class="brand-sub">Door Scanner · v5.48</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -510,7 +510,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.45</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.48</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -630,8 +630,8 @@ input::placeholder { color: #999; }
     <button class="gl-active-filter-clear" onclick="clearEventFilter()">See all</button>
   </div>
   <div class="gl-filter-bar" id="gl-filter-bar">
-    <!-- Event pills injected dynamically by renderFilterPills() -->
     <button class="filter-pill" onclick="setFilter('comp',this)">🎁 Comp</button>
+    <!-- Event pills injected dynamically by renderFilterPills() -->
     <button class="filter-pill" onclick="setFilter('tm',this)">🎫 Ticketmaster</button>
     <button class="filter-pill" onclick="setFilter('in',this)">✓ In</button>
     <button class="filter-pill" onclick="setFilter('pending',this)">👻 No Show</button>
@@ -1284,6 +1284,7 @@ async function loadGuestList() {
     });
 
     console.log(`Guest list: ${Object.keys(guestMap).length} total (MEC: ${Object.keys(mecGuests).length}, WC comps: ${wcGuests.length})`);
+    await loadCompGuests();
     renderFilterPills();
     renderGuestList(); updateGLStats();
 
@@ -1298,7 +1299,45 @@ async function loadGuestList() {
   }
 }
 
-async function loadCheckinState() {
+async function loadCompGuests() {
+  try {
+    const r = await fetch('./fd-comps.json?v=' + Date.now());
+    if (!r.ok) return;
+    const data = await r.json();
+    let added = 0;
+    Object.entries(data.events || {}).forEach(([eventName, ev]) => {
+      (ev.guests || []).forEach((g, i) => {
+        const key = `comp-${eventName.replace(/\s/g,'-').toLowerCase()}-${i}`;
+        if (guestMap[key]) return;
+        const ticketName = `${eventName} - ${g.ticket}`;
+        const guest = {
+          id: key, orderNumber: key,
+          name: g.name, email: (g.email || '').toLowerCase(),
+          ticketName, isVip: !!g.vip, isComp: true, isTM: false,
+          qty: 1, checkedInTickets: [], checkedIn: false,
+          eventDay: '', _source: 'wc',
+          guestOf: g.guestOf || '',
+          orderDate: ev.date ? ev.date + 'T12:00:00' : new Date().toISOString()
+        };
+        guestMap[key] = guest;
+        if (guest.email) emailMap[guest.email] = guest;
+        bookingMap[key] = {
+          bookingId: key, invoiceID: key,
+          name: g.name, email: guest.email,
+          eventTitle: ticketName, eventDay: '',
+          orderDate: guest.orderDate,
+          guestOf: g.guestOf || '',
+          tickets: [{ key: `${key}-0`, attendeeKey: '0', name: g.name, ticketName, isVip: !!g.vip, checkedIn: false }],
+          source: 'wc', isComp: true, isTM: false
+        };
+        added++;
+      });
+    });
+    if (added > 0) console.log(`✓ Loaded ${added} comp guests from fd-comps.json`);
+  } catch(e) {
+    console.warn('Could not load comp guests:', e.message);
+  }
+}
   if (cfg.demo || !cfg.siteUrl) return;
   try {
     // Single bulk call — get all checked-in attendees at once
@@ -1552,74 +1591,73 @@ function renderFilterPills() {
   const now = Date.now();
   const reportingMode = localStorage.getItem('fd_reporting_mode') === '1';
 
-  // In normal mode: hide events that ended yesterday or earlier
-  // In reporting mode: show all events up to 1 year old
   const cutoff = reportingMode
-    ? 365 * 24 * 60 * 60 * 1000   // 1 year
-    : 24 * 60 * 60 * 1000;         // next day (midnight cutoff)
+    ? 365 * 24 * 60 * 60 * 1000
+    : 24 * 60 * 60 * 1000;
 
-  upcomingEvents
+  // Define preferred pill order
+  const ORDER = ['ladies', 'ibiza', 'brunch', 'studio'];
+  const rank = t => {
+    const tl = t.toLowerCase();
+    if (/ladies/.test(tl))  return 0;
+    if (/ibiza/.test(tl))   return 1;
+    if (/brunch/.test(tl))  return 2;
+    if (/studio/.test(tl))  return 3;
+    return 4;
+  };
+
+  const filtered = upcomingEvents
     .filter(ev => {
       if (!ev.mec_data || !ev.mec_data.end_date) return true;
-      const endStr = ev.mec_data.end_date + 'T23:59:59';
-      const endTime = new Date(endStr).getTime();
+      const endTime = new Date(ev.mec_data.end_date + 'T23:59:59').getTime();
       return (now - endTime) < cutoff;
     })
-    .forEach(ev => {
-      const pill = document.createElement('button');
-      pill.className = 'filter-pill event-pill';
-      pill.dataset.eventId = String(ev.id);
+    .sort((a, b) => rank(a.title) - rank(b.title));
 
-      const cleanTitle = (ev.title || 'Event')
-        .replace(/copy of /i, '')
-        .replace(/funky dory\s*/i, '')
-        .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
-        .replace(/meets\s*/i, '× ')
-        .replace(/\s*[-–]\s*\d{2}[./]\d{2}([./]\d{2,4})?/g, '')
-        .replace(/\(SCAN TEST[^)]*\)/i, '')
-        .replace(/\s{2,}/g, ' ')
-        .trim();
+  filtered.forEach(ev => {
+    const pill = document.createElement('button');
+    pill.className = 'filter-pill event-pill';
+    pill.dataset.eventId = String(ev.id);
 
-      const rawDate = ev.mec_data ? ev.mec_data.start_date : '';
-      let eventDate = '';
-      if (rawDate) {
-        const parts = rawDate.split('-');
-        if (parts.length === 3) eventDate = `${parts[2]}/${parts[1]}/${parts[0].slice(2)}`;
+    // Strip noise AND dates from pill label
+    const cleanTitle = (ev.title || 'Event')
+      .replace(/copy of /i, '')
+      .replace(/funky dory\s*/i, '')
+      .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
+      .replace(/meets\s*/i, '× ')
+      .replace(/\s*[-–]\s*\d{2}[./]\d{2}([./]\d{2,4})?/g, '')
+      .replace(/\(SCAN TEST[^)]*\)/i, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    const isHistoric = ev.mec_data?.end_date &&
+      new Date(ev.mec_data.end_date + 'T23:59:59').getTime() < now;
+
+    const col = getEventColour(ev.title);
+    pill.textContent = (isHistoric ? '📁 ' : '') + cleanTitle;
+    if (isHistoric) pill.style.opacity = '0.6';
+    pill.dataset.eventColour = col.bg;
+    pill.onclick = function() { setFilter('event:' + ev.id, this); };
+    allBtn ? allBtn.insertAdjacentElement('afterend', pill) : bar.appendChild(pill);
+
+    // Auto-select first event pill if nothing selected yet
+    if (!bar.querySelector('.filter-pill.active')) {
+      pill.classList.add('active');
+      pill.style.background = col.bg;
+      pill.style.color = '#fff';
+      pill.style.borderColor = col.bg;
+      glFilter = 'event:' + ev.id;
+      const activeBar  = document.getElementById('gl-active-filter');
+      const activeName = document.getElementById('gl-active-filter-name');
+      if (activeBar && activeName) {
+        bar.style.display = 'none';
+        activeBar.classList.add('show');
+        activeBar.style.background = col.bg;
+        activeName.style.color = '#fff';
+        activeName.textContent = '📅 ' + cleanTitle;
       }
-
-      // Mark historical events clearly in reporting mode
-      const isHistoric = (() => {
-        if (!ev.mec_data?.end_date) return false;
-        return new Date(ev.mec_data.end_date + 'T23:59:59').getTime() < now;
-      })();
-
-      const col = getEventColour(ev.title);
-      pill.textContent = (isHistoric ? '📁 ' : '') + cleanTitle + (eventDate ? ' · ' + eventDate : '');
-      if (isHistoric) pill.style.opacity = '0.6';
-      pill.style.setProperty('--pill-active-bg', col.bg);
-      pill.dataset.eventColour = col.bg;
-      pill.onclick = function() { setFilter('event:' + ev.id, this); };
-      allBtn ? allBtn.insertAdjacentElement('afterend', pill) : bar.appendChild(pill);
-
-      // Auto-select first event pill if nothing selected yet
-      if (!bar.querySelector('.filter-pill.active')) {
-        pill.classList.add('active');
-        pill.style.background = col.bg;
-        pill.style.color = '#fff';
-        pill.style.borderColor = col.bg;
-        glFilter = 'event:' + ev.id;
-        // Show active bar
-        const activeBar  = document.getElementById('gl-active-filter');
-        const activeName = document.getElementById('gl-active-filter-name');
-        if (activeBar && activeName) {
-          bar.style.display = 'none';
-          activeBar.classList.add('show');
-          activeBar.style.background = col.bg;
-          activeName.style.color = '#fff';
-          activeName.textContent = '📅 ' + cleanTitle;
-        }
-      }
-    });
+    }
+  });
 }
 
 function toggleBooking(bookingId) {
@@ -1725,6 +1763,7 @@ function renderGuestList() {
     const mq = !q || b.name.toLowerCase().includes(q) || 
                 String(b.bookingId).includes(q) || 
                 (b.email && b.email.includes(q)) ||
+                (b.guestOf && b.guestOf.toLowerCase().includes(q)) ||
                 b.tickets.some(t => t.name && t.name.toLowerCase().includes(q)) ||
                 // Search individual attendees in guestMap (catches per-attendee names like Kurt)
                 Object.values(guestMap).some(g => 
@@ -1835,7 +1874,7 @@ function renderGuestList() {
             <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.name}</span>
             <span style="color:var(--muted);font-size:22px;line-height:1;flex-shrink:0;" id="chevron-${b.bookingId}">›</span>
           </div>
-          <div class="gl-ticket" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.eventDay&&b.eventDay!=='All'?'<span style="font-weight:800;color:var(--navy);margin-right:4px;">'+b.eventDay+'</span>':''}${b.eventTitle||''}</div>
+          <div class="gl-ticket" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.eventDay&&b.eventDay!=='All'?'<span style="font-weight:800;color:var(--navy);margin-right:4px;">'+b.eventDay+'</span>':''}${b.guestOf?'<span style="color:var(--muted);">Guest of '+b.guestOf+' · </span>':''}${b.eventTitle||''}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;max-width:70px;margin-left:6px;overflow:hidden;">
           ${badges}
