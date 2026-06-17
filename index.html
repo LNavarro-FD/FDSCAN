@@ -494,7 +494,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.48</div>
+    <div class="brand-sub">Door Scanner · v5.49</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -510,7 +510,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.48</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.49</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -3228,10 +3228,10 @@ function startQrLogin() {
             stopQrLogin();
             cfg = { siteUrl: decoded.u, wcKey: decoded.k, wcSecret: decoded.s, mecKey: decoded.m || '', demo: false };
             saveConfig();
-            document.getElementById('site-url').value = decoded.u;
-            document.getElementById('wc-key').value = decoded.k;
-            document.getElementById('wc-secret').value = decoded.s;
-            if (decoded.m) document.getElementById('mec-key').value = decoded.m;
+            ['site-url','s-url'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.siteUrl; });
+            ['wc-key','s-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.wcKey; });
+            ['wc-secret','s-secret'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.wcSecret; });
+            ['mec-key','s-mec-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.mecKey||''; });
             connect();
             return;
           }
@@ -3342,6 +3342,11 @@ window.addEventListener('DOMContentLoaded', () => {
       if (decoded.u && decoded.k && decoded.s) {
         cfg = { siteUrl: decoded.u, wcKey: decoded.k, wcSecret: decoded.s, mecKey: decoded.m || '', demo: false };
         saveConfig();
+        // Populate all settings fields
+        ['site-url','s-url'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.siteUrl; });
+        ['wc-key','s-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.wcKey; });
+        ['wc-secret','s-secret'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.wcSecret; });
+        ['mec-key','s-mec-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.mecKey||''; });
         // Clean the URL so keys don't sit in browser history
         window.history.replaceState({}, '', window.location.pathname);
         launch();
