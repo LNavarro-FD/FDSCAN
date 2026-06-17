@@ -384,7 +384,7 @@ input::placeholder { color: #999; }
 .gl-avatar.vip     { background: #FFF3B0; color: #7A5500; }
 .gl-avatar.checked { background: #C8F5E0; color: #006B38; font-size: 20px; }
 .gl-avatar.tm      { background: #D6E8FF; color: #0050B3; }
-.gl-info  { flex: 1; min-width: 0; }
+.gl-info  { flex: 1; min-width: 0; overflow: hidden; max-width: calc(100% - 130px); }
 .gl-name  { font-size: 17px; font-weight: 800; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gl-ticket { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gl-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
@@ -490,7 +490,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.41</div>
+    <div class="brand-sub">Door Scanner · v5.43</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -506,7 +506,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.41</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.43</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -626,7 +626,6 @@ input::placeholder { color: #999; }
     <button class="gl-active-filter-clear" onclick="clearEventFilter()">See all</button>
   </div>
   <div class="gl-filter-bar" id="gl-filter-bar">
-    <button class="filter-pill active" onclick="setFilter('all',this)">All</button>
     <!-- Event pills injected dynamically by renderFilterPills() -->
     <button class="filter-pill" onclick="setFilter('comp',this)">🎁 Comp</button>
     <button class="filter-pill" onclick="setFilter('tm',this)">🎫 Ticketmaster</button>
@@ -1596,7 +1595,26 @@ function renderFilterPills() {
       pill.style.setProperty('--pill-active-bg', col.bg);
       pill.dataset.eventColour = col.bg;
       pill.onclick = function() { setFilter('event:' + ev.id, this); };
-      allBtn.insertAdjacentElement('afterend', pill);
+      allBtn ? allBtn.insertAdjacentElement('afterend', pill) : bar.appendChild(pill);
+
+      // Auto-select first event pill if nothing selected yet
+      if (!bar.querySelector('.filter-pill.active')) {
+        pill.classList.add('active');
+        pill.style.background = col.bg;
+        pill.style.color = '#fff';
+        pill.style.borderColor = col.bg;
+        glFilter = 'event:' + ev.id;
+        // Show active bar
+        const activeBar  = document.getElementById('gl-active-filter');
+        const activeName = document.getElementById('gl-active-filter-name');
+        if (activeBar && activeName) {
+          bar.style.display = 'none';
+          activeBar.classList.add('show');
+          activeBar.style.background = col.bg;
+          activeName.style.color = '#fff';
+          activeName.textContent = '📅 ' + cleanTitle;
+        }
+      }
     });
 }
 
@@ -1673,12 +1691,11 @@ function setFilter(f, el) {
 }
 
 function clearEventFilter() {
-  glFilter = 'all';
+  glFilter = 'none'; // no filter — show pill bar to pick event
   const bar       = document.getElementById('gl-filter-bar');
   const activeBar = document.getElementById('gl-active-filter');
   bar.style.display = '';
   activeBar.classList.remove('show');
-  // Reset active bar background to navy
   activeBar.style.background = '';
   document.querySelectorAll('.filter-pill').forEach(p => {
     p.classList.remove('active');
@@ -1686,9 +1703,8 @@ function clearEventFilter() {
     p.style.color = '';
     p.style.borderColor = '';
   });
-  const allPill = document.querySelector('.filter-pill');
-  if (allPill) allPill.classList.add('active');
-  renderGuestList(); // 'all' filter already excludes past events via date check
+  document.getElementById('gl-list').innerHTML = '<div class="gl-empty">Select an event above to see the guest list</div>';
+  document.getElementById('gl-count') && (document.getElementById('gl-count').textContent = '');
 }
 
 function getBookingAdmittedCount(booking) {
@@ -1708,7 +1724,7 @@ function renderGuestList() {
                   g._bookingId === b.bookingId && 
                   g.name && g.name.toLowerCase().includes(q)
                 );
-    if (!mq) return false;
+    if (glFilter === 'none') return false; // no event selected yet
     // Apply type filters
     // Dynamic event filter — show only MEC attendees for this specific event
     // WC-only comps appear under All but not under specific event pills
@@ -1722,36 +1738,6 @@ function renderGuestList() {
     if (glFilter === 'tm')         return b.isTM;
     if (glFilter === 'in')         return getBookingAdmittedCount(b) > 0;
     if (glFilter === 'pending')    return getBookingAdmittedCount(b) < b.tickets.length;
-
-    // "All" — filter out bookings from events that ended more than 24 hours ago
-    // unless reporting mode is on
-    if (glFilter === 'all') {
-      const reportingMode = localStorage.getItem('fd_reporting_mode') === '1';
-      if (reportingMode) return true;
-
-      // WC orders — extract event date from ticket name (e.g. "02.07.26" or "04.07.2026")
-      if (!b._eventId || b.source === 'wc') {
-        // Decode HTML entities before matching
-        const rawTitle = (b.eventTitle || b.tickets?.[0]?.ticketName || '')
-          .replace(/&#8211;|&ndash;/g, '–')
-          .replace(/&amp;/g, '&');
-        const titleMatch = rawTitle.match(/(\d{2})\.(\d{2})\.(\d{2,4})/);
-        if (titleMatch) {
-          const day = titleMatch[1], mon = titleMatch[2];
-          let yr = titleMatch[3];
-          if (yr.length === 2) yr = '20' + yr;
-          const eventDate = new Date(`${yr}-${mon}-${day}T23:59:59`).getTime();
-          return (Date.now() - eventDate) < 24 * 60 * 60 * 1000;
-        }
-        return true; // no date in title — show it
-      }
-
-      // MEC bookings — filter by event end date
-      const ev = upcomingEvents.find(e => String(e.id) === String(b._eventId));
-      if (!ev || !ev.mec_data?.end_date) return true;
-      const endTime = new Date(ev.mec_data.end_date + 'T23:59:59').getTime();
-      return (Date.now() - endTime) < 24 * 60 * 60 * 1000;
-    }
 
     return true;
   }).sort((a,b) => {
@@ -1844,7 +1830,7 @@ function renderGuestList() {
           </div>
           <div class="gl-ticket" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.eventDay&&b.eventDay!=='All'?'<span style="font-weight:800;color:var(--navy);margin-right:4px;">'+b.eventDay+'</span>':''}${b.eventTitle||''}</div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;max-width:80px;margin-left:6px;overflow:hidden;">
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;max-width:70px;margin-left:6px;overflow:hidden;">
           ${badges}
           ${statusText}
         </div>
