@@ -2317,7 +2317,7 @@ function getTicketValidFrom(ticketName, eventId) {
   // First try to get start time from the loaded event data
   if (eventId) {
     const ev = upcomingEvents.find(e => String(e.id) === String(eventId));
-    if (ev && ev.mec_data && ev.mec_data.start_time) {
+    if (ev && ev.mec_data && ev.mec_data.start_time && typeof ev.mec_data.start_time === 'string') {
       const parts = ev.mec_data.start_time.split(':');
       const h = parseInt(parts[0]);
       const m = parseInt(parts[1] || 0);
