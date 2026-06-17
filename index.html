@@ -2232,7 +2232,8 @@ async function lookupTicket(code) {
               booking = Object.values(bookingMap).find(b => String(b.invoiceID) === String(invId));
             }
             if (booking) {
-              const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(placeNo));
+              const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(placeNo))
+                          || booking.tickets[parseInt(placeNo) - 1];
               if (ticket) ticket.checkedIn = true;
               renderGuestList(); updateGLStats();
             } else {
@@ -2486,7 +2487,10 @@ async function mecLookupAndCheckin(code) {
     }
 
     const bookingMapEntry = invoiceMap[parsed.invoiceID] || bookingMap[parsed.invoiceID];
-    const bookingMapName  = bookingMapEntry ? bookingMapEntry.name : '';
+    // Get the specific ticket for this place to find the correct attendee name
+    const bookingMapTicket = bookingMapEntry?.tickets?.find(t => String(t.attendeeKey) === String(parsed.place))
+                          || bookingMapEntry?.tickets?.[parseInt(parsed.place) - 1];
+    const bookingMapName  = bookingMapTicket?.name || (bookingMapEntry ? bookingMapEntry.name : '');
 
     const name = [attendee.first_name || '', attendee.last_name || ''].filter(Boolean).join(' ').trim()
                || attendee.name
@@ -2526,7 +2530,7 @@ async function mecLookupAndCheckin(code) {
       name,
       email: (attendee.email || parsed.email || '').toLowerCase(),
       ticketName,
-      isVip: /vip/i.test(ticketName),
+      isVip: /vip/i.test(ticketName) || !!(bookingMapTicket?.isVip),
       isTM: false, isComp: false,
       table: attendee.table || null,
       guestOf: null, hostCategory: null, guestNotes: null,
