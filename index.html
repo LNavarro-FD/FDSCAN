@@ -494,7 +494,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.53</div>
+    <div class="brand-sub">Door Scanner · v5.54</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -510,7 +510,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.53</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.54</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -3339,14 +3339,13 @@ function vibrate(p) {
 // Pre-parse QR credentials immediately so they're in localStorage before DOMContentLoaded
 (function() {
   try {
-    const fd = new URLSearchParams(window.location.search).get('fd');
-    if (!fd) return;
-    const b64 = decodeURIComponent(fd).replace(/-/g,'+').replace(/_/g,'/');
-    const padded = b64 + '=='.slice(0,(4-b64.length%4)%4);
-    const d = JSON.parse(atob(padded));
-    if (d.u && d.k && d.s) {
-      // Save to localStorage — but DON'T clean the URL yet, let DOMContentLoaded handle launch()
-      localStorage.setItem('fd_cfg', JSON.stringify({siteUrl:d.u,wcKey:d.k,wcSecret:d.s,mecKey:d.m||'',demo:false}));
+    const _fd = new URLSearchParams(window.location.search).get('fd');
+    if (!_fd) return;
+    const _b64 = decodeURIComponent(_fd).replace(/-/g,'+').replace(/_/g,'/');
+    const _padded = _b64 + '=='.slice(0,(4-_b64.length%4)%4);
+    const _d = JSON.parse(atob(_padded));
+    if (_d.u && _d.k && _d.s) {
+      localStorage.setItem('fd_cfg', JSON.stringify({siteUrl:_d.u,wcKey:_d.k,wcSecret:_d.s,mecKey:_d.m||'',demo:false}));
     }
   } catch(e) {}
 })();
