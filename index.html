@@ -494,7 +494,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.50</div>
+    <div class="brand-sub">Door Scanner · v5.51</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -510,7 +510,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.50</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.51</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -3342,7 +3342,10 @@ window.addEventListener('DOMContentLoaded', () => {
   const fd = params.get('fd');
   if (fd) {
     try {
-      const decoded = JSON.parse(atob(decodeURIComponent(fd)));
+      // Decode URL encoding and fix base64 padding
+      const b64 = decodeURIComponent(fd).replace(/-/g, '+').replace(/_/g, '/');
+      const padded = b64 + '=='.slice(0, (4 - b64.length % 4) % 4);
+      const decoded = JSON.parse(atob(padded));
       if (decoded.u && decoded.k && decoded.s) {
         cfg = { siteUrl: decoded.u, wcKey: decoded.k, wcSecret: decoded.s, mecKey: decoded.m || '', demo: false };
         saveConfig();
