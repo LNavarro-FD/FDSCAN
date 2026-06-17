@@ -484,7 +484,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.32</div>
+    <div class="brand-sub">Door Scanner · v5.33</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.32</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.33</div>
     </div>
     <div class="setup-title" style="margin-top:8px;">Connect to WooCommerce</div>
     <div class="field-group">
@@ -1535,8 +1535,11 @@ function renderFilterPills() {
         return new Date(ev.mec_data.end_date + 'T23:59:59').getTime() < now;
       })();
 
+      const col = getEventColour(ev.title);
       pill.textContent = (isHistoric ? '📁 ' : '') + cleanTitle + (eventDate ? ' · ' + eventDate : '');
       if (isHistoric) pill.style.opacity = '0.6';
+      pill.style.setProperty('--pill-active-bg', col.bg);
+      pill.dataset.eventColour = col.bg;
       pill.onclick = function() { setFilter('event:' + ev.id, this); };
       allBtn.insertAdjacentElement('afterend', pill);
     });
@@ -1567,15 +1570,27 @@ function hideOldGuests() {
 
 function setFilter(f, el) {
   glFilter = f;
-  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
-  if (el) el.classList.add('active');
+  document.querySelectorAll('.filter-pill').forEach(p => {
+    p.classList.remove('active');
+    p.style.background = '';
+    p.style.color = '';
+    p.style.borderColor = '';
+  });
+  if (el) {
+    el.classList.add('active');
+    // If it's an event pill, colour it with the wristband colour
+    if (el.dataset.eventColour) {
+      el.style.background = el.dataset.eventColour;
+      el.style.color = '#fff';
+      el.style.borderColor = el.dataset.eventColour;
+    }
+  }
 
   const bar        = document.getElementById('gl-filter-bar');
   const activeBar  = document.getElementById('gl-active-filter');
   const activeName = document.getElementById('gl-active-filter-name');
 
   if (f.startsWith('event:')) {
-    // Collapse pill bar, show active filter banner
     bar.style.display = 'none';
     activeBar.classList.add('show');
     const evId = f.replace('event:', '');
@@ -1586,6 +1601,12 @@ function setFilter(f, el) {
       .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
       .replace(/\(SCAN TEST[^)]*\)/i, '')
       .trim() : 'Event';
+    // Apply wristband colour
+    const col = getEventColour(ev ? ev.title : '');
+    activeBar.style.background = col.bg;
+    activeName.style.color = col.text;
+    document.querySelector('.gl-active-filter-clear').style.borderColor = 'rgba(255,255,255,.5)';
+    document.querySelector('.gl-active-filter-clear').style.color = col.text;
     activeName.textContent = '📅 ' + name;
   } else {
     // Show pill bar, hide active filter banner
@@ -1683,6 +1704,10 @@ function renderGuestList() {
     const hasVip   = b.tickets.some(t => t.isVip);
     const avCls    = allIn ? 'checked' : b.isTM ? 'tm' : hasVip ? 'vip' : '';
     const avTxt    = allIn ? '✓' : initials;
+    // Get event colour for avatar background
+    const evCol    = getEventColourById(b._eventId);
+    const avStyle  = allIn ? '' : b.isTM ? '' : hasVip ? '' :
+      `background:${evCol.bg};color:${evCol.text};`;
     const badges   = [
       hasVip        ? '<span class="badge vip">⭐ VIP</span>' : '',
       b.isTM        ? '<span class="badge tm">🎫 TM</span>'  : '',
@@ -1729,7 +1754,7 @@ function renderGuestList() {
 
       <!-- NAME ROW — tap name to expand -->
       <div class="gl-item${allIn?' checked-in':''}" style="cursor:default;width:100%;overflow:hidden;box-sizing:border-box;">
-        <div class="gl-avatar ${avCls}" style="flex-shrink:0;">${avTxt}</div>
+        <div class="gl-avatar ${avCls}" style="flex-shrink:0;${avStyle}">${avTxt}</div>
         <div class="gl-info" onclick="toggleBooking('${b.bookingId}')" style="flex:1;min-width:0;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;">
           <div class="gl-name" style="display:flex;align-items:center;justify-content:space-between;gap:6px;overflow:hidden;">
             <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.name}</span>
@@ -2807,8 +2832,20 @@ function undoLastCheckin() {
   alert(`Check-in undone for ${g.name}.`);
 }
 
-// ═══════════════════════════════════════════
-//  FIND NEW BOOKING
+// ── Event colour map — matches physical wristband colours ──
+function getEventColour(title) {
+  const t = (title || '').toLowerCase();
+  if (/ladies.?day/i.test(t))         return { bg: '#29ABE2', text: '#fff', light: '#E8F6FD' };
+  if (/ibiza|white.?party/i.test(t))  return { bg: '#F05A28', text: '#fff', light: '#FEF0EB' };
+  if (/brunch/i.test(t))              return { bg: '#1a2744', text: '#fff', light: '#EEF1F8' };
+  if (/studio.?54/i.test(t))          return { bg: '#E91E8C', text: '#fff', light: '#FDE8F4' };
+  return { bg: '#1a2744', text: '#fff', light: '#EEF1F8' }; // default navy
+}
+
+function getEventColourById(eventId) {
+  const ev = upcomingEvents.find(e => String(e.id) === String(eventId));
+  return getEventColour(ev ? ev.title : '');
+}
 // ═══════════════════════════════════════════
 function openFindBooking() {
   const modal = document.getElementById('find-booking-modal');
