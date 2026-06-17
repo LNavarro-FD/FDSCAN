@@ -1273,17 +1273,19 @@ async function loadGuestList() {
           eventDay:   g.eventDay,
           orderDate:  g.orderDate || null,
           tickets:    Array.from({length: g.qty || 1}, (_, i) => ({
-            key:        `${wcKey}-${i}`,
-            attendeeKey: String(i),
+            key:        `${wcKey}-${i+1}`,
+            attendeeKey: String(i + 1),
             name:       g.name,
             ticketName: g.ticketName,
             isVip:      g.isVip,
-            checkedIn:  g.checkedInTickets.includes(String(i))
+            checkedIn:  g.checkedInTickets.includes(String(i)) || g.checkedInTickets.includes(String(i+1))
           })),
           source: 'wc',
           isComp: g.isComp,
           isTM:   g.isTM
         };
+        // Add to invoiceMap so duplicate scan detection works
+        if (g.orderNumber) invoiceMap[String(g.orderNumber)] = bookingMap[wcKey];
       }
     });
 
