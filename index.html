@@ -494,7 +494,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.58</div>
+    <div class="brand-sub">Door Scanner · v5.59</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -510,7 +510,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.58</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.59</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1808,15 +1808,15 @@ function renderGuestList() {
       const evId = glFilter.replace('event:', '');
       // MEC bookings — match by eventId
       if (b._eventId) return b._eventId === evId;
-      // Comp/WC guests with no eventId — match by event name in title
+      // Comp/WC guests — match by distinctive event name words
       if (b.isComp || b.source === 'wc') {
         const ev = upcomingEvents.find(e => String(e.id) === evId);
         if (!ev) return false;
-        const evTitle = (ev.title || '').toLowerCase();
         const bTitle = (b.eventTitle || '').toLowerCase();
-        // Match if booking title contains key words from event title
-        const words = evTitle.split(' ').filter(w => w.length > 4);
-        return words.some(w => bTitle.includes(w));
+        // Use only distinctive words — exclude common words shared across all events
+        const COMMON = ['funky','dory','during','henley','royal','regatta','meets','general','admission','access','release','early','bird','final','full','2026','scan','test'];
+        const evWords = (ev.title || '').toLowerCase().split(/\W+/).filter(w => w.length > 3 && !COMMON.includes(w));
+        return evWords.some(w => bTitle.includes(w));
       }
       return false;
     }
