@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#22224C">
 <title>FD Door Scanner v5.0</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
@@ -25,21 +28,30 @@
   --border:#CCCCCC;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body {
+html {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+body {
+  width: 100%;
+  max-width: 100vw;
   height: 100%;
   background: var(--bg);
   color: var(--text);
   font-family: 'Futura','Century Gothic','Trebuchet MS',sans-serif;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: hidden;
   -webkit-font-smoothing: antialiased;
+  position: relative;
 }
-#app { display: flex; flex-direction: column; height: 100dvh; }
+#app { display: flex; flex-direction: column; height: 100dvh; width: 100%; max-width: 100vw; overflow: hidden; position: relative; }
 .hidden { display: none !important; }
-.screen { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.screen { flex: 1; display: flex; flex-direction: column; overflow: hidden; width: 100%; max-width: 100%; }
 
 /* ── Header ── */
 header {
-  flex-shrink: 0;
+  flex-shrink: 0; width: 100%; overflow: hidden;
   background: var(--navy);
   padding: 12px 18px 10px;
   display: flex; align-items: center; justify-content: space-between;
@@ -91,10 +103,11 @@ input::placeholder { color: #999; }
 
 /* ── Bottom nav ── */
 .bottom-nav {
-  flex-shrink: 0; display: flex;
+  flex-shrink: 0; display: flex; width: 100%;
   border-top: 2px solid var(--border);
   background: var(--white);
   padding-bottom: env(safe-area-inset-bottom, 6px);
+  overflow: hidden;
 }
 .nav-btn {
   flex: 1; background: none; border: none; padding: 11px 6px 8px;
@@ -107,7 +120,7 @@ input::placeholder { color: #999; }
 .nav-icon { font-size: 20px; line-height: 1; }
 
 /* ── Camera ── */
-.cam-wrap { position: relative; flex-shrink: 0; height: 70vw; max-height: 380px; overflow: hidden; background: #000; }
+.cam-wrap { position: relative; flex-shrink: 0; height: 45vw; max-height: 240px; overflow: hidden; background: #000; }
 #qr-reader { width: 100%; height: 100%; position: absolute; inset: 0; }
 #qr-reader video { width: 100%!important; height: 100%!important; object-fit: cover; display: block; }
 #qr-reader img { display: none!important; }
@@ -160,28 +173,29 @@ input::placeholder { color: #999; }
 }
 
 /* ── Result area ── */
-#result-area { flex: 1; overflow-y: auto; padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 12px; background: var(--bg); }
+#result-area { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px 14px 8px; display: flex; flex-direction: column; gap: 8px; background: var(--bg); width: 100%; }
 
 .result-card {
-  border-radius: 14px; padding: 18px;
-  display: flex; gap: 14px; align-items: flex-start;
+  border-radius: 12px; padding: 12px 14px;
+  display: flex; gap: 12px; align-items: center;
   border: 2px solid var(--border);
   background: var(--card);
+  width: 100%; min-width: 0; overflow: hidden;
 }
 .result-card.ok   { background: #E6F9EF; border-color: var(--ok); }
 .result-card.err  { background: #FDE8E8; border-color: var(--err); }
 .result-card.warn { background: #FEF3E2; border-color: var(--warn); }
 .result-card.tm   { background: #E6F0FF; border-color: var(--tm); }
 
-.rc-icon   { font-size: 34px; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+.rc-icon   { font-size: 36px; line-height: 1; flex-shrink: 0; }
 .rc-body   { flex: 1; min-width: 0; }
-.rc-status { font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; margin-bottom: 5px; color: var(--muted); }
+.rc-status { font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; margin-bottom: 3px; color: var(--muted); }
 .ok   .rc-status { color: var(--ok); }
 .err  .rc-status { color: var(--err); }
 .warn .rc-status { color: var(--warn); }
 .tm   .rc-status { color: var(--tm); }
 .rc-name   { font-size: 22px; font-weight: 900; line-height: 1.1; color: var(--text); }
-.rc-detail { font-size: 13px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+.rc-detail { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
 
 /* ── Ticketmaster confirm buttons ── */
 .tm-actions { display: flex; gap: 10px; }
@@ -202,15 +216,15 @@ input::placeholder { color: #999; }
 
 /* ── Entitlement banner ── */
 .ent-banner {
-  border-radius: 12px; padding: 14px 16px;
-  display: flex; align-items: center; gap: 13px; flex-shrink: 0;
+  border-radius: 10px; padding: 10px 14px;
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
 }
 .ent-banner.std { background: #fff; border: 2px solid var(--border); }
 .ent-banner.vip { background: #FFFBE6; border: 2px solid #C89500; }
-.eb-icon  { font-size: 28px; }
-.eb-title { font-size: 14px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--text); }
+.eb-icon  { font-size: 22px; }
+.eb-title { font-size: 13px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--text); }
 .vip .eb-title { color: #7A5500; }
-.eb-items { font-size: 13px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+.eb-items { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
 .vip .eb-items { color: #7A5500; }
 
 /* ── Chips ── */
@@ -245,11 +259,25 @@ input::placeholder { color: #999; }
 .pulse-err { animation: pulse-err .7s ease-out; }
 .pulse-tm  { animation: pulse-tm  .7s ease-out; }
 
+/* ── Full-screen scan flash ── */
+#scan-flash {
+  position: fixed; inset: 0; z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+}
+@keyframes flash-ok   { 0%{opacity:.85} 100%{opacity:0} }
+@keyframes flash-err  { 0%{opacity:.85} 100%{opacity:0} }
+@keyframes flash-warn { 0%{opacity:.75} 100%{opacity:0} }
+#scan-flash.flash-ok   { background: #00C875; animation: flash-ok  .45s ease-out forwards; }
+#scan-flash.flash-err  { background: #D0000A; animation: flash-err .45s ease-out forwards; }
+#scan-flash.flash-warn { background: #FF9500; animation: flash-warn .45s ease-out forwards; }
+
 /* ── Guest list ── */
-#guests-screen { display: flex; flex-direction: column; overflow: hidden; }
+#guests-screen { display: flex; flex-direction: column; overflow: hidden; width: 100%; }
 .gl-toolbar {
   flex-shrink: 0; padding: 12px 14px; display: flex; gap: 8px; align-items: center;
   border-bottom: 2px solid var(--border); background: var(--white);
+  width: 100%; overflow: hidden; box-sizing: border-box;
 }
 .gl-search {
   flex: 1; background: var(--bg); border: 2px solid var(--border);
@@ -264,14 +292,51 @@ input::placeholder { color: #999; }
   cursor: pointer; -webkit-tap-highlight-color: transparent; line-height: 1;
 }
 .gl-filter-bar {
-  flex-shrink: 0; display: flex; gap: 7px; padding: 9px 14px;
-  overflow-x: auto; border-bottom: 1px solid var(--border);
-  scrollbar-width: none; background: var(--white);
+  flex-shrink: 0; display: flex; flex-wrap: nowrap; gap: 7px; padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--white);
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  width: 100%;
 }
 .gl-filter-bar::-webkit-scrollbar { display: none; }
+.gl-filter-bar.collapsed {
+  max-height: none;
+  overflow: visible;
+  flex-wrap: nowrap;
+  padding: 8px 14px;
+}
+/* Active event bar — shown when an event is selected */
+.gl-active-filter {
+  flex-shrink: 0; width: 100%; box-sizing: border-box;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--navy);
+  border-bottom: 1px solid var(--border);
+}
+.gl-active-filter.show { display: flex; }
+.gl-active-filter-name {
+  font-size: 13px; font-weight: 800; color: #fff;
+  letter-spacing: .05em; flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gl-active-filter-clear {
+  flex-shrink: 0;
+  background: none; border: 1.5px solid rgba(255,255,255,.4);
+  border-radius: 20px; padding: 4px 12px;
+  font-size: 12px; font-weight: 700; color: #fff;
+  cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+}
 .filter-pill {
   flex-shrink: 0; background: var(--bg); border: 2px solid var(--border);
-  border-radius: 20px; padding: 9px 16px; font-size: 13px; font-weight: 700;
+  border-radius: 20px; padding: 8px 16px; font-size: 13px; font-weight: 700;
   color: var(--muted);
   cursor: pointer; -webkit-tap-highlight-color: transparent; white-space: nowrap; font-family: inherit;
 }
@@ -304,13 +369,13 @@ input::placeholder { color: #999; }
 .filter-pill.active { background: var(--pink); border-color: var(--pink); color: #fff; }
 .filter-pill.day-pill.active { background: var(--navy); border-color: var(--navy); color: #fff; }
 
-.gl-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--bg); }
-.gl-count { padding: 8px 16px; font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--white); }
+.gl-list { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; background: var(--bg); width: 100%; }
+.gl-count { padding: 8px 16px; font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--white); width: 100%; overflow: hidden; }
 .gl-item {
   display: flex; align-items: center; gap: 13px;
   padding: 16px 16px; border-bottom: 1px solid var(--border);
   cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .1s;
-  background: var(--white);
+  background: var(--white); width: 100%; overflow: hidden;
 }
 .gl-item:active { background: var(--bg); }
 .gl-item.checked-in { opacity: .45; }
@@ -323,13 +388,13 @@ input::placeholder { color: #999; }
 .gl-avatar.vip     { background: #FFF3B0; color: #7A5500; }
 .gl-avatar.checked { background: #C8F5E0; color: #006B38; font-size: 20px; }
 .gl-avatar.tm      { background: #D6E8FF; color: #0050B3; }
-.gl-info  { flex: 1; min-width: 0; }
+.gl-info  { flex: 1; min-width: 0; overflow: hidden; max-width: calc(100% - 130px); }
 .gl-name  { font-size: 17px; font-weight: 800; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gl-ticket { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gl-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
 .badge {
-  font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
-  padding: 3px 9px; border-radius: 20px;
+  font-size: 9px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 20px; white-space: nowrap; display: inline-block;
 }
 .badge.vip  { background: #FFF3B0; color: #7A5500;  border: 1.5px solid #C89500; }
 .badge.comp { background: #FFD6E3; color: #C0004A;  border: 1.5px solid var(--pink); }
@@ -340,8 +405,8 @@ input::placeholder { color: #999; }
 .gl-loading { text-align: center; padding: 40px; color: var(--muted); font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 
 /* gl-attendees — shown on expand, clearly separated from main row */
-.gl-attendees { background: #F9F9FB; border-top: 1px solid var(--border); }
-.gl-attendee  { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-bottom: 1px solid #ECECF0; }
+.gl-attendees { background: #F9F9FB; border-top: 1px solid var(--border); width: 100%; overflow: hidden; }
+.gl-attendee  { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-bottom: 1px solid #ECECF0; width: 100%; overflow: hidden; }
 .gl-attendee:last-of-type { border-bottom: none; }
 .gl-attendee-in { opacity: .55; }
 .gl-att-dot  { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
@@ -414,13 +479,22 @@ input::placeholder { color: #999; }
 </style>
 </head>
 <body>
+<div id="ios-install-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1a2744;color:#fff;padding:12px 16px;flex-direction:row;align-items:center;gap:12px;box-shadow:0 -2px 12px rgba(0,0,0,0.3);">
+  <div style="flex:1;">
+    <div style="font-size:13px;font-weight:800;letter-spacing:.05em;">Install FD Door Scanner</div>
+    <div style="font-size:11px;opacity:.7;margin-top:2px;">Tap Share then "Add to Home Screen"</div>
+  </div>
+  <button onclick="document.getElementById('ios-install-banner').style.display='none';localStorage.setItem('fd_banner_dismissed','1');" style="background:none;border:1.5px solid rgba(255,255,255,.4);border-radius:20px;padding:6px 14px;color:#fff;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">Dismiss</button>
+</div>
+
 <div id="app">
+<div id="scan-flash"></div>
 
 <!-- HEADER -->
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.0</div>
+    <div class="brand-sub">Door Scanner · v5.56</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -436,9 +510,32 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.0</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.56</div>
     </div>
-    <div class="setup-title" style="margin-top:8px;">Connect to WooCommerce</div>
+
+    <!-- QR Login — preferred method -->
+    <div style="background:#1a2744;border-radius:12px;padding:18px;text-align:center;">
+      <div style="font-size:13px;font-weight:800;color:#c9a84c;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">Quickest way to log in</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.75);line-height:1.5;margin-bottom:14px;">Scan the QR code from the team guide — it logs you in automatically</div>
+      <button onclick="startQrLogin()" style="background:#e91e8c;color:#fff;border:none;border-radius:10px;padding:13px 24px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;width:100%;">📷 Scan Login QR Code</button>
+    </div>
+
+    <!-- QR Scanner for login -->
+    <div id="qr-login-wrap" style="display:none;border-radius:12px;overflow:hidden;background:#000;position:relative;">
+      <video id="qr-login-video" style="width:100%;display:block;" autoplay muted playsinline></video>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+        <div style="width:200px;height:200px;border:3px solid #e91e8c;border-radius:12px;"></div>
+      </div>
+      <button onclick="stopQrLogin()" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">✕ Cancel</button>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <div style="font-size:12px;color:var(--muted);font-weight:700;">OR ENTER MANUALLY</div>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+    </div>
+
+    <div class="setup-title">Connect to WooCommerce</div>
     <div class="field-group">
       <label>WordPress Site URL</label>
       <input type="url" id="site-url" placeholder="https://funkydorylove.co.uk" autocomplete="off" autocapitalize="none" spellcheck="false">
@@ -476,8 +573,8 @@ input::placeholder { color: #999; }
     <input type="text" id="manual-input" placeholder="Order number, email or barcode…" autocomplete="off" autocorrect="off" autocapitalize="none">
     <button onclick="lookupManual()">Check</button>
   </div>
-  <div id="debug-bar" style="padding:6px 14px;background:#FFF9C4;border-bottom:1px solid #E0D800;font-size:11px;color:#555;font-family:monospace;display:none;">
-    📷 Last scan: <span id="debug-code" style="font-weight:bold;color:#333;"></span>
+  <div id="debug-bar" style="display:none!important;">
+    📷 Last scan: <span id="debug-code"></span>
   </div>
   <div id="result-area">
     <div class="result-card" id="result-card">
@@ -488,6 +585,7 @@ input::placeholder { color: #999; }
         <div class="rc-detail">Point camera at QR code, or type an order number or email below</div>
       </div>
     </div>
+    <button onclick="loadGuestList()" style="background:none;border:none;color:var(--muted);font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;padding:6px 0;text-align:center;width:100%;letter-spacing:.05em;">🔄 Refresh guest list</button>
     <!-- Ticketmaster manual confirm — hidden until TM scan -->
     <div class="tm-actions hidden" id="tm-actions">
       <button class="tm-admit"  onclick="admitTM()">✓ Admit</button>
@@ -502,7 +600,7 @@ input::placeholder { color: #999; }
       </div>
     </div>
     <!-- Chips -->
-    <div class="chips hidden" id="result-chips"></div>
+    <div class="chips hidden" id="result-chips" style="display:none!important;"></div>
     <!-- Log -->
     <div>
       <div class="log-hdr">
@@ -527,20 +625,25 @@ input::placeholder { color: #999; }
     <button class="gl-refresh" onclick="refreshGuests()" title="Refresh">↻</button>
   </div>
   <!-- event-bar removed — replaced by dynamic event filter pills -->
+  <div class="gl-active-filter" id="gl-active-filter">
+    <div class="gl-active-filter-name" id="gl-active-filter-name"></div>
+    <button class="gl-active-filter-clear" onclick="clearEventFilter()">See all</button>
+  </div>
   <div class="gl-filter-bar" id="gl-filter-bar">
-    <button class="filter-pill active" onclick="setFilter('all',this)">All</button>
-    <!-- Event pills injected dynamically by renderFilterPills() -->
-    <button class="filter-pill" onclick="setFilter('vip',this)">⭐ VIP</button>
     <button class="filter-pill" onclick="setFilter('comp',this)">🎁 Comp</button>
+    <!-- Event pills injected dynamically by renderFilterPills() -->
     <button class="filter-pill" onclick="setFilter('tm',this)">🎫 Ticketmaster</button>
-    <button class="filter-pill" onclick="setFilter('artist',this)">🎵 Artist</button>
-    <button class="filter-pill" onclick="setFilter('sponsor',this)">🤝 Sponsor</button>
-    <button class="filter-pill" onclick="setFilter('influencer',this)">📱 Influencer</button>
     <button class="filter-pill" onclick="setFilter('in',this)">✓ In</button>
-    <button class="filter-pill" onclick="setFilter('pending',this)">⏳ Not yet</button>
+    <button class="filter-pill" onclick="setFilter('pending',this)">👻 No Show</button>
   </div>
   <div id="gl-list" class="gl-list">
     <div class="gl-loading"><span class="spin"></span>&nbsp; Loading…</div>
+  </div>
+  <!-- Find new booking button -->
+  <div style="padding:10px 14px;border-top:1px solid var(--border);background:var(--white);flex-shrink:0;">
+    <button onclick="openFindBooking()" style="width:100%;padding:12px;background:var(--navy);color:white;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:.03em;-webkit-tap-highlight-color:transparent;">
+      🔍 Find New Booking
+    </button>
   </div>
   <nav class="bottom-nav">
     <button class="nav-btn" onclick="showTab('scan')"><span class="nav-icon">📷</span>Scan</button>
@@ -548,6 +651,27 @@ input::placeholder { color: #999; }
     <button class="nav-btn" onclick="showTab('stats')"><span class="nav-icon">📊</span>Stats</button>
     <button class="nav-btn" onclick="showTab('settings')"><span class="nav-icon">⚙️</span>Settings</button>
   </nav>
+</div>
+
+<!-- FIND NEW BOOKING MODAL -->
+<div id="find-booking-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:24px;">
+  <div style="background:white;border-radius:16px;width:100%;max-width:360px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+    <div style="background:var(--navy);color:white;padding:14px 18px;font-size:14px;font-weight:800;letter-spacing:.05em;display:flex;justify-content:space-between;align-items:center;">
+      <span>🔍 Find New Booking</span>
+      <button onclick="closeFindBooking()" style="background:none;border:none;color:white;font-size:22px;cursor:pointer;padding:0;line-height:1;">×</button>
+    </div>
+    <div style="padding:18px;">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Enter the invoice or booking number from the guest's confirmation email.</p>
+      <input id="find-booking-input" type="number" placeholder="e.g. 30602"
+        style="width:100%;padding:13px 14px;border:2px solid var(--border);border-radius:10px;font-size:18px;font-family:inherit;outline:none;-webkit-appearance:none;"
+        onkeydown="if(event.key==='Enter') fetchSingleBooking()">
+      <div id="find-booking-result" style="margin-top:12px;font-size:13px;color:var(--muted);min-height:20px;"></div>
+    </div>
+    <div style="padding:0 18px 18px;display:flex;gap:10px;">
+      <button onclick="closeFindBooking()" style="flex:1;padding:13px;background:var(--bg);color:var(--muted);border:2px solid var(--border);border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>
+      <button onclick="fetchSingleBooking()" style="flex:2;padding:13px;background:var(--pink);color:white;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;" id="find-booking-btn">Find Booking</button>
+    </div>
+  </div>
 </div>
 
 <!-- GUEST DETAIL DRAWER -->
@@ -593,7 +717,7 @@ input::placeholder { color: #999; }
     </div>
     <div class="setup-title">By event</div>
     <div id="event-cards"></div>
-    <div class="log-hdr"><span class="log-label">Full scan log</span></div>
+    <div class="log-hdr"><span class="log-label">Full scan log</span><button class="btn-secondary" onclick="exportCSV()" style="background:var(--ok);color:#fff;border-color:var(--ok);padding:6px 14px;font-size:12px;">⬇ Export CSV</button></div>
     <ul class="log-list" id="full-log" style="max-height:none;"></ul>
   </div>
   <nav class="bottom-nav">
@@ -617,7 +741,15 @@ input::placeholder { color: #999; }
     <button class="btn-secondary" onclick="undoLastCheckin()">↩ Undo last check-in</button>
     <button class="btn-secondary" onclick="disconnectReset()">Disconnect &amp; Reset</button>
 
-    <div class="setup-title" style="margin-top:8px;">Device Options</div>
+    <div class="setup-title" style="margin-top:8px;">Reporting</div>
+    <label style="display:flex;align-items:center;justify-content:space-between;background:#fff;border-radius:10px;padding:14px 16px;border:2px solid var(--border);margin-bottom:10px;">
+      <div>
+        <div style="font-size:14px;font-weight:700;">📁 Historical reporting mode</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Shows past events up to 1 year old for post-event exports. Turn off for normal door use.</div>
+      </div>
+      <input type="checkbox" id="opt-reporting" style="width:22px;height:22px;accent-color:var(--pink);"
+        onchange="toggleReportingMode(this.checked)">
+    </label>
     <div style="display:flex;flex-direction:column;gap:10px;">
       <label style="display:flex;align-items:center;justify-content:space-between;background:#fff;border-radius:10px;padding:14px 16px;border:2px solid var(--border);">
         <div>
@@ -631,7 +763,7 @@ input::placeholder { color: #999; }
           <div style="font-size:14px;font-weight:700;">Keep screen awake</div>
           <div style="font-size:12px;color:var(--muted);margin-top:2px;">Prevents lock screen while scanning</div>
         </div>
-        <input type="checkbox" id="opt-wakelock" checked style="width:22px;height:22px;accent-color:var(--pink);" onchange="toggleWakeLock(this.checked)">
+        <input type="checkbox" id="opt-wakelock" style="width:22px;height:22px;accent-color:var(--pink);" onchange="toggleWakeLock(this.checked)">
       </label>
       <label style="display:flex;align-items:center;justify-content:space-between;background:#fff;border-radius:10px;padding:14px 16px;border:2px solid var(--border);">
         <div>
@@ -655,6 +787,17 @@ input::placeholder { color: #999; }
       <div id="settings-qr" style="display:inline-block;margin-bottom:8px;"></div>
       <div style="font-size:11px;color:var(--muted);word-break:break-all;" id="settings-url"></div>
       <button class="btn-secondary" style="margin-top:10px;" onclick="copyAppUrl()">Copy URL</button>
+    </div>
+
+    <div style="background:#FFF4E5;border-radius:10px;padding:14px 16px;border:2px solid #F0A500;margin-top:12px;">
+      <div style="font-size:13px;font-weight:800;color:#7A4F00;margin-bottom:6px;">📱 Added to Home Screen?</div>
+      <div style="font-size:12px;color:#7A4F00;line-height:1.6;">
+        When opening from the Home Screen icon, the QR login link won't auto-configure the app.<br><br>
+        <strong>To restore credentials:</strong><br>
+        1. Open Safari and scan the team guide QR code — this saves credentials<br>
+        2. Then switch back to the Home Screen app — it shares the same login<br><br>
+        Or enter credentials manually in <strong>WooCommerce Connection</strong> above.
+      </div>
     </div>
 
     <div class="setup-title" style="margin-top:8px;">How to use</div>
@@ -703,7 +846,7 @@ let drawerOrderNum = null;
 let syncTimer    = null;
 let offlineQueue = [];
 let isSyncing    = false;
-const SYNC_INTERVAL = 3000;
+const SYNC_INTERVAL = 60000; // 60 seconds — only syncs when app is visible
 const META_KEY = '_fd_checked_in';
 const TICKET_META_KEY = '_fd_checked_in_tickets';
 
@@ -779,8 +922,10 @@ async function syncCheckedIn() {
 
 function startSync() {
   if (syncTimer) clearInterval(syncTimer);
-  syncTimer = setInterval(syncCheckedIn, SYNC_INTERVAL);
-  syncCheckedIn();
+  syncTimer = setInterval(() => {
+    // Only sync if page is visible — saves battery when screen off or app backgrounded
+    if (document.visibilityState === 'visible') syncCheckedIn();
+  }, SYNC_INTERVAL);
 }
 
 function showSyncStatus(state) {
@@ -824,10 +969,14 @@ function useDemoMode() { cfg = { siteUrl:'', wcKey:'', wcSecret:'', demo:true };
 function launch() {
   document.getElementById('setup-screen').classList.add('hidden');
   document.getElementById('main-header').classList.remove('hidden');
+  // Populate settings fields from cfg
+  ['site-url','s-url'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.siteUrl||''; });
+  ['wc-key','s-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.wcKey||''; });
+  ['wc-secret','s-secret'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.wcSecret||''; });
+  ['mec-key','s-mec-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.mecKey||''; });
   showTab('guests');
   loadGuestList().then(() => startSync());
   initCamera();
-  requestWakeLock();
 }
 function saveConfig() { localStorage.setItem('fd_cfg', JSON.stringify(cfg)); }
 function saveSettings() {
@@ -1003,22 +1152,31 @@ async function fetchMecAttendees(events) {
     if (!bookingMap[bid]) {
       bookingMap[bid] = {
         bookingId:   bid,
-        invoiceID:   g._invoiceId,
+        invoiceID:   g._invoiceID,
         name:        g.name,
         email:       g.email,
-        eventTitle:  g._eventTitle,
+        eventTitle:  g._eventTitle
+          ? g._eventTitle
+            .replace(/copy of /i, '')
+            .replace(/funky dory\s*/i, '')
+            .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
+            .replace(/\(SCAN TEST[^)]*\)/i, '')
+            .replace(/\s{2,}/g, ' ').trim()
+          : '',
         eventDay:    g.eventDay,
         _eventId:    g._eventId,
         tickets:     [],
         source:      'mec'
       };
-      // Also index by invoice ID for QR code lookup
-      if (g._invoiceID) invoiceMap[g._invoiceId] = bookingMap[bid];
+      // Index by invoice ID for QR code lookup — use consistent uppercase _invoiceID
+      if (g._invoiceID) invoiceMap[g._invoiceID] = bookingMap[bid];
+      // Also index by booking ID directly
+      invoiceMap[bid] = bookingMap[bid];
     }
     bookingMap[bid].tickets.push({
       key:          `${bid}-${g._attendeeKey}`,
       attendeeKey:  g._attendeeKey,
-      name:         g.name,
+      name:         g.name !== bookingMap[bid].name ? g.name : g.name, // keep individual name
       ticketName:   g.ticketName,
       isVip:        g.isVip,
       checkedIn:    g.checkedIn
@@ -1049,6 +1207,16 @@ async function loadGuestList() {
       if (g.email) emailMap[g.email] = g;
     });
 
+    // 3b. Enrich bookingMap ticket names from individual guestMap attendee entries
+    // This ensures Kurt/Marc etc show up in search and in ticket rows
+    Object.values(guestMap).forEach(g => {
+      if (!g._bookingId || !g._attendeeKey) return;
+      const booking = bookingMap[g._bookingId];
+      if (!booking) return;
+      const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(g._attendeeKey));
+      if (ticket && g.name) ticket.name = g.name;
+    });
+
     // 4. Add WC guests — only those NOT already covered by MEC (comps, TM, Remenham Farm)
     // A WC order is "already in MEC" if its order number matches an MEC invoice ID
     const mecInvoiceIds = new Set(Object.values(bookingMap).map(b => String(b.invoiceID)));
@@ -1056,19 +1224,37 @@ async function loadGuestList() {
       // Skip if this WC order is already represented by an MEC booking
       if (mecInvoiceIds.has(String(g.orderNumber))) return;
 
-      // Universal rule: only show WC orders whose ticket name matches an upcoming MEC event
+      // Universal rule: only show WC orders whose ticket name matches a CURRENT MEC event
       // This applies to ALL orders — paid, comp, TM, manual
       // If no MEC events loaded, show everything (fallback)
       if (upcomingEvents.length > 0) {
-        const ticketLower = (g.ticketName || '').toLowerCase();
-        const mecEventTitles = upcomingEvents.map(e => (e.title || '').toLowerCase());
-        const relatesToUpcoming = mecEventTitles.some(title => {
-          // Get significant words (5+ chars) from the MEC event title
-          const words = title.split(' ').filter(w => w.length > 4);
-          // Need at least 2 significant words to match
-          return words.filter(w => ticketLower.includes(w)).length >= 2;
-        });
-        if (!relatesToUpcoming) return; // skip orders not related to upcoming events
+        const now = Date.now();
+
+        // First try: extract date directly from ticket name (e.g. "02.07.26")
+        const rawTicket = (g.ticketName || '').replace(/&#8211;|&ndash;/g, '–');
+        const dateMatch = rawTicket.match(/(\d{2})\.(\d{2})\.(\d{2,4})/);
+        if (dateMatch) {
+          const day = dateMatch[1], mon = dateMatch[2];
+          let yr = dateMatch[3];
+          if (yr.length === 2) yr = '20' + yr;
+          const eventDate = new Date(`${yr}-${mon}-${day}T23:59:59`).getTime();
+          if ((now - eventDate) > 24 * 60 * 60 * 1000) return; // past event — skip
+        } else {
+          // Fallback: match by event title keywords against current events only
+          const currentEvents = upcomingEvents.filter(ev => {
+            if (!ev.mec_data?.end_date) return true;
+            const endTime = new Date(ev.mec_data.end_date + 'T23:59:59').getTime();
+            return (now - endTime) < 24 * 60 * 60 * 1000;
+          });
+          if (currentEvents.length > 0) {
+            const ticketLower = (g.ticketName || '').toLowerCase();
+            const relatesToCurrent = currentEvents.some(ev => {
+              const words = (ev.title || '').toLowerCase().split(' ').filter(w => w.length > 4);
+              return words.filter(w => ticketLower.includes(w)).length >= 2;
+            });
+            if (!relatesToCurrent) return;
+          }
+        }
       }
       g._source = 'wc';
       guestMap[`wc-${g.orderNumber}`] = g;
@@ -1085,6 +1271,7 @@ async function loadGuestList() {
           email:      g.email,
           eventTitle: g.ticketName,
           eventDay:   g.eventDay,
+          orderDate:  g.orderDate || null,
           tickets:    Array.from({length: g.qty || 1}, (_, i) => ({
             key:        `${wcKey}-${i}`,
             attendeeKey: String(i),
@@ -1101,12 +1288,91 @@ async function loadGuestList() {
     });
 
     console.log(`Guest list: ${Object.keys(guestMap).length} total (MEC: ${Object.keys(mecGuests).length}, WC comps: ${wcGuests.length})`);
+    await loadCompGuests();
     renderFilterPills();
     renderGuestList(); updateGLStats();
+
+    // Load real check-in state from our database proxy
+    // MEC's API doesn't reflect our direct writes, so we read back from fd2/v1/checkins
+    await loadCheckinState();
+
   } catch(e) {
     console.error('Guest list load error:', e);
     document.getElementById('gl-list').innerHTML =
       `<div class="gl-empty">⚠️ Could not load guest list<br><small style="opacity:.5">${e.message}</small></div>`;
+  }
+}
+
+async function loadCompGuests() {
+  try {
+    const r = await fetch('./fd-comps.json?v=' + Date.now());
+    if (!r.ok) return;
+    const data = await r.json();
+    let added = 0;
+    Object.entries(data.events || {}).forEach(([eventName, ev]) => {
+      (ev.guests || []).forEach((g, i) => {
+        const key = `comp-${eventName.replace(/\s/g,'-').toLowerCase()}-${i}`;
+        if (guestMap[key]) return;
+        const ticketName = `${eventName} - ${g.ticket}`;
+        const guest = {
+          id: key, orderNumber: key,
+          name: g.name, email: (g.email || '').toLowerCase(),
+          ticketName, isVip: !!g.vip, isComp: true, isTM: false,
+          qty: 1, checkedInTickets: [], checkedIn: false,
+          eventDay: '', _source: 'wc',
+          guestOf: g.guestOf || '',
+          orderDate: ev.date ? ev.date + 'T12:00:00' : new Date().toISOString()
+        };
+        guestMap[key] = guest;
+        if (guest.email) emailMap[guest.email] = guest;
+        bookingMap[key] = {
+          bookingId: key, invoiceID: key,
+          name: g.name, email: guest.email,
+          eventTitle: ticketName, eventDay: '',
+          orderDate: guest.orderDate,
+          guestOf: g.guestOf || '',
+          tickets: [{ key: `${key}-0`, attendeeKey: '0', name: g.name, ticketName, isVip: !!g.vip, checkedIn: false }],
+          source: 'wc', isComp: true, isTM: false
+        };
+        added++;
+      });
+    });
+    if (added > 0) console.log(`✓ Loaded ${added} comp guests from fd-comps.json`);
+  } catch(e) {
+    console.warn('Could not load comp guests:', e.message);
+  }
+}
+  if (cfg.demo || !cfg.siteUrl) return;
+  try {
+    // Single bulk call — get all checked-in attendees at once
+    const r = await fetch(`${cfg.siteUrl}/wp-json/fd2/v1/checkins/bulk`);
+    if (!r.ok) {
+      console.warn('Bulk checkin load failed:', r.status);
+      return;
+    }
+    const data = await r.json();
+    if (!data.checkins) return;
+
+    let totalChecked = 0;
+    data.checkins.forEach(c => {
+      // c = { invoice_id, booking_id, place, checked_in }
+      const booking = invoiceMap[c.invoice_id] || bookingMap[c.booking_id];
+      if (!booking) return;
+      const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(c.place));
+      if (ticket && c.checked_in) {
+        ticket.checkedIn = true;
+        totalChecked++;
+      }
+    });
+
+    if (totalChecked > 0) {
+      console.log(`✓ Loaded ${totalChecked} checked-in tickets from database`);
+      stats.admitted = totalChecked;
+      document.getElementById('hdr-count').textContent = totalChecked;
+      updateStats(); updateGLStats(); renderGuestList();
+    }
+  } catch(e) {
+    console.warn('loadCheckinState failed:', e.message);
   }
 }
 
@@ -1323,27 +1589,78 @@ function renderFilterPills() {
   const bar = document.getElementById('gl-filter-bar');
   if (!bar || upcomingEvents.length === 0) return;
 
-  // Remove any existing event pills
   bar.querySelectorAll('.event-pill').forEach(p => p.remove());
 
-  // Insert event pills after the "All" button
   const allBtn = bar.querySelector('.filter-pill');
-  upcomingEvents.forEach(ev => {
+  const now = Date.now();
+  const reportingMode = localStorage.getItem('fd_reporting_mode') === '1';
+
+  const cutoff = reportingMode
+    ? 365 * 24 * 60 * 60 * 1000
+    : 24 * 60 * 60 * 1000;
+
+  // Define preferred pill order
+  const ORDER = ['ladies', 'ibiza', 'brunch', 'studio'];
+  const rank = t => {
+    const tl = t.toLowerCase();
+    if (/ladies/.test(tl))  return 0;
+    if (/ibiza/.test(tl))   return 1;
+    if (/brunch/.test(tl))  return 2;
+    if (/studio/.test(tl))  return 3;
+    return 4;
+  };
+
+  const filtered = upcomingEvents
+    .filter(ev => {
+      if (!ev.mec_data || !ev.mec_data.end_date) return true;
+      const endTime = new Date(ev.mec_data.end_date + 'T23:59:59').getTime();
+      return (now - endTime) < cutoff;
+    })
+    .sort((a, b) => rank(a.title) - rank(b.title));
+
+  filtered.forEach(ev => {
     const pill = document.createElement('button');
     pill.className = 'filter-pill event-pill';
     pill.dataset.eventId = String(ev.id);
-    // Shorten title for pill — use first meaningful words
-    // Show date + shortened title so events are distinguishable
+
+    // Strip noise AND dates from pill label
     const cleanTitle = (ev.title || 'Event')
       .replace(/copy of /i, '')
-      .replace(/ticket scan test[^]*/i, '')
-      .replace(/- \d+\/\d+/g, '')
+      .replace(/funky dory\s*/i, '')
+      .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
+      .replace(/meets\s*/i, '× ')
+      .replace(/\s*[-–]\s*\d{2}[./]\d{2}([./]\d{2,4})?/g, '')
+      .replace(/\(SCAN TEST[^)]*\)/i, '')
+      .replace(/\s{2,}/g, ' ')
       .trim();
-    const shortTitle = cleanTitle.substring(0, 20) + (cleanTitle.length > 20 ? '…' : '');
-    const eventDate  = ev.mec_data ? ev.mec_data.start_date.substring(5) : ''; // MM-DD
-    pill.textContent = shortTitle + (eventDate ? ' · ' + eventDate : '');
+
+    const isHistoric = ev.mec_data?.end_date &&
+      new Date(ev.mec_data.end_date + 'T23:59:59').getTime() < now;
+
+    const col = getEventColour(ev.title);
+    pill.textContent = (isHistoric ? '📁 ' : '') + cleanTitle;
+    if (isHistoric) pill.style.opacity = '0.6';
+    pill.dataset.eventColour = col.bg;
     pill.onclick = function() { setFilter('event:' + ev.id, this); };
-    allBtn.insertAdjacentElement('afterend', pill);
+    allBtn ? allBtn.insertAdjacentElement('afterend', pill) : bar.appendChild(pill);
+
+    // Auto-select first event pill if nothing selected yet
+    if (!bar.querySelector('.filter-pill.active')) {
+      pill.classList.add('active');
+      pill.style.background = col.bg;
+      pill.style.color = '#fff';
+      pill.style.borderColor = col.bg;
+      glFilter = 'event:' + ev.id;
+      const activeBar  = document.getElementById('gl-active-filter');
+      const activeName = document.getElementById('gl-active-filter-name');
+      if (activeBar && activeName) {
+        bar.style.display = 'none';
+        activeBar.classList.add('show');
+        activeBar.style.background = col.bg;
+        activeName.style.color = '#fff';
+        activeName.textContent = '📅 ' + cleanTitle;
+      }
+    }
   });
 }
 
@@ -1372,9 +1689,71 @@ function hideOldGuests() {
 
 function setFilter(f, el) {
   glFilter = f;
-  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
+  document.querySelectorAll('.filter-pill').forEach(p => {
+    p.classList.remove('active');
+    p.style.background = '';
+    p.style.color = '';
+    p.style.borderColor = '';
+  });
+  if (el) {
+    el.classList.add('active');
+    // If it's an event pill, colour it with the wristband colour
+    if (el.dataset.eventColour) {
+      el.style.background = el.dataset.eventColour;
+      el.style.color = '#fff';
+      el.style.borderColor = el.dataset.eventColour;
+    }
+  }
+
+  const bar        = document.getElementById('gl-filter-bar');
+  const activeBar  = document.getElementById('gl-active-filter');
+  const activeName = document.getElementById('gl-active-filter-name');
+
+  if (f.startsWith('event:')) {
+    bar.style.display = 'none';
+    activeBar.classList.add('show');
+    const evId = f.replace('event:', '');
+    const ev   = upcomingEvents.find(e => String(e.id) === evId);
+    const name = ev ? (ev.title || 'Event')
+      .replace(/copy of /i, '')
+      .replace(/funky dory\s*/i, '')
+      .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
+      .replace(/\(SCAN TEST[^)]*\)/i, '')
+      .replace(/\s*[-–]\s*\d{2}\.\d{2}\.\d{2,4}/g, '')
+      .replace(/meets\s*/i, '× ')
+      .replace(/\s{2,}/g, ' ')
+      .trim() : 'Event';
+    // Apply wristband colour
+    const col = getEventColour(ev ? ev.title : '');
+    activeBar.style.background = col.bg;
+    activeName.style.color = col.text;
+    document.querySelector('.gl-active-filter-clear').style.borderColor = 'rgba(255,255,255,.5)';
+    document.querySelector('.gl-active-filter-clear').style.color = col.text;
+    activeName.textContent = '📅 ' + name;
+  } else {
+    // Show pill bar, hide active filter banner
+    bar.style.display = '';
+    activeBar.classList.remove('show');
+  }
+
   renderGuestList();
+}
+
+function clearEventFilter() {
+  glFilter = 'none'; // no filter — show pill bar to pick event
+  const bar       = document.getElementById('gl-filter-bar');
+  const activeBar = document.getElementById('gl-active-filter');
+  bar.style.display = '';
+  activeBar.classList.remove('show');
+  activeBar.style.background = '';
+  document.querySelectorAll('.filter-pill').forEach(p => {
+    p.classList.remove('active');
+    p.style.background = '';
+    p.style.color = '';
+    p.style.borderColor = '';
+  });
+  document.getElementById('gl-list').innerHTML = '<div class="gl-empty">Select an event above to see the guest list</div>';
+  document.getElementById('gl-count') && (document.getElementById('gl-count').textContent = '');
 }
 
 function getBookingAdmittedCount(booking) {
@@ -1388,8 +1767,14 @@ function renderGuestList() {
     const mq = !q || b.name.toLowerCase().includes(q) || 
                 String(b.bookingId).includes(q) || 
                 (b.email && b.email.includes(q)) ||
-                b.tickets.some(t => t.name && t.name.toLowerCase().includes(q));
-    if (!mq) return false;
+                (b.guestOf && b.guestOf.toLowerCase().includes(q)) ||
+                b.tickets.some(t => t.name && t.name.toLowerCase().includes(q)) ||
+                // Search individual attendees in guestMap (catches per-attendee names like Kurt)
+                Object.values(guestMap).some(g => 
+                  g._bookingId === b.bookingId && 
+                  g.name && g.name.toLowerCase().includes(q)
+                );
+    if (glFilter === 'none') return false; // no event selected yet
     // Apply type filters
     // Dynamic event filter — show only MEC attendees for this specific event
     // WC-only comps appear under All but not under specific event pills
@@ -1403,9 +1788,7 @@ function renderGuestList() {
     if (glFilter === 'tm')         return b.isTM;
     if (glFilter === 'in')         return getBookingAdmittedCount(b) > 0;
     if (glFilter === 'pending')    return getBookingAdmittedCount(b) < b.tickets.length;
-    if (glFilter === 'artist')     return (b.tickets[0] && b.tickets[0].hostCategory||'').toLowerCase() === 'artist';
-    if (glFilter === 'sponsor')    return (b.tickets[0] && b.tickets[0].hostCategory||'').toLowerCase() === 'sponsor';
-    if (glFilter === 'influencer') return (b.tickets[0] && b.tickets[0].hostCategory||'').toLowerCase() === 'influencer';
+
     return true;
   }).sort((a,b) => {
     const aVip = a.tickets.some(t => t.isVip);
@@ -1421,7 +1804,7 @@ function renderGuestList() {
 
   if (!filtered.length) {
     document.getElementById('gl-list').innerHTML =
-      `<div class="gl-empty">No guests match${q ? ` "<strong>${q}</strong>"` : ' this filter'}${!showAll && upcomingEventNames.length > 0 ? '<br><small style="color:var(--muted)">Try tapping "Show all" above</small>' : ''}</div>`;
+      `<div class="gl-empty">No guests match${q ? ` "<strong>${q}</strong>"` : ' this filter'}${glFilter.startsWith('event:') ? '<br><small style="color:var(--muted)">Try tapping "See all" above</small>' : ''}</div>`;
     return;
   }
 
@@ -1437,6 +1820,10 @@ function renderGuestList() {
     const hasVip   = b.tickets.some(t => t.isVip);
     const avCls    = allIn ? 'checked' : b.isTM ? 'tm' : hasVip ? 'vip' : '';
     const avTxt    = allIn ? '✓' : initials;
+    // Get event colour for avatar background
+    const evCol    = getEventColourById(b._eventId);
+    const avStyle  = allIn ? '' : b.isTM ? '' : hasVip ? '' :
+      `background:${evCol.bg};color:${evCol.text};`;
     const badges   = [
       hasVip        ? '<span class="badge vip">⭐ VIP</span>' : '',
       b.isTM        ? '<span class="badge tm">🎫 TM</span>'  : '',
@@ -1448,20 +1835,28 @@ function renderGuestList() {
     const ticketRows = b.tickets.map((t, i) => {
       const num = i + 1;
       return `
-      <div class="gl-attendee ${t.checkedIn?'gl-attendee-in':''}">
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:14px;font-weight:700;color:var(--text);">Ticket ${num} of ${total}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:1px;">${t.ticketName}</div>
+      <div class="gl-attendee ${t.checkedIn?'gl-attendee-in':''}" style="width:100%;box-sizing:border-box;">
+        <div style="flex:1;min-width:0;overflow:hidden;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${
+            t.name && t.name !== b.name
+              ? t.name
+              : num === 1
+                ? b.name
+                : `Guest ${num}`
+          }</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${num === 1 && t.name === b.name ? '' : `Ticket ${num} · `}${t.ticketName}</div>
         </div>
+        <div style="flex-shrink:0;margin-left:8px;">
         ${t.checkedIn
-          ? `<div style="display:flex;align-items:center;gap:8px;">
+          ? `<div style="display:flex;align-items:center;gap:6px;">
                <span style="font-size:12px;font-weight:800;color:var(--ok);">✓ In</span>
                <button onclick="event.stopPropagation();undoSpecific('${b.bookingId}','${t.attendeeKey}')"
-                 style="background:#fff;color:var(--err);border:2px solid var(--err);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">↩ Undo</button>
+                 style="background:#fff;color:var(--err);border:2px solid var(--err);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">↩ Undo</button>
              </div>`
           : `<button onclick="event.stopPropagation();admitSpecific('${b.bookingId}','${t.attendeeKey}')"
-               style="background:var(--ok);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">✓ Check In</button>`
+               style="background:var(--ok);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;white-space:nowrap;">✓ Check In</button>`
         }
+        </div>
       </div>`;
     }).join('');
 
@@ -1475,42 +1870,41 @@ function renderGuestList() {
     // Action buttons are ONLY inside expanded panel.
     return `<div class="gl-booking" id="bk-${b.bookingId}">
 
-      <!-- NAME ROW — display only, no tap action -->
-      <div class="gl-item${allIn?' checked-in':''}" style="cursor:default;">
-        <div class="gl-avatar ${avCls}" style="flex-shrink:0;">${avTxt}</div>
-        <div class="gl-info" style="flex:1;min-width:0;pointer-events:none;">
-          <div class="gl-name">${b.name}</div>
-          <div class="gl-ticket">${b.eventDay&&b.eventDay!=='All'?'<span style="font-weight:800;color:var(--navy);margin-right:4px;">'+b.eventDay+'</span>':''}${b.eventTitle||''}</div>
+      <!-- NAME ROW — tap name to expand -->
+      <div class="gl-item${allIn?' checked-in':''}" style="cursor:default;width:100%;overflow:hidden;box-sizing:border-box;">
+        <div class="gl-avatar ${avCls}" style="flex-shrink:0;${avStyle}">${avTxt}</div>
+        <div class="gl-info" onclick="toggleBooking('${b.bookingId}')" style="flex:1;min-width:0;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;">
+          <div class="gl-name" style="display:flex;align-items:center;justify-content:space-between;gap:6px;overflow:hidden;">
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.name}</span>
+            <span style="color:var(--muted);font-size:22px;line-height:1;flex-shrink:0;" id="chevron-${b.bookingId}">›</span>
+          </div>
+          <div class="gl-ticket" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.eventDay&&b.eventDay!=='All'?'<span style="font-weight:800;color:var(--navy);margin-right:4px;">'+b.eventDay+'</span>':''}${b.guestOf?'<span style="color:var(--muted);">Guest of '+b.guestOf+' · </span>':''}${b.eventTitle||''}</div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;max-width:70px;margin-left:6px;overflow:hidden;">
           ${badges}
           ${statusText}
         </div>
-        <!-- Chevron is the ONLY expand trigger -->
-        <button onclick="toggleBooking('${b.bookingId}')"
-          style="background:none;border:none;padding:10px 6px 10px 12px;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;flex-shrink:0;-webkit-tap-highlight-color:transparent;"
-          id="chevron-${b.bookingId}" aria-label="Expand">›</button>
       </div>
 
       <!-- EXPANDED PANEL — all actions live here -->
-      <div class="gl-attendees hidden" id="att-${b.bookingId}">
+      <div class="gl-attendees hidden" id="att-${b.bookingId}" style="width:100%;overflow:hidden;box-sizing:border-box;">
 
         <!-- Check in ALL button always at top -->
-        <div style="padding:12px 16px 8px;border-bottom:1px solid var(--border);">
+        <div style="padding:12px 16px 8px;border-bottom:1px solid var(--border);box-sizing:border-box;">
           ${allIn
             ? `<button onclick="event.stopPropagation();undoAllBooking('${b.bookingId}')"
-                style="width:100%;background:#fff;color:var(--err);border:2px solid var(--err);border-radius:10px;padding:13px;font-size:14px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">
+                style="width:100%;box-sizing:border-box;background:#fff;color:var(--err);border:2px solid var(--err);border-radius:10px;padding:13px;font-size:14px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">
                 ↩ Undo All ${total} Check-ins
               </button>`
             : `<button onclick="event.stopPropagation();admitAllBooking('${b.bookingId}')"
-                style="width:100%;background:var(--ok);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 12px rgba(0,168,90,.3);">
+                style="width:100%;box-sizing:border-box;background:var(--ok);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 12px rgba(0,168,90,.3);">
                 ✓ Check In All ${total} Ticket${total>1?'s':''}
               </button>`
           }
         </div>
 
         <!-- Individual tickets -->
-        <div style="padding:8px 0;">
+        <div style="padding:8px 0;width:100%;box-sizing:border-box;">
           ${ticketRows}
         </div>
 
@@ -1673,30 +2067,23 @@ function initCamera() {
     return;
   }
   const videoEl = document.getElementById('qr-video');
-  const codeReader = new ZXing.BrowserMultiFormatReader();
+  // Use timeBetweenDecodingAttempts to throttle — reduces CPU usage significantly
+  const codeReader = new ZXing.BrowserMultiFormatReader(null, 500); // 500ms between attempts
   scanner = codeReader;
 
   codeReader.listVideoInputDevices().then(devices => {
-    // Prefer back camera
     const backCam = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
     const deviceId = backCam ? backCam.deviceId : undefined;
 
     const hints = new Map();
-  // Only scan QR codes — ignore barcodes
-  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
-  codeReader.hints = hints;
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
+    codeReader.hints = hints;
 
   codeReader.decodeFromVideoDevice(deviceId, 'qr-video', (result, err) => {
       if (result) {
-        // Only process QR codes
         if (result.getBarcodeFormat && result.getBarcodeFormat() !== ZXing.BarcodeFormat.QR_CODE) return;
         const code = result.getText();
         const now = Date.now();
-        // Show debug bar
-        const dbg = document.getElementById('debug-bar');
-        const dbgCode = document.getElementById('debug-code');
-        if (dbg && dbgCode) { dbg.style.display='block'; dbgCode.textContent = code.length > 60 ? code.substring(0,60)+'…' : code; }
-        // Strict cooldown — block if processing OR same code within 8 seconds
         if (isScanning) return;
         if (code === lastCode && now - lastAt < 8000) return;
         lastCode = code; lastAt = now;
@@ -1742,14 +2129,52 @@ async function lookupTicket(code) {
 
       const mecGuest = await mecLookupAndCheckin(code);
       if (mecGuest) {
-        // Check local bookingMap state FIRST — catches same-session rescans before API responds
         const invoiceId    = mecGuest._invoiceID || mecGuest.orderNumber;
         const place        = mecGuest._place;
         const localBooking = invoiceMap[invoiceId] || bookingMap[invoiceId];
-        const localTicket  = localBooking?.tickets.find(t => String(t.attendeeKey) === String(place))
-                          || localBooking?.tickets.find(t => t.checkedIn); // fallback for single-ticket bookings
-        const alreadyInLocal = localTicket && localTicket.checkedIn;
-        const alreadyIn      = alreadyInLocal || mecGuest.checkedIn;
+        // Only match the specific ticket by attendeeKey — no fallback to avoid false positives
+        const localTicket  = localBooking?.tickets.find(t => String(t.attendeeKey) === String(place));
+        const alreadyInLocal = localTicket?.checkedIn === true;
+
+        // If not caught locally, check our database proxy to catch cross-session duplicates
+        let alreadyInDb = false;
+        if (!alreadyInLocal && cfg.siteUrl && invoiceId && place) {
+          try {
+            const cr = await fetch(`${cfg.siteUrl}/wp-json/fd2/v1/checkins?invoice_id=${encodeURIComponent(invoiceId)}`);
+            if (cr.ok) {
+              const cd = await cr.json();
+              if (cd.found && cd.attendees) {
+                const att = cd.attendees.find(a => String(a.place) === String(place));
+                if (att && att.checked_in) {
+                  alreadyInDb = true;
+                  // Also update local state so future scans are caught without a DB call
+                  if (localTicket) localTicket.checkedIn = true;
+                }
+              }
+            }
+          } catch(e) {}
+        }
+
+        // Always enrich mecGuest from bookingMap before displaying result
+        const invId   = mecGuest._invoiceID || mecGuest.orderNumber;
+        const placeNo = mecGuest._place;
+        let booking = invoiceMap[invId] || bookingMap[invId];
+        if (!booking) booking = Object.values(bookingMap).find(b => String(b.invoiceID) === String(invId));
+        if (booking) {
+          const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(placeNo));
+          if (ticket) {
+            if (!mecGuest.ticketName || mecGuest.ticketName === 'MEC Ticket') mecGuest.ticketName = ticket.ticketName;
+            mecGuest.isVip = mecGuest.isVip || ticket.isVip || /vip/i.test(ticket.ticketName || '');
+          }
+          if (!mecGuest.isVip) {
+            mecGuest.isVip = booking.tickets.some(t => t.isVip || /vip/i.test(t.ticketName || ''));
+          }
+          mecGuest._eventId = mecGuest._eventId || booking._eventId;
+        }
+        // Also check ticket name directly
+        if (!mecGuest.isVip) mecGuest.isVip = /vip/i.test(mecGuest.ticketName || '');
+
+        const alreadyIn = alreadyInLocal || alreadyInDb || mecGuest.checkedIn;
 
         if (alreadyIn) {
           // Already checked in (either MEC reports it or we already scanned this session)
@@ -1760,8 +2185,24 @@ async function lookupTicket(code) {
           showChips([{ label:mecGuest.ticketName, cls:'' }, { label:'DUPLICATE', cls:'hi' }]);
           updateStats();
         } else {
+          // Check event date — block tickets from past events
+          const evForDate = upcomingEvents.find(e => String(e.id) === String(mecGuest._eventId));
+          if (evForDate && evForDate.mec_data && evForDate.mec_data.end_date) {
+            const endTime = new Date(evForDate.mec_data.end_date + 'T23:59:59').getTime();
+            if (Date.now() - endTime > 24 * 60 * 60 * 1000) {
+              vibrate([300, 100, 300]);
+              setResult('err','🚫', 'Ticket Expired',
+                `This ticket was for ${evForDate.mec_data.end_date} and is no longer valid`);
+              addLog({ name:mecGuest.name, ticket:`Expired ticket — event was ${evForDate.mec_data.end_date}`, status:'err', code });
+              stats.invalid++; stats.total++;
+              updateStats();
+              isScanning = false;
+              return;
+            }
+          }
+
           // Check time restriction before admitting
-          const timeBlock = checkTimeRestriction(mecGuest.ticketName, mecGuest.ticketStartTime);
+          const timeBlock = checkTimeRestriction(mecGuest.ticketName, mecGuest.ticketStartTime, mecGuest._eventId);
           if (timeBlock) {
             vibrate([300, 100, 300]);
             setResult('err','🚫', 'Too Early', 
@@ -1782,24 +2223,31 @@ async function lookupTicket(code) {
             // Enrich mecGuest with bookingMap ticket data for correct VIP/entitlement display
             const invId   = mecGuest._invoiceID || mecGuest.orderNumber;
             const placeNo = mecGuest._place;
-            const booking = invoiceMap[invId] || bookingMap[invId];
-            if (booking) {
-              const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(placeNo))
-                          || booking.tickets.find(t => !t.checkedIn);
-              if (ticket) {
-                ticket.checkedIn = true;
-                // Use bookingMap ticket data to ensure correct name/VIP status
-                if (!mecGuest.ticketName || mecGuest.ticketName === 'MEC Ticket') mecGuest.ticketName = ticket.ticketName;
-                mecGuest.isVip = mecGuest.isVip || ticket.isVip || /vip/i.test(ticket.ticketName);
-              }
-              renderGuestList(); updateGLStats();
+            // Try multiple lookup strategies to find the booking
+            let booking = invoiceMap[invId] || bookingMap[invId];
+            if (!booking) {
+              // Search all bookings by invoiceID field
+              booking = Object.values(bookingMap).find(b => String(b.invoiceID) === String(invId));
             }
-            setResult('ok','✓', mecGuest.name, mecGuest.ticketName, true);
+            if (booking) {
+              const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(placeNo));
+              if (ticket) ticket.checkedIn = true;
+              renderGuestList(); updateGLStats();
+            } else {
+              const gKey = Object.keys(guestMap).find(k => {
+                const g = guestMap[k];
+                return String(g._invoiceID) === String(invId) && String(g._attendeeKey) === String(placeNo);
+              });
+              if (gKey) guestMap[gKey].checkedIn = true;
+            }
+            const now = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+            const detail = [
+              mecGuest.isVip ? '⭐ VIP' : null,
+              mecGuest.ticketName && mecGuest.ticketName !== 'MEC Ticket' ? mecGuest.ticketName : null,
+              now
+            ].filter(Boolean).join('  ·  ');
+            setResult('ok','✓', mecGuest.name, detail, true);
             showEnt(mecGuest);
-            showChips([
-              { label: mecGuest.ticketName, cls:'' },
-              ...(mecGuest.isVip ? [{ label:'VIP', cls:'vip' }] : [])
-            ]);
             updateStats();
           }
         }
@@ -1863,38 +2311,43 @@ function resolveGuest(code) {
 // ═══════════════════════════════════════════
 //  TIME RESTRICTION
 // ═══════════════════════════════════════════
-function getTicketValidFrom(ticketName) {
-  // Returns [hours, minutes] that this ticket is valid from
+function getTicketValidFrom(ticketName, eventId) {
+  // First try to get start time from the loaded event data
+  if (eventId) {
+    const ev = upcomingEvents.find(e => String(e.id) === String(eventId));
+    if (ev && ev.mec_data && ev.mec_data.start_time) {
+      const parts = ev.mec_data.start_time.split(':');
+      const h = parseInt(parts[0]);
+      const m = parseInt(parts[1] || 0);
+      if (!isNaN(h)) return [h, m];
+    }
+  }
+  // Fall back to keyword detection only for evening override
   const tn = (ticketName || '').toUpperCase();
-
-  // Evening tickets — valid from 5:00pm (new rule)
-  if (/EVENING|LATE ENTRY|LATE|6PM|7PM|NIGHT/.test(tn)) return [17, 0];
-
-  // Saturday Brunch — valid from 11am
-  if (/BRUNCH/.test(tn)) return [11, 0];
-
-  // Default — all other tickets valid from 2pm
-  return [14, 0];
+  if (/EVENING|LATE ENTRY|LATE NIGHT/.test(tn)) return [17, 0];
+  // Default — no restriction (let MEC event time handle it)
+  return [0, 0];
 }
 
-function checkTimeRestriction(ticketName, mecStartTime) {
-  // If MEC returns a start time, use that; otherwise fall back to name-based rules
+function checkTimeRestriction(ticketName, mecStartTime, eventId) {
   let validHour, validMin;
   if (mecStartTime) {
-    // mecStartTime expected as "HH:MM" or "HH:MM:SS"
     const parts = mecStartTime.split(':');
     validHour = parseInt(parts[0]);
     validMin  = parseInt(parts[1] || 0);
-    // Apply 15-minute grace
+    // Apply 15-minute grace period
     const totalMins = validHour * 60 + validMin - 15;
     validHour = Math.floor(totalMins / 60);
     validMin  = totalMins % 60;
   } else {
-    [validHour, validMin] = getTicketValidFrom(ticketName);
+    [validHour, validMin] = getTicketValidFrom(ticketName, eventId);
   }
 
+  // No restriction
+  if (validHour === 0 && validMin === 0) return null;
+
   const now = new Date();
-  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const nowMins   = now.getHours() * 60 + now.getMinutes();
   const validMins = validHour * 60 + validMin;
 
   if (nowMins < validMins) {
@@ -1932,33 +2385,25 @@ function parseMecQrUrl(code) {
 }
 
 async function resolveShortUrl(shortUrl) {
-  // Fetch the short URL to get the full check-in URL with parameters
   try {
-    const r = await fetch(shortUrl, { 
-      method: 'GET',
-      redirect: 'follow',
-      headers: { 'Accept': 'text/html' }
-    });
-    const finalUrl = r.url;  // URL after redirect
-    const url = new URL(finalUrl);
-    const invoiceID = url.searchParams.get('invoiceID');
-    const place     = url.searchParams.get('place');
-    const hash      = url.searchParams.get('Hash');
-    const email     = url.searchParams.get('checkIn');
-    if (invoiceID) return { invoiceID, place, hash, email, shortUrl };
-    
-    // Also try to get from page HTML if params not in URL
-    const html = await r.text();
-    const invMatch   = html.match(/invoiceID[=\"':]+(\d+)/);
-    const placeMatch = html.match(/place[=\"':]+(\d+)/);
-    const hashMatch  = html.match(/Hash[=\"':]+([a-f0-9]+)/i);
-    const emailMatch = html.match(/checkIn[=\"':]+([^&\"'<\s]+)/);
-    if (invMatch) {
+    // Extract just the slug from the short URL e.g. "stX4XI0LVK-xw" from ".../invoice/stX4XI0LVK-xw"
+    const slug = shortUrl.split('/invoice/').pop().split('?')[0].trim();
+    if (!slug) return null;
+
+    // Use our WordPress proxy to resolve server-side (avoids CORS)
+    const proxyUrl = `${cfg.siteUrl}/wp-json/fd/v1/resolve-invoice?url=${encodeURIComponent(slug)}`;
+    const r = await fetch(proxyUrl, { headers: { 'Accept': 'application/json' } });
+    if (!r.ok) {
+      console.warn('Proxy resolve failed:', r.status);
+      return null;
+    }
+    const data = await r.json();
+    if (data.invoiceID) {
       return {
-        invoiceID: invMatch[1],
-        place:     placeMatch ? placeMatch[1] : null,
-        hash:      hashMatch  ? hashMatch[1]  : null,
-        email:     emailMatch ? emailMatch[1] : null,
+        invoiceID: String(data.invoiceID),
+        place:     data.place ? String(data.place) : null,
+        hash:      data.hash  || null,
+        email:     data.email || null,
         shortUrl
       };
     }
@@ -2102,28 +2547,18 @@ async function mecLookupAndCheckin(code) {
 }
 
 async function mecWriteCheckin(code, mecGuest) {
-  if (!cfg.mecKey || !cfg.siteUrl) return;
+  if (!cfg.siteUrl) return;
   try {
-    // Use invoice attendees check endpoint with the hash from QR
-    let parsed = parseMecQrUrl(code);
-    if (parsed && parsed.shortUrl && !parsed.invoiceID) {
-      parsed = await resolveShortUrl(parsed.shortUrl);
-    }
-    if (parsed) {
-      const r = await fetch(
-        `${cfg.siteUrl}/wp-json/mec-utility/v1/invoices/${parsed.invoiceID}/attendees/check`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-MEC-KEY': cfg.mecKey },
-          body: JSON.stringify({ 
-            place: parsed.place,
-            hash: parsed.hash,
-            email: parsed.email,
-            invoice_id: parsed.invoiceID
-          })
-        }
-      );
-      if (!r.ok) console.warn('MEC checkin write status:', r.status);
+    const invoiceID = mecGuest._invoiceID || mecGuest.orderNumber;
+    const place     = mecGuest._place;
+    if (!invoiceID || !place) { console.warn('MEC checkin: missing invoiceID or place'); return; }
+    const url = `${cfg.siteUrl}/wp-json/fd2/v1/checkin?invoice_id=${encodeURIComponent(invoiceID)}&place=${encodeURIComponent(place)}`;
+    const r = await fetch(url, { method: 'POST' });
+    const data = await r.json();
+    if (data.success) {
+      console.log('✓ MEC checkin written:', data.attendee_name, 'place', data.place, `(${data.total_checked}/${data.total})`);
+    } else {
+      console.warn('MEC checkin proxy failed:', data.message || data);
     }
   } catch(e) {
     console.warn('MEC check-in write failed:', e.message);
@@ -2202,7 +2637,7 @@ function handleGuest(g, code) {
   }
 
   // Check time restriction before admitting
-  const timeBlock = checkTimeRestriction(g.ticketName);
+  const timeBlock = checkTimeRestriction(g.ticketName, null, g._eventId);
   if (timeBlock) {
     vibrate([300, 100, 300]);
     setResult('err','🚫', 'Too Early',
@@ -2224,21 +2659,18 @@ function handleGuest(g, code) {
   vibrate([50, 30, 80]); // success: double pulse
 
   const ticketNum = g.checkedInTickets.length;
-  const remaining = g.qty - g.checkedInTickets.length;
-  const admitDetail = g.qty > 1
-    ? `Ticket ${ticketNum} of ${g.qty} admitted${remaining > 0 ? ' · ' + remaining + ' still to arrive' : ' · All admitted'}`
-    : g.ticketName;
+  const now = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  const admitDetail = [
+    g.isVip ? '⭐ VIP' : null,
+    g.qty > 1 ? `Ticket ${ticketNum} of ${g.qty}` : g.ticketName,
+    now
+  ].filter(Boolean).join('  ·  ');
 
   addLog({ name:g.name, ticket:admitDetail, status:'ok', code });
   stats.admitted++; stats.total++;
   document.getElementById('hdr-count').textContent = stats.admitted;
   setResult('ok','✓', g.name, admitDetail, true);
   showEnt(g);
-  const chips = [{ label:`${g.checkedInTickets.length} of ${g.qty} admitted`, cls: remaining > 0 ? '' : 'vip' }];
-  if (g.isVip)  chips.push({ label:'VIP', cls:'vip' });
-  if (g.isComp) chips.push({ label:'Comp', cls:'hi' });
-  if (g.isTM)   chips.push({ label:'Ticketmaster', cls:'tm' });
-  showChips(chips);
   updateStats(); updateGLStats(); renderGuestList();
 }
 
@@ -2267,6 +2699,17 @@ function setResult(state, icon, name, detail, pulse) {
   if (state === 'warn') vibrate([200, 80, 200]);       // duplicate: double long
   if (state === 'err')  vibrate([500]);                // rejected: single long
   if (state === 'tm')   vibrate([100, 50, 100]);       // ticketmaster: attention
+
+  // Full-screen flash — visible feedback on iOS where vibration doesn't work
+  const flash = document.getElementById('scan-flash');
+  if (flash && state) {
+    flash.className = '';
+    void flash.offsetWidth; // force reflow to restart animation
+    if (state === 'ok')   flash.className = 'flash-ok';
+    if (state === 'err')  flash.className = 'flash-err';
+    if (state === 'warn') flash.className = 'flash-warn';
+    if (state === 'tm')   flash.className = 'flash-warn';
+  }
 }
 
 function showEnt(g) {
@@ -2310,9 +2753,63 @@ function renderLogs() {
   document.getElementById('scan-log').innerHTML = scanLog.slice(0,6).map(row).join('');
   document.getElementById('full-log').innerHTML = scanLog.map(row).join('');
 }
-function clearLog() {
-  if (!confirm('Clear scan log?')) return;
-  scanLog = []; renderLogs();
+function exportCSV() {
+  if (!scanLog.length && !Object.keys(bookingMap).length) {
+    alert('No check-in data to export yet.');
+    return;
+  }
+
+  const rows = [['Time', 'Name', 'Event', 'Ticket Type', 'VIP', 'Comp', 'Status', 'Method', 'Notes']];
+
+  // Export from scanLog (session scans)
+  if (scanLog.length) {
+    scanLog.forEach(e => {
+      // Try to enrich from bookingMap
+      const booking = Object.values(bookingMap).find(b => b.name === e.name);
+      const isVip   = booking ? booking.tickets.some(t => t.isVip) : false;
+      const isComp  = booking ? (booking.isComp || false) : false;
+      const event   = booking ? (booking.eventTitle || '') : '';
+      rows.push([
+        e.time || '',
+        e.name || '',
+        event,
+        e.ticket || '',
+        isVip  ? 'Yes' : 'No',
+        isComp ? 'Yes' : 'No',
+        e.status === 'ok' ? 'Admitted' : e.status === 'warn' ? 'Duplicate' : 'Rejected',
+        e.note || 'Scan',
+        ''
+      ]);
+    });
+  } else {
+    // Fall back to bookingMap checked-in state if no scan log
+    Object.values(bookingMap).forEach(b => {
+      b.tickets.forEach((t, i) => {
+        if (!t.checkedIn) return;
+        rows.push([
+          '',
+          t.name || b.name,
+          b.eventTitle || '',
+          t.ticketName || '',
+          t.isVip ? 'Yes' : 'No',
+          b.isComp ? 'Yes' : 'No',
+          'Admitted',
+          'Manual',
+          ''
+        ]);
+      });
+    });
+  }
+
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const date = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+  a.href     = url;
+  a.download = `FD-HRR-checkins-${date}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ═══════════════════════════════════════════
@@ -2343,6 +2840,20 @@ function showTab(tab) {
   document.getElementById(tab+'-screen').classList.remove('hidden');
   if (tab==='stats') { renderLogs(); renderEventCards(); }
   if (tab==='settings') renderSettingsQR();
+  // Pause camera when not on scan tab to save battery
+  const video = document.getElementById('qr-video');
+  if (video) {
+    if (tab === 'scan') {
+      if (video.paused) video.play().catch(()=>{});
+    } else {
+      if (!video.paused) video.pause();
+    }
+  }
+  // Update nav active state
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const navMap = {scan:0, guests:1, stats:2, settings:3};
+  const btns = document.querySelectorAll('.nav-btn');
+  if (btns[navMap[tab]]) btns[navMap[tab]].classList.add('active');
 }
 
 // ═══════════════════════════════════════════
@@ -2375,7 +2886,15 @@ function renderEventCards() {
     const pct            = totalTickets > 0 ? Math.round(admittedTickets / totalTickets * 100) : 0;
     const col            = colors[ci++ % colors.length];
     // Shorten long event titles
-    const shortTitle = ev.title.replace(/funky dory\s*/i,'').replace(/during henley\s*(royal\s*)?regatta\s*/i,'').replace(/\s*-\s*(Early Bird|2nd Release)[^£]*/i,'').trim();
+    const shortTitle = ev.title
+      .replace(/copy of /i, '')
+      .replace(/funky dory\s*/i, '')
+      .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
+      .replace(/meets\s*/i, '× ')
+      .replace(/\s*[-–]\s*\d{2}[./]\d{2}([./]\d{2,4})?/g, '')
+      .replace(/\(SCAN TEST[^)]*\)/i, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
 
     return `<div class="ev-card">
       <div class="ev-card-header">
@@ -2461,10 +2980,281 @@ function undoLastCheckin() {
   alert(`Check-in undone for ${g.name}.`);
 }
 
+// ── Event colour map — matches physical wristband colours ──
+function getEventColour(title) {
+  const t = (title || '').toLowerCase();
+  if (/ladies.?day/i.test(t))         return { bg: '#29ABE2', text: '#fff', light: '#E8F6FD' };
+  if (/ibiza|white.?party/i.test(t))  return { bg: '#F05A28', text: '#fff', light: '#FEF0EB' };
+  if (/brunch/i.test(t))              return { bg: '#1a2744', text: '#fff', light: '#EEF1F8' };
+  if (/studio.?54/i.test(t))          return { bg: '#E91E8C', text: '#fff', light: '#FDE8F4' };
+  return { bg: '#1a2744', text: '#fff', light: '#EEF1F8' }; // default navy
+}
+
+function getEventColourById(eventId) {
+  const ev = upcomingEvents.find(e => String(e.id) === String(eventId));
+  return getEventColour(ev ? ev.title : '');
+}
 // ═══════════════════════════════════════════
-//  WAKE LOCK
+function openFindBooking() {
+  const modal = document.getElementById('find-booking-modal');
+  modal.style.display = 'flex';
+  document.getElementById('find-booking-input').value = '';
+  document.getElementById('find-booking-result').textContent = '';
+  setTimeout(() => document.getElementById('find-booking-input').focus(), 100);
+}
+
+function closeFindBooking() {
+  document.getElementById('find-booking-modal').style.display = 'none';
+}
+
+async function fetchSingleBooking() {
+  const input = document.getElementById('find-booking-input').value.trim();
+  const resultEl = document.getElementById('find-booking-result');
+  const btn = document.getElementById('find-booking-btn');
+
+  if (!input) { resultEl.textContent = 'Please enter a booking or order number.'; return; }
+
+  btn.textContent = 'Looking up…';
+  btn.disabled = true;
+  resultEl.innerHTML = '<span style="color:var(--muted);">Checking MEC and WooCommerce…</span>';
+
+  try {
+    // ── 1. Try MEC invoice ID via our proxy ──
+    let mecFound = false;
+    const mecR = await fetch(`${cfg.siteUrl}/wp-json/fd2/v1/checkins?invoice_id=${encodeURIComponent(input)}`);
+    if (mecR.ok) {
+      const mecData = await mecR.json();
+      if (mecData.found) {
+        await addMecBookingToList(mecData, input);
+        mecFound = true;
+      } else {
+        // Try input+1 (booking ID vs invoice ID offset)
+        const altInvoice = String(parseInt(input) + 1);
+        const mecR2 = await fetch(`${cfg.siteUrl}/wp-json/fd2/v1/checkins?invoice_id=${encodeURIComponent(altInvoice)}`);
+        if (mecR2.ok) {
+          const mecData2 = await mecR2.json();
+          if (mecData2.found) {
+            await addMecBookingToList(mecData2, altInvoice);
+            mecFound = true;
+          }
+        }
+      }
+    }
+
+    if (mecFound) {
+      btn.textContent = 'Find Booking'; btn.disabled = false;
+      return;
+    }
+
+    // ── 2. Try WooCommerce order number ──
+    resultEl.innerHTML = '<span style="color:var(--muted);">Not in MEC — checking WooCommerce…</span>';
+    const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
+    const wcR = await fetch(
+      `${cfg.siteUrl}/wp-json/wc/v3/orders/${encodeURIComponent(input)}`,
+      { headers: { 'Authorization': `Basic ${creds}` } }
+    );
+
+    if (wcR.ok) {
+      const order = await wcR.json();
+      await addWcOrderToList(order);
+    } else {
+      resultEl.innerHTML = '<span style="color:var(--err);">❌ Not found in MEC or WooCommerce. Check the number and try again.</span>';
+    }
+
+  } catch(e) {
+    resultEl.innerHTML = '<span style="color:var(--err);">⚠️ Connection error. Check signal and try again.</span>';
+  }
+
+  btn.textContent = 'Find Booking'; btn.disabled = false;
+}
+
+async function addWcOrderToList(order) {
+  const resultEl = document.getElementById('find-booking-result');
+  const name = [order.billing?.first_name, order.billing?.last_name].filter(Boolean).join(' ') || 'Guest';
+  const orderId = String(order.id);
+  const key = `wc-${orderId}`;
+
+  if (guestMap[key]) {
+    resultEl.innerHTML = `<span style="color:var(--ok);">✓ Already loaded: <strong>${name}</strong></span>`;
+    setTimeout(closeFindBooking, 1500);
+    return;
+  }
+
+  // Find ticket product names
+  const items = order.line_items || [];
+  const ticketName = items.map(i => i.name).join(', ') || 'General Admission';
+  const qty = items.reduce((s, i) => s + (i.quantity || 1), 0);
+  const isVip  = /vip/i.test(ticketName);
+  const isComp = parseFloat(order.total || '0') === 0;
+  const isTM   = /ticketmaster/i.test(ticketName);
+
+  const g = {
+    id: orderId, orderNumber: orderId,
+    name, email: order.billing?.email || '',
+    ticketName, isVip, isComp, isTM,
+    qty, checkedInTickets: [], checkedIn: false,
+    eventDay: '', _eventId: '', _source: 'wc',
+    orderDate: order.date_created ? order.date_created.substring(0,10) : ''
+  };
+
+  guestMap[key] = g;
+  if (g.email) emailMap[g.email] = g;
+
+  // Also add to bookingMap for unified guest list display
+  bookingMap[key] = {
+    bookingId: key, invoiceID: key,
+    name, email: g.email, eventTitle: ticketName, eventDay: '',
+    tickets: Array.from({length: qty}, (_, i) => ({
+      key: `${key}-${i}`, attendeeKey: String(i),
+      name, ticketName, isVip, checkedIn: false
+    })),
+    source: 'wc', isComp, isTM
+  };
+
+  resultEl.innerHTML = `<span style="color:var(--ok);">✓ WooCommerce order #${orderId} added: <strong>${name}</strong>${isVip?' ⭐ VIP':''}${isComp?' 🎁 Comp':''} — ${qty} ticket${qty!==1?'s':''}<br><small style="color:var(--muted);">No QR code — check in manually from guest list</small></span>`;
+  renderGuestList(); updateGLStats();
+  setTimeout(closeFindBooking, 2500);
+}
+
+async function addMecBookingToList(data, invoiceId) {
+  const resultEl = document.getElementById('find-booking-result');
+  const btn = document.getElementById('find-booking-btn');
+
+  // Check if already in bookingMap
+  if (invoiceMap[invoiceId]) {
+    const existing = invoiceMap[invoiceId];
+    resultEl.innerHTML = `<span style="color:var(--ok);">✓ Already loaded: <strong>${existing.name}</strong></span>`;
+    btn.textContent = 'Find Booking'; btn.disabled = false;
+    setTimeout(closeFindBooking, 1500);
+    return;
+  }
+
+  // Fetch full booking details from MEC Utility
+  try {
+    const r = await fetch(
+      `${cfg.siteUrl}/wp-json/mec-utility/v1/bookings/${data.booking_id}`,
+      { headers: { 'X-MEC-KEY': cfg.mecKey } }
+    );
+
+    if (r.ok) {
+      const booking = await r.json();
+      // Build a booking entry and add to maps
+      const name = [booking.first_name, booking.last_name].filter(Boolean).join(' ') || 'Guest';
+      const bid  = String(data.booking_id);
+
+      bookingMap[bid] = {
+        bookingId:  bid,
+        invoiceID:  String(invoiceId),
+        name,
+        email:      booking.email || '',
+        eventTitle: booking.event_title || '',
+        eventDay:   '',
+        _eventId:   String(booking.event_id || ''),
+        tickets:    data.attendees.map(a => ({
+          key:         `${bid}-${a.place}`,
+          attendeeKey: String(a.place),
+          name,
+          ticketName:  booking.ticket_name || 'General Admission',
+          isVip:       /vip/i.test(booking.ticket_name || ''),
+          checkedIn:   a.checked_in === 1
+        })),
+        source: 'mec'
+      };
+
+      invoiceMap[String(invoiceId)] = bookingMap[bid];
+      invoiceMap[bid] = bookingMap[bid];
+
+      resultEl.innerHTML = `<span style="color:var(--ok);">✓ Added: <strong>${name}</strong> — ${data.attendees.length} ticket${data.attendees.length!==1?'s':''}</span>`;
+      renderGuestList(); updateGLStats();
+      setTimeout(closeFindBooking, 1800);
+    } else {
+      // API returned error — build from checkins data alone
+      const bid = String(data.booking_id);
+      const name = data.attendees[0]?.name || 'New Guest';
+      bookingMap[bid] = {
+        bookingId: bid, invoiceID: String(invoiceId),
+        name, email: '', eventTitle: '', eventDay: '', _eventId: '',
+        tickets: data.attendees.map(a => ({
+          key: `${bid}-${a.place}`, attendeeKey: String(a.place),
+          name, ticketName: 'General Admission', isVip: false,
+          checkedIn: a.checked_in === 1
+        })),
+        source: 'mec'
+      };
+      invoiceMap[String(invoiceId)] = bookingMap[bid];
+      resultEl.innerHTML = `<span style="color:var(--ok);">✓ Added: <strong>${name}</strong></span>`;
+      renderGuestList(); updateGLStats();
+      setTimeout(closeFindBooking, 1800);
+    }
+  } catch(e) {
+    resultEl.innerHTML = '<span style="color:var(--err);">⚠️ Could not fetch booking details.</span>';
+  }
+  btn.textContent = 'Find Booking'; btn.disabled = false;
+}
 // ═══════════════════════════════════════════
 let wakeLockObj = null;
+// iOS Add to Home Screen prompt
+(function() {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true;
+  const dismissed = localStorage.getItem('fd_banner_dismissed');
+  if (isIOS && !isStandalone && !dismissed) {
+    setTimeout(() => {
+      const banner = document.getElementById('ios-install-banner');
+      if (banner) banner.style.display = 'flex';
+    }, 3000);
+  }
+})();
+
+// ═══════════════════════════════════════════
+//  QR LOGIN FROM SETUP SCREEN
+// ═══════════════════════════════════════════
+let qrLoginReader = null;
+
+function startQrLogin() {
+  const wrap = document.getElementById('qr-login-wrap');
+  wrap.style.display = 'block';
+  const reader = new ZXing.BrowserMultiFormatReader(null, 500);
+  qrLoginReader = reader;
+  const hints = new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
+  reader.hints = hints;
+  reader.listVideoInputDevices().then(devices => {
+    const back = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
+    reader.decodeFromVideoDevice(back?.deviceId, 'qr-login-video', (result, err) => {
+      if (!result) return;
+      const text = result.getText();
+      const fdMatch = text.match(/[?&]fd=([^&]+)/);
+      if (fdMatch) {
+        try {
+          const decoded = JSON.parse(atob(fdMatch[1]));
+          if (decoded.u && decoded.k && decoded.s) {
+            stopQrLogin();
+            cfg = { siteUrl: decoded.u, wcKey: decoded.k, wcSecret: decoded.s, mecKey: decoded.m || '', demo: false };
+            saveConfig();
+            ['site-url','s-url'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.siteUrl; });
+            ['wc-key','s-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.wcKey; });
+            ['wc-secret','s-secret'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.wcSecret; });
+            ['mec-key','s-mec-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.mecKey||''; });
+            connect();
+            return;
+          }
+        } catch(e) {}
+      }
+      stopQrLogin();
+      alert("That doesn't look like a login QR. Please scan the QR from the team guide.");
+    });
+  }).catch(() => {
+    wrap.style.display = 'none';
+    alert('Camera not available. Please enter credentials manually.');
+  });
+}
+
+function stopQrLogin() {
+  if (qrLoginReader) { qrLoginReader.reset(); qrLoginReader = null; }
+  document.getElementById('qr-login-wrap').style.display = 'none';
+}
+
 async function requestWakeLock() {
   try {
     if ('wakeLock' in navigator) {
@@ -2475,13 +3265,34 @@ async function requestWakeLock() {
 function releaseWakeLock() {
   if (wakeLockObj) { wakeLockObj.release(); wakeLockObj = null; }
 }
+function toggleReportingMode(on) {
+  localStorage.setItem('fd_reporting_mode', on ? '1' : '0');
+  renderFilterPills();
+  if (on) loadGuestList();
+}
+
+// Restore reporting mode toggle state on load
+window.addEventListener('DOMContentLoaded', () => {
+  const cb = document.getElementById('opt-reporting');
+  if (cb) cb.checked = localStorage.getItem('fd_reporting_mode') === '1';
+});
+
 function toggleWakeLock(on) {
   if (on) requestWakeLock(); else releaseWakeLock();
 }
 document.addEventListener('visibilitychange', () => {
+  const video = document.getElementById('qr-video');
   if (document.visibilityState === 'visible') {
+    // Resume camera only if on scan tab
+    const scanScreen = document.getElementById('scan-screen');
+    if (video && scanScreen && !scanScreen.classList.contains('hidden')) {
+      video.play().catch(() => {});
+    }
     const opt = document.getElementById('opt-wakelock');
     if (opt && opt.checked) requestWakeLock();
+  } else {
+    // Page hidden — pause camera to save battery
+    if (video && !video.paused) video.pause();
   }
 });
 
@@ -2525,16 +3336,25 @@ function vibrate(p) {
 // ═══════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════
+// DOMContentLoaded handles all credential loading below
 window.addEventListener('DOMContentLoaded', () => {
   // 1. Check URL for QR-encoded credentials (?fd=base64payload)
   const params = new URLSearchParams(window.location.search);
   const fd = params.get('fd');
   if (fd) {
     try {
-      const decoded = JSON.parse(atob(decodeURIComponent(fd)));
+      // Decode URL encoding and fix base64 padding
+      const b64 = decodeURIComponent(fd).replace(/-/g, '+').replace(/_/g, '/');
+      const padded = b64 + '=='.slice(0, (4 - b64.length % 4) % 4);
+      const decoded = JSON.parse(atob(padded));
       if (decoded.u && decoded.k && decoded.s) {
-        cfg = { siteUrl: decoded.u, wcKey: decoded.k, wcSecret: decoded.s, demo: false };
+        cfg = { siteUrl: decoded.u, wcKey: decoded.k, wcSecret: decoded.s, mecKey: decoded.m || '', demo: false };
         saveConfig();
+        // Populate all settings fields
+        ['site-url','s-url'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.siteUrl; });
+        ['wc-key','s-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.wcKey; });
+        ['wc-secret','s-secret'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.wcSecret; });
+        ['mec-key','s-mec-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.mecKey||''; });
         // Clean the URL so keys don't sit in browser history
         window.history.replaceState({}, '', window.location.pathname);
         launch();
