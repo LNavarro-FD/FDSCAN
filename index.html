@@ -490,7 +490,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.38</div>
+    <div class="brand-sub">Door Scanner · v5.39</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -506,7 +506,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.38</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.39</div>
     </div>
     <div class="setup-title" style="margin-top:8px;">Connect to WooCommerce</div>
     <div class="field-group">
@@ -1194,19 +1194,25 @@ async function loadGuestList() {
       // Skip if this WC order is already represented by an MEC booking
       if (mecInvoiceIds.has(String(g.orderNumber))) return;
 
-      // Universal rule: only show WC orders whose ticket name matches an upcoming MEC event
+      // Universal rule: only show WC orders whose ticket name matches a CURRENT MEC event
       // This applies to ALL orders — paid, comp, TM, manual
       // If no MEC events loaded, show everything (fallback)
       if (upcomingEvents.length > 0) {
-        const ticketLower = (g.ticketName || '').toLowerCase();
-        const mecEventTitles = upcomingEvents.map(e => (e.title || '').toLowerCase());
-        const relatesToUpcoming = mecEventTitles.some(title => {
-          // Get significant words (5+ chars) from the MEC event title
-          const words = title.split(' ').filter(w => w.length > 4);
-          // Need at least 2 significant words to match
-          return words.filter(w => ticketLower.includes(w)).length >= 2;
+        const now = Date.now();
+        const currentEvents = upcomingEvents.filter(ev => {
+          if (!ev.mec_data?.end_date) return true;
+          const endTime = new Date(ev.mec_data.end_date + 'T23:59:59').getTime();
+          return (now - endTime) < 24 * 60 * 60 * 1000;
         });
-        if (!relatesToUpcoming) return; // skip orders not related to upcoming events
+        if (currentEvents.length > 0) {
+          const ticketLower = (g.ticketName || '').toLowerCase();
+          const currentEventTitles = currentEvents.map(e => (e.title || '').toLowerCase());
+          const relatesToCurrent = currentEventTitles.some(title => {
+            const words = title.split(' ').filter(w => w.length > 4);
+            return words.filter(w => ticketLower.includes(w)).length >= 2;
+          });
+          if (!relatesToCurrent) return; // skip orders not related to current events
+        }
       }
       g._source = 'wc';
       guestMap[`wc-${g.orderNumber}`] = g;
@@ -1690,7 +1696,11 @@ function renderGuestList() {
 
       // WC orders — extract event date from ticket name (e.g. "02.07.26" or "04.07.2026")
       if (!b._eventId || b.source === 'wc') {
-        const titleMatch = (b.eventTitle || '').match(/(\d{2})\.(\d{2})\.(\d{2,4})/);
+        // Decode HTML entities before matching
+        const rawTitle = (b.eventTitle || b.tickets?.[0]?.ticketName || '')
+          .replace(/&#8211;|&ndash;/g, '–')
+          .replace(/&amp;/g, '&');
+        const titleMatch = rawTitle.match(/(\d{2})\.(\d{2})\.(\d{2,4})/);
         if (titleMatch) {
           const day = titleMatch[1], mon = titleMatch[2];
           let yr = titleMatch[3];
