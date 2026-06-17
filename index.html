@@ -1314,6 +1314,9 @@ async function loadCompGuests() {
         const key = `comp-${eventName.replace(/\s/g,'-').toLowerCase()}-${i}`;
         if (guestMap[key]) return;
         const ticketName = `${eventName} - ${g.ticket}`;
+        const matchedEvent = upcomingEvents.find(ev => 
+          (ev.title || '').toLowerCase().includes(eventName.toLowerCase().split(' ')[0].toLowerCase())
+        );
         const guest = {
           id: key, orderNumber: key,
           name: g.name, email: (g.email || '').toLowerCase(),
@@ -1321,6 +1324,7 @@ async function loadCompGuests() {
           qty: 1, checkedInTickets: [], checkedIn: false,
           eventDay: '', _source: 'wc',
           guestOf: g.guestOf || '',
+          _eventId: matchedEvent ? String(matchedEvent.id) : '',
           orderDate: ev.date ? ev.date + 'T12:00:00' : new Date().toISOString()
         };
         guestMap[key] = guest;
@@ -1331,6 +1335,7 @@ async function loadCompGuests() {
           eventTitle: ticketName, eventDay: '',
           orderDate: guest.orderDate,
           guestOf: g.guestOf || '',
+          _eventId: matchedEvent ? String(matchedEvent.id) : '',
           tickets: [{ key: `${key}-0`, attendeeKey: '0', name: g.name, ticketName, isVip: !!g.vip, checkedIn: false }],
           source: 'wc', isComp: true, isTM: false
         };
