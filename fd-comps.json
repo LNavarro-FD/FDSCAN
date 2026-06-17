@@ -1,0 +1,57 @@
+{
+  "version": 2,
+  "note": "Manage comp guests here. Columns: name, event, ticket, email, guestOf, vip. Push to GitHub to update the app.",
+  "columns": ["name", "event", "ticket", "email", "guestOf", "vip"],
+  "events": {
+    "Ladies Day": {
+      "date": "2026-07-02",
+      "guests": [
+        { "name": "Neens", "ticket": "VIP - Influencer", "vip": true },
+        { "name": "Helen B", "ticket": "VIP - Influencer", "vip": true },
+        { "name": "Maria", "ticket": "VIP - Influencer", "vip": true },
+        { "name": "Abi Lynn", "ticket": "VIP - Influencer", "vip": true },
+        { "name": "Maxine Sumner", "ticket": "VIP - Influencer", "vip": true },
+        { "name": "Claire Hall", "ticket": "VIP - Influencer", "vip": true },
+        { "name": "Carol Massay", "ticket": "Comp", "vip": false },
+        { "name": "Vanessa Brady", "ticket": "Comp", "vip": false },
+        { "name": "David Hancock", "ticket": "Comp", "vip": false },
+        { "name": "Michelle Elmer", "ticket": "Comp", "vip": false },
+        { "name": "Caroline Ko", "ticket": "General Access - Full Day", "email": "caroline.ko@btinternet.com", "vip": false },
+        { "name": "Lizzie Le Mare", "ticket": "General Access - Full Day", "email": "lizzie.lemare@tibbalds.co.uk", "vip": false },
+        { "name": "Rhona Alsworth", "ticket": "General Access - Full Day", "email": "rhonaalsworth@hotmail.co.uk", "vip": false },
+        { "name": "Michelle McPherson", "ticket": "General Access - Full Day", "email": "michelle@hydeandrowe.co.uk", "vip": false },
+        { "name": "Dor Wolff", "ticket": "General Access - Full Day", "email": "dorwolff@microsoft.com", "vip": false },
+        { "name": "Kate Leafley", "ticket": "General Access - Full Day", "email": "katelefley@outlook.com", "vip": false },
+        { "name": "Ben Hall", "ticket": "General Access - Full Day", "email": "benjamin.hall@loft.co.uk", "vip": false },
+        { "name": "Courtney Wallis", "ticket": "General Access - Full Day", "email": "courtney_wallis@hotmail.co.uk", "vip": false },
+        { "name": "Harriet Twaite", "ticket": "General Access - Full Day", "email": "harrietwoods@live.co.uk", "vip": false },
+        { "name": "Sofia Gouveia", "ticket": "General Access - Full Day", "email": "sofia@qrarchitects.co.uk", "vip": false },
+        { "name": "Lisa O'Hagan", "ticket": "General Access - Evening Only", "email": "lisa.ohagan@barrattlondon.com", "vip": false },
+        { "name": "Marcia Mullings", "ticket": "General Access - Full Day", "email": "marcia_mullings@hotmail.com", "vip": false },
+        { "name": "Michelle Lowe", "ticket": "General Access - Full Day", "email": "michelle@redshell.org", "vip": false },
+        { "name": "Nikki Lister", "ticket": "General Access - Full Day", "email": "nikki.lister@russell-taylor.co.uk", "vip": false },
+        { "name": "Ammu Venugopal", "ticket": "General Access - Full Day", "email": "a.venugopal@ibtmedia.co.uk", "vip": false },
+        { "name": "Roneish Myers", "ticket": "General Access - Full Day", "email": "roneish@moneyheave.com", "vip": false },
+        { "name": "Daniella Bird", "ticket": "General Access - Full Day", "email": "daniella@spacepositive.co.uk", "vip": false },
+        { "name": "Evadney Campbell", "ticket": "General Access - Full Day", "email": "evadney@shilohpr.com", "vip": false },
+        { "name": "Veronica Mihai", "ticket": "General Access - Full Day", "email": "veronicamihai@protonmail.com", "vip": false }
+      ]
+    },
+    "Ibiza White Party": {
+      "date": "2026-07-03",
+      "guests": [
+        { "name": "Louise Mora", "ticket": "Full Day - General Entry", "vip": false },
+        { "name": "Mike Hayhoe", "ticket": "Full Day - General Entry", "vip": false },
+        { "name": "Carol Massay", "ticket": "Comp", "vip": false }
+      ]
+    },
+    "Brunch on the Banks": {
+      "date": "2026-07-05",
+      "guests": []
+    },
+    "Studio 54": {
+      "date": "2026-07-04",
+      "guests": []
+    }
+  }
+}
