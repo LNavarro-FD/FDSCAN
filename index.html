@@ -621,7 +621,7 @@ input::placeholder { color: #999; }
 <!-- GUEST LIST TAB -->
 <div id="guests-screen" class="screen hidden">
   <div class="gl-toolbar">
-    <input class="gl-search" type="text" id="gl-search" placeholder="Search by name…" oninput="renderGuestList()" autocomplete="off" autocorrect="off" autocapitalize="none">
+    <input class="gl-search" type="text" id="gl-search" placeholder="Search by name…" oninput="debouncedSearch()" autocomplete="off" autocorrect="off" autocapitalize="none">
     <button class="gl-refresh" onclick="refreshGuests()" title="Refresh">↻</button>
   </div>
   <!-- event-bar removed — replaced by dynamic event filter pills -->
@@ -1314,9 +1314,14 @@ async function loadCompGuests() {
         const key = `comp-${eventName.replace(/\s/g,'-').toLowerCase()}-${i}`;
         if (guestMap[key]) return;
         const ticketName = `${eventName} - ${g.ticket}`;
-        const matchedEvent = upcomingEvents.find(ev => 
-          (ev.title || '').toLowerCase().includes(eventName.toLowerCase().split(' ')[0].toLowerCase())
-        );
+        const matchedEvent = upcomingEvents.find(ev => {
+          const t = (ev.title || '').toLowerCase();
+          const n = eventName.toLowerCase();
+          // Match by first significant word of event name
+          const words = n.split(' ').filter(w => w.length > 3);
+          return words.some(w => t.includes(w));
+        });
+        const eventId = matchedEvent ? String(matchedEvent.id) : '';
         const guest = {
           id: key, orderNumber: key,
           name: g.name, email: (g.email || '').toLowerCase(),
@@ -1324,7 +1329,7 @@ async function loadCompGuests() {
           qty: 1, checkedInTickets: [], checkedIn: false,
           eventDay: '', _source: 'wc',
           guestOf: g.guestOf || '',
-          _eventId: matchedEvent ? String(matchedEvent.id) : '',
+          _eventId: eventId,
           orderDate: ev.date ? ev.date + 'T12:00:00' : new Date().toISOString()
         };
         guestMap[key] = guest;
@@ -1335,7 +1340,7 @@ async function loadCompGuests() {
           eventTitle: ticketName, eventDay: '',
           orderDate: guest.orderDate,
           guestOf: g.guestOf || '',
-          _eventId: matchedEvent ? String(matchedEvent.id) : '',
+          _eventId: eventId,
           tickets: [{ key: `${key}-0`, attendeeKey: '0', name: g.name, ticketName, isVip: !!g.vip, checkedIn: false }],
           source: 'wc', isComp: true, isTM: false
         };
@@ -1787,8 +1792,10 @@ function renderGuestList() {
     // WC-only comps appear under All but not under specific event pills
     if (glFilter.startsWith('event:')) {
       const evId = glFilter.replace('event:', '');
-      if (b.source === 'wc') return false; // comps only show under All
-      return b._eventId === evId;
+      // Show if eventId matches, or if it's a comp guest with no eventId but name search matches
+      if (b._eventId) return b._eventId === evId;
+      // Comp/WC guests with no eventId — only show if there's a search query matching them
+      return !!q;
     }
     if (glFilter === 'vip')        return b.tickets.some(t => t.isVip);
     if (glFilter === 'comp')       return b.isComp;
@@ -3217,8 +3224,12 @@ let wakeLockObj = null;
   }
 })();
 
-// ═══════════════════════════════════════════
-//  QR LOGIN FROM SETUP SCREEN
+// Debounced search — waits 200ms after typing stops
+let _searchTimer = null;
+function debouncedSearch() {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => renderGuestList(), 200);
+}
 // ═══════════════════════════════════════════
 let qrLoginReader = null;
 
