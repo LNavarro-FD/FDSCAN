@@ -490,7 +490,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.40</div>
+    <div class="brand-sub">Door Scanner · v5.41</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -506,9 +506,32 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.40</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.41</div>
     </div>
-    <div class="setup-title" style="margin-top:8px;">Connect to WooCommerce</div>
+
+    <!-- QR Login — preferred method -->
+    <div style="background:#1a2744;border-radius:12px;padding:18px;text-align:center;">
+      <div style="font-size:13px;font-weight:800;color:#c9a84c;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">Quickest way to log in</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.75);line-height:1.5;margin-bottom:14px;">Scan the QR code from the team guide — it logs you in automatically</div>
+      <button onclick="startQrLogin()" style="background:#e91e8c;color:#fff;border:none;border-radius:10px;padding:13px 24px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;width:100%;">📷 Scan Login QR Code</button>
+    </div>
+
+    <!-- QR Scanner for login -->
+    <div id="qr-login-wrap" style="display:none;border-radius:12px;overflow:hidden;background:#000;position:relative;">
+      <video id="qr-login-video" style="width:100%;display:block;" autoplay muted playsinline></video>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+        <div style="width:200px;height:200px;border:3px solid #e91e8c;border-radius:12px;"></div>
+      </div>
+      <button onclick="stopQrLogin()" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">✕ Cancel</button>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <div style="font-size:12px;color:var(--muted);font-weight:700;">OR ENTER MANUALLY</div>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+    </div>
+
+    <div class="setup-title">Connect to WooCommerce</div>
     <div class="field-group">
       <label>WordPress Site URL</label>
       <input type="url" id="site-url" placeholder="https://funkydorylove.co.uk" autocomplete="off" autocapitalize="none" spellcheck="false">
@@ -3146,6 +3169,55 @@ let wakeLockObj = null;
     }, 3000);
   }
 })();
+
+// ═══════════════════════════════════════════
+//  QR LOGIN FROM SETUP SCREEN
+// ═══════════════════════════════════════════
+let qrLoginReader = null;
+
+function startQrLogin() {
+  const wrap = document.getElementById('qr-login-wrap');
+  wrap.style.display = 'block';
+  const reader = new ZXing.BrowserMultiFormatReader(null, 500);
+  qrLoginReader = reader;
+  const hints = new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
+  reader.hints = hints;
+  reader.listVideoInputDevices().then(devices => {
+    const back = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
+    reader.decodeFromVideoDevice(back?.deviceId, 'qr-login-video', (result, err) => {
+      if (!result) return;
+      const text = result.getText();
+      const fdMatch = text.match(/[?&]fd=([^&]+)/);
+      if (fdMatch) {
+        try {
+          const decoded = JSON.parse(atob(fdMatch[1]));
+          if (decoded.u && decoded.k && decoded.s) {
+            stopQrLogin();
+            cfg = { siteUrl: decoded.u, wcKey: decoded.k, wcSecret: decoded.s, mecKey: decoded.m || '', demo: false };
+            saveConfig();
+            document.getElementById('site-url').value = decoded.u;
+            document.getElementById('wc-key').value = decoded.k;
+            document.getElementById('wc-secret').value = decoded.s;
+            if (decoded.m) document.getElementById('mec-key').value = decoded.m;
+            connect();
+            return;
+          }
+        } catch(e) {}
+      }
+      stopQrLogin();
+      alert('That doesn\'t look like a login QR. Please scan the QR from the team guide.');
+    });
+  }).catch(() => {
+    wrap.style.display = 'none';
+    alert('Camera not available. Please enter credentials manually.');
+  });
+}
+
+function stopQrLogin() {
+  if (qrLoginReader) { qrLoginReader.reset(); qrLoginReader = null; }
+  document.getElementById('qr-login-wrap').style.display = 'none';
+}
 
 async function requestWakeLock() {
   try {

@@ -1,7 +1,7 @@
 {
   "name": "FD Door Scanner",
-  "short_name": "FD Scanner",
-  "description": "Funky Dory door scanning app for Henley Royal Regatta",
+  "short_name": "FD Scanning",
+  "description": "Funky Dory door scanning app for live events",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#22224C",
