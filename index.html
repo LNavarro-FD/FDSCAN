@@ -28,7 +28,12 @@
   --border:#CCCCCC;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body {
+html {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+body {
   width: 100%;
   max-width: 100vw;
   height: 100%;
@@ -38,8 +43,9 @@ html, body {
   overflow-x: hidden;
   overflow-y: hidden;
   -webkit-font-smoothing: antialiased;
+  position: relative;
 }
-#app { display: flex; flex-direction: column; height: 100dvh; width: 100%; max-width: 100vw; overflow: hidden; }
+#app { display: flex; flex-direction: column; height: 100dvh; width: 100%; max-width: 100vw; overflow: hidden; position: relative; }
 .hidden { display: none !important; }
 .screen { flex: 1; display: flex; flex-direction: column; overflow: hidden; width: 100%; max-width: 100%; }
 
@@ -484,7 +490,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.33</div>
+    <div class="brand-sub">Door Scanner · v5.36</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -500,7 +506,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.33</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.36</div>
     </div>
     <div class="setup-title" style="margin-top:8px;">Connect to WooCommerce</div>
     <div class="field-group">
@@ -1119,7 +1125,14 @@ async function fetchMecAttendees(events) {
         invoiceID:   g._invoiceID,
         name:        g.name,
         email:       g.email,
-        eventTitle:  g._eventTitle,
+        eventTitle:  g._eventTitle
+          ? g._eventTitle
+            .replace(/copy of /i, '')
+            .replace(/funky dory\s*/i, '')
+            .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
+            .replace(/\(SCAN TEST[^)]*\)/i, '')
+            .replace(/\s{2,}/g, ' ').trim()
+          : '',
         eventDay:    g.eventDay,
         _eventId:    g._eventId,
         tickets:     [],
@@ -1623,10 +1636,17 @@ function clearEventFilter() {
   const activeBar = document.getElementById('gl-active-filter');
   bar.style.display = '';
   activeBar.classList.remove('show');
-  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  // Reset active bar background to navy
+  activeBar.style.background = '';
+  document.querySelectorAll('.filter-pill').forEach(p => {
+    p.classList.remove('active');
+    p.style.background = '';
+    p.style.color = '';
+    p.style.borderColor = '';
+  });
   const allPill = document.querySelector('.filter-pill');
   if (allPill) allPill.classList.add('active');
-  renderGuestList();
+  renderGuestList(); // 'all' filter already excludes past events via date check
 }
 
 function getBookingAdmittedCount(booking) {
@@ -1719,26 +1739,28 @@ function renderGuestList() {
     const ticketRows = b.tickets.map((t, i) => {
       const num = i + 1;
       return `
-      <div class="gl-attendee ${t.checkedIn?'gl-attendee-in':''}">
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:14px;font-weight:700;color:var(--text);">${
+      <div class="gl-attendee ${t.checkedIn?'gl-attendee-in':''}" style="width:100%;box-sizing:border-box;">
+        <div style="flex:1;min-width:0;overflow:hidden;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${
             t.name && t.name !== b.name
-              ? t.name                    // named attendee different from lead booker
+              ? t.name
               : num === 1
-                ? b.name                  // first ticket = lead booker
-                : `Guest ${num}`          // unnamed additional tickets
+                ? b.name
+                : `Guest ${num}`
           }</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:1px;">${num === 1 && t.name === b.name ? '' : `Ticket ${num} · `}${t.ticketName}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${num === 1 && t.name === b.name ? '' : `Ticket ${num} · `}${t.ticketName}</div>
         </div>
+        <div style="flex-shrink:0;margin-left:8px;">
         ${t.checkedIn
-          ? `<div style="display:flex;align-items:center;gap:8px;">
+          ? `<div style="display:flex;align-items:center;gap:6px;">
                <span style="font-size:12px;font-weight:800;color:var(--ok);">✓ In</span>
                <button onclick="event.stopPropagation();undoSpecific('${b.bookingId}','${t.attendeeKey}')"
-                 style="background:#fff;color:var(--err);border:2px solid var(--err);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">↩ Undo</button>
+                 style="background:#fff;color:var(--err);border:2px solid var(--err);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">↩ Undo</button>
              </div>`
           : `<button onclick="event.stopPropagation();admitSpecific('${b.bookingId}','${t.attendeeKey}')"
-               style="background:var(--ok);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">✓ Check In</button>`
+               style="background:var(--ok);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;white-space:nowrap;">✓ Check In</button>`
         }
+        </div>
       </div>`;
     }).join('');
 
@@ -1769,24 +1791,24 @@ function renderGuestList() {
       </div>
 
       <!-- EXPANDED PANEL — all actions live here -->
-      <div class="gl-attendees hidden" id="att-${b.bookingId}">
+      <div class="gl-attendees hidden" id="att-${b.bookingId}" style="width:100%;overflow:hidden;box-sizing:border-box;">
 
         <!-- Check in ALL button always at top -->
-        <div style="padding:12px 16px 8px;border-bottom:1px solid var(--border);">
+        <div style="padding:12px 16px 8px;border-bottom:1px solid var(--border);box-sizing:border-box;">
           ${allIn
             ? `<button onclick="event.stopPropagation();undoAllBooking('${b.bookingId}')"
-                style="width:100%;background:#fff;color:var(--err);border:2px solid var(--err);border-radius:10px;padding:13px;font-size:14px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">
+                style="width:100%;box-sizing:border-box;background:#fff;color:var(--err);border:2px solid var(--err);border-radius:10px;padding:13px;font-size:14px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">
                 ↩ Undo All ${total} Check-ins
               </button>`
             : `<button onclick="event.stopPropagation();admitAllBooking('${b.bookingId}')"
-                style="width:100%;background:var(--ok);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 12px rgba(0,168,90,.3);">
+                style="width:100%;box-sizing:border-box;background:var(--ok);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 12px rgba(0,168,90,.3);">
                 ✓ Check In All ${total} Ticket${total>1?'s':''}
               </button>`
           }
         </div>
 
         <!-- Individual tickets -->
-        <div style="padding:8px 0;">
+        <div style="padding:8px 0;width:100%;box-sizing:border-box;">
           ${ticketRows}
         </div>
 
@@ -2037,6 +2059,25 @@ async function lookupTicket(code) {
           } catch(e) {}
         }
 
+        // Always enrich mecGuest from bookingMap before displaying result
+        const invId   = mecGuest._invoiceID || mecGuest.orderNumber;
+        const placeNo = mecGuest._place;
+        let booking = invoiceMap[invId] || bookingMap[invId];
+        if (!booking) booking = Object.values(bookingMap).find(b => String(b.invoiceID) === String(invId));
+        if (booking) {
+          const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(placeNo));
+          if (ticket) {
+            if (!mecGuest.ticketName || mecGuest.ticketName === 'MEC Ticket') mecGuest.ticketName = ticket.ticketName;
+            mecGuest.isVip = mecGuest.isVip || ticket.isVip || /vip/i.test(ticket.ticketName || '');
+          }
+          if (!mecGuest.isVip) {
+            mecGuest.isVip = booking.tickets.some(t => t.isVip || /vip/i.test(t.ticketName || ''));
+          }
+          mecGuest._eventId = mecGuest._eventId || booking._eventId;
+        }
+        // Also check ticket name directly
+        if (!mecGuest.isVip) mecGuest.isVip = /vip/i.test(mecGuest.ticketName || '');
+
         const alreadyIn = alreadyInLocal || alreadyInDb || mecGuest.checkedIn;
 
         if (alreadyIn) {
@@ -2048,6 +2089,22 @@ async function lookupTicket(code) {
           showChips([{ label:mecGuest.ticketName, cls:'' }, { label:'DUPLICATE', cls:'hi' }]);
           updateStats();
         } else {
+          // Check event date — block tickets from past events
+          const evForDate = upcomingEvents.find(e => String(e.id) === String(mecGuest._eventId));
+          if (evForDate && evForDate.mec_data && evForDate.mec_data.end_date) {
+            const endTime = new Date(evForDate.mec_data.end_date + 'T23:59:59').getTime();
+            if (Date.now() - endTime > 24 * 60 * 60 * 1000) {
+              vibrate([300, 100, 300]);
+              setResult('err','🚫', 'Ticket Expired',
+                `This ticket was for ${evForDate.mec_data.end_date} and is no longer valid`);
+              addLog({ name:mecGuest.name, ticket:`Expired ticket — event was ${evForDate.mec_data.end_date}`, status:'err', code });
+              stats.invalid++; stats.total++;
+              updateStats();
+              isScanning = false;
+              return;
+            }
+          }
+
           // Check time restriction before admitting
           const timeBlock = checkTimeRestriction(mecGuest.ticketName, mecGuest.ticketStartTime, mecGuest._eventId);
           if (timeBlock) {
@@ -2078,14 +2135,9 @@ async function lookupTicket(code) {
             }
             if (booking) {
               const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(placeNo));
-              if (ticket) {
-                ticket.checkedIn = true;
-                if (!mecGuest.ticketName || mecGuest.ticketName === 'MEC Ticket') mecGuest.ticketName = ticket.ticketName;
-                mecGuest.isVip = mecGuest.isVip || ticket.isVip || /vip/i.test(ticket.ticketName);
-              }
+              if (ticket) ticket.checkedIn = true;
               renderGuestList(); updateGLStats();
             } else {
-              // Booking not in map yet — still mark via guestMap
               const gKey = Object.keys(guestMap).find(k => {
                 const g = guestMap[k];
                 return String(g._invoiceID) === String(invId) && String(g._attendeeKey) === String(placeNo);
