@@ -1342,6 +1342,8 @@ async function loadCompGuests() {
     console.warn('Could not load comp guests:', e.message);
   }
 }
+
+async function loadCheckinState() {
   if (cfg.demo || !cfg.siteUrl) return;
   try {
     // Single bulk call — get all checked-in attendees at once
