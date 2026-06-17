@@ -494,7 +494,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.57</div>
+    <div class="brand-sub">Door Scanner · v5.58</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -510,7 +510,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.57</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.58</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1775,18 +1775,30 @@ function getBookingAdmittedCount(booking) {
 }
 
 function renderGuestList() {
-  const q = (document.getElementById('gl-search').value || '').toLowerCase();
+  const q = (document.getElementById('gl-search').value || '').toLowerCase().trim();
+  
+  // Smart search helper — matches partial names, word order independent
+  function nameMatch(fullName, query) {
+    if (!query || !fullName) return !query;
+    const name = fullName.toLowerCase();
+    // Direct contains match
+    if (name.includes(query)) return true;
+    // Word-by-word match — all query words must appear in name
+    const qWords = query.split(/\s+/).filter(Boolean);
+    const nWords = name.split(/\s+/);
+    return qWords.every(qw => nWords.some(nw => nw.startsWith(qw)));
+  }
   const all = Object.values(bookingMap);
   const filtered = all.filter(b => {
-    const mq = !q || b.name.toLowerCase().includes(q) || 
+    const mq = !q || nameMatch(b.name, q) || 
                 String(b.bookingId).includes(q) || 
                 (b.email && b.email.includes(q)) ||
-                (b.guestOf && b.guestOf.toLowerCase().includes(q)) ||
-                b.tickets.some(t => t.name && t.name.toLowerCase().includes(q)) ||
+                (b.guestOf && nameMatch(b.guestOf, q)) ||
+                b.tickets.some(t => t.name && nameMatch(t.name, q)) ||
                 // Search individual attendees in guestMap (catches per-attendee names like Kurt)
                 Object.values(guestMap).some(g => 
                   g._bookingId === b.bookingId && 
-                  g.name && g.name.toLowerCase().includes(q)
+                  g.name && nameMatch(g.name, q)
                 );
     if (glFilter === 'none') return false; // no event selected yet
     // Apply type filters
