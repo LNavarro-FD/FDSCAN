@@ -1792,10 +1792,19 @@ function renderGuestList() {
     // WC-only comps appear under All but not under specific event pills
     if (glFilter.startsWith('event:')) {
       const evId = glFilter.replace('event:', '');
-      // Show if eventId matches, or if it's a comp guest with no eventId but name search matches
+      // MEC bookings — match by eventId
       if (b._eventId) return b._eventId === evId;
-      // Comp/WC guests with no eventId — only show if there's a search query matching them
-      return !!q;
+      // Comp/WC guests with no eventId — match by event name in title
+      if (b.isComp || b.source === 'wc') {
+        const ev = upcomingEvents.find(e => String(e.id) === evId);
+        if (!ev) return false;
+        const evTitle = (ev.title || '').toLowerCase();
+        const bTitle = (b.eventTitle || '').toLowerCase();
+        // Match if booking title contains key words from event title
+        const words = evTitle.split(' ').filter(w => w.length > 4);
+        return words.some(w => bTitle.includes(w));
+      }
+      return false;
     }
     if (glFilter === 'vip')        return b.tickets.some(t => t.isVip);
     if (glFilter === 'comp')       return b.isComp;
