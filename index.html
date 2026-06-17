@@ -1602,13 +1602,13 @@ function renderFilterPills() {
     : 24 * 60 * 60 * 1000;
 
   // Define preferred pill order
-  const ORDER = ['ladies', 'ibiza', 'brunch', 'studio'];
+  const ORDER = ['ladies', 'ibiza', 'studio', 'brunch'];
   const rank = t => {
     const tl = t.toLowerCase();
     if (/ladies/.test(tl))  return 0;
     if (/ibiza/.test(tl))   return 1;
-    if (/brunch/.test(tl))  return 2;
-    if (/studio/.test(tl))  return 3;
+    if (/studio/.test(tl))  return 2;
+    if (/brunch/.test(tl))  return 3;
     return 4;
   };
 
