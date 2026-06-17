@@ -310,10 +310,11 @@ input::placeholder { color: #999; }
 }
 /* Active event bar — shown when an event is selected */
 .gl-active-filter {
-  flex-shrink: 0; width: 100%; overflow: hidden;
+  flex-shrink: 0; width: 100%; box-sizing: border-box;
   display: none;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   padding: 8px 14px;
   background: var(--navy);
   border-bottom: 1px solid var(--border);
@@ -321,14 +322,17 @@ input::placeholder { color: #999; }
 .gl-active-filter.show { display: flex; }
 .gl-active-filter-name {
   font-size: 13px; font-weight: 800; color: #fff;
-  letter-spacing: .05em; flex: 1;
+  letter-spacing: .05em; flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .gl-active-filter-clear {
+  flex-shrink: 0;
   background: none; border: 1.5px solid rgba(255,255,255,.4);
   border-radius: 20px; padding: 4px 12px;
   font-size: 12px; font-weight: 700; color: #fff;
   cursor: pointer; font-family: inherit;
   -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
 }
 .filter-pill {
   flex-shrink: 0; background: var(--bg); border: 2px solid var(--border);
@@ -490,7 +494,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.43</div>
+    <div class="brand-sub">Door Scanner · v5.44</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -506,7 +510,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.43</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.44</div>
     </div>
 
     <!-- QR Login — preferred method -->
