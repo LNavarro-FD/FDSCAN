@@ -490,7 +490,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.36</div>
+    <div class="brand-sub">Door Scanner · v5.38</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -506,7 +506,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.36</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.38</div>
     </div>
     <div class="setup-title" style="margin-top:8px;">Connect to WooCommerce</div>
     <div class="field-group">
@@ -1223,6 +1223,7 @@ async function loadGuestList() {
           email:      g.email,
           eventTitle: g.ticketName,
           eventDay:   g.eventDay,
+          orderDate:  g.orderDate || null,
           tickets:    Array.from({length: g.qty || 1}, (_, i) => ({
             key:        `${wcKey}-${i}`,
             attendeeKey: String(i),
@@ -1686,7 +1687,21 @@ function renderGuestList() {
     if (glFilter === 'all') {
       const reportingMode = localStorage.getItem('fd_reporting_mode') === '1';
       if (reportingMode) return true;
-      if (!b._eventId) return true; // WC orders — always show
+
+      // WC orders — extract event date from ticket name (e.g. "02.07.26" or "04.07.2026")
+      if (!b._eventId || b.source === 'wc') {
+        const titleMatch = (b.eventTitle || '').match(/(\d{2})\.(\d{2})\.(\d{2,4})/);
+        if (titleMatch) {
+          const day = titleMatch[1], mon = titleMatch[2];
+          let yr = titleMatch[3];
+          if (yr.length === 2) yr = '20' + yr;
+          const eventDate = new Date(`${yr}-${mon}-${day}T23:59:59`).getTime();
+          return (Date.now() - eventDate) < 24 * 60 * 60 * 1000;
+        }
+        return true; // no date in title — show it
+      }
+
+      // MEC bookings — filter by event end date
       const ev = upcomingEvents.find(e => String(e.id) === String(b._eventId));
       if (!ev || !ev.mec_data?.end_date) return true;
       const endTime = new Date(ev.mec_data.end_date + 'T23:59:59').getTime();
