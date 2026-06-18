@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.68</title>
+<title>FD Door Scanner v5.69</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.68</div>
+    <div class="brand-sub">Door Scanner · v5.69</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.68</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.69</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1231,13 +1231,25 @@ async function loadGuestList() {
       // Skip if this WC order is already represented by an MEC booking
       if (mecInvoiceIds.has(String(g.orderNumber))) return;
 
-      // Only load WC tickets that relate to a current MEC event by keyword
-      // MEC event dates are the source of truth — ticket title dates are ignored
+      // Only load WC tickets whose event date matches a current MEC event start date
+      // This is the source of truth — MEC event date determines what's valid today
       if (upcomingEvents.length > 0) {
-        const ticketLower = (g.ticketName || '').replace(/&#8211;|&ndash;/g, '–').toLowerCase();
-        const CURRENT_KEYWORDS = ['ladies day', 'ibiza', 'white party', 'studio 54', 'brunch on the banks', 'henley royal regatta'];
-        const relatesTo = CURRENT_KEYWORDS.some(kw => ticketLower.includes(kw));
-        if (!relatesTo) return; // not an HRR ticket — skip
+        const rawTicket = (g.ticketName || '').replace(/&#8211;|&ndash;/g, '–');
+        const dateMatch = rawTicket.match(/(\d{2})\.(\d{2})\.(\d{2,4})/);
+        if (dateMatch) {
+          const day = dateMatch[1], mon = dateMatch[2];
+          let yr = dateMatch[3];
+          if (yr.length === 2) yr = '20' + yr;
+          const ticketDate = `${yr}-${mon}-${day}`; // e.g. 2026-06-18
+          // Must match a current MEC event's start date exactly
+          const matchesEvent = upcomingEvents.some(ev => ev.mec_data?.start_date === ticketDate);
+          if (!matchesEvent) return;
+        } else {
+          // No date in title — filter by HRR keyword as fallback
+          const ticketLower = rawTicket.toLowerCase();
+          const KEYWORDS = ['ladies day', 'ibiza', 'white party', 'studio 54', 'brunch on the banks', 'henley royal regatta'];
+          if (!KEYWORDS.some(kw => ticketLower.includes(kw))) return;
+        }
       }
       g._source = 'wc';
       guestMap[`wc-${g.orderNumber}`] = g;
