@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.95</title>
+<title>FD Door Scanner v5.96</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -184,7 +184,7 @@ input::placeholder { color: #999; }
 }
 .result-card.ok   { background: #E6F9EF; border-color: var(--ok); }
 .result-card.err  { background: #FDE8E8; border-color: var(--err); }
-.result-card.warn { background: #FEF3E2; border-color: var(--warn); }
+.result-card.warn { background: #FF9500; border-color: #cc7700; border-width: 4px; }
 .result-card.tm   { background: #E6F0FF; border-color: var(--tm); }
 
 .rc-icon   { font-size: 36px; line-height: 1; flex-shrink: 0; }
@@ -192,9 +192,11 @@ input::placeholder { color: #999; }
 .rc-status { font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; margin-bottom: 3px; color: var(--muted); }
 .ok   .rc-status { color: var(--ok); }
 .err  .rc-status { color: var(--err); }
-.warn .rc-status { color: var(--warn); }
+.warn .rc-status { color: #fff; font-size: 14px; letter-spacing: .22em; }
 .tm   .rc-status { color: var(--tm); }
 .rc-name   { font-size: 22px; font-weight: 900; line-height: 1.1; color: var(--text); }
+.warn .rc-name   { color: #fff; font-size: 26px; }
+.warn .rc-detail { color: rgba(255,255,255,0.85); }
 .rc-detail { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
 
 /* ── Ticketmaster confirm buttons ── */
@@ -267,10 +269,10 @@ input::placeholder { color: #999; }
 }
 @keyframes flash-ok   { 0%{opacity:.85} 100%{opacity:0} }
 @keyframes flash-err  { 0%{opacity:.85} 100%{opacity:0} }
-@keyframes flash-warn { 0%{opacity:.75} 100%{opacity:0} }
+@keyframes flash-warn { 0%{opacity:1} 60%{opacity:.9} 100%{opacity:0} }
 #scan-flash.flash-ok   { background: #00C875; animation: flash-ok  .45s ease-out forwards; }
 #scan-flash.flash-err  { background: #D0000A; animation: flash-err .45s ease-out forwards; }
-#scan-flash.flash-warn { background: #FF9500; animation: flash-warn .45s ease-out forwards; }
+#scan-flash.flash-warn { background: #FF9500; animation: flash-warn 1.2s ease-out forwards; }
 
 /* ── Guest list ── */
 #guests-screen { display: flex; flex-direction: column; overflow: hidden; width: 100%; }
@@ -500,7 +502,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.95</div>
+    <div class="brand-sub">Door Scanner · v5.96</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +518,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.95</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.96</div>
     </div>
 
     <!-- QR Login — preferred method -->
