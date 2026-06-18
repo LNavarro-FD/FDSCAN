@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.73</title>
+<title>FD Door Scanner v5.74</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.73</div>
+    <div class="brand-sub">Door Scanner · v5.74</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.73</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.74</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1218,11 +1218,41 @@ async function loadGuestList() {
     // 1. Fetch upcoming MEC events
     await fetchUpcomingEvents();
 
-    // 2. Fetch MEC attendees and WC orders in parallel
-    const [mecGuests, wcGuests] = await Promise.all([
+    // 2. Fetch MEC attendees, WC orders, and bulk checkins in parallel
+    const [mecGuests, wcGuests, bulkData] = await Promise.all([
       upcomingEvents.length > 0 ? fetchMecAttendees(upcomingEvents) : Promise.resolve({}),
-      fetchWooOrders()
+      fetchWooOrders(),
+      fetch(`${cfg.siteUrl}/wp-json/fd2/v1/bulk2`).then(r => r.ok ? r.json() : {checkins:[]}).catch(() => ({checkins:[]}))
     ]);
+
+    // 2b. Pre-populate bookingMap from bulk endpoint (catches bookings missed by occurrence API)
+    const currentEventIds = new Set(upcomingEvents.map(e => String(e.id)));
+    (bulkData.checkins || []).forEach(c => {
+      if (!currentEventIds.has(String(c.event_id))) return; // only current events
+      const bid = String(c.booking_id);
+      const inv = String(c.invoice_id);
+      if (!bookingMap[bid]) {
+        bookingMap[bid] = {
+          bookingId: bid, invoiceID: inv,
+          name: c.name || 'Guest', email: '',
+          eventTitle: '', eventDay: '',
+          _eventId: String(c.event_id),
+          tickets: [], source: 'mec', isComp: false, isTM: false
+        };
+        invoiceMap[inv] = bookingMap[bid];
+      }
+      // Add ticket/attendee if not already there
+      const existing = bookingMap[bid].tickets.find(t => String(t.attendeeKey) === String(c.place));
+      if (!existing) {
+        bookingMap[bid].tickets.push({
+          key: `${bid}-${c.place}`, attendeeKey: String(c.place),
+          name: c.name || 'Guest', ticketName: 'MEC Ticket',
+          isVip: false, checkedIn: !!c.checked_in
+        });
+      } else {
+        existing.checkedIn = !!c.checked_in;
+      }
+    });
 
     // 3. Add MEC guests first (source of truth for ticketed attendees)
     Object.entries(mecGuests).forEach(([key, g]) => {
