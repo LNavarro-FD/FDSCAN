@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.92</title>
+<title>FD Door Scanner v5.93</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.92</div>
+    <div class="brand-sub">Door Scanner · v5.93</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.92</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.93</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1439,29 +1439,33 @@ async function fetchWooOrders() {
     console.log(`WC product IDs for current events: ${productIds.join(',')}`);
   }
 
-  // Step 2: Fetch orders filtered by those product IDs
+  // Step 2: Fetch orders for each product ID separately then merge
   if (productIds.length === 0) {
     console.warn('No WC product IDs found — skipping WC order fetch');
     return [];
   }
 
-  const productParam = productIds.map(id => `product[]=${id}`).join('&');
-  let page = 1;
-  while (true) {
-    const url = `${base}/orders?status=completed,processing,on-hold&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data,date_created&${productParam}`;
-    console.log(`Fetching WC orders page ${page} (by product IDs)`);
-    const r = await fetch(url, { headers: hdrs });
-    if (!r.ok) throw new Error(`WooCommerce API ${r.status} — check credentials`);
-    const orders = await r.json();
-    if (!orders.length) break;
-    all = all.concat(orders);
-    const totalPages = parseInt(r.headers.get('X-WP-TotalPages') || r.headers.get('x-wp-totalpages') || '1');
-    const total      = parseInt(r.headers.get('X-WP-Total')      || r.headers.get('x-wp-total')      || '0');
-    console.log(`WC page ${page}: got ${orders.length} orders (total: ${total})`);
-    if (page >= totalPages || !total || all.length >= total) break;
-    page++;
-  }
-  console.log(`WC fetch complete: ${all.length} orders`);
+  const orderSets = await Promise.all(productIds.map(async pid => {
+    let page = 1, orders = [];
+    while (true) {
+      const url = `${base}/orders?status=completed,processing,on-hold&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data,date_created&product=${pid}`;
+      const r = await fetch(url, { headers: hdrs });
+      if (!r.ok) { console.warn(`WC orders for product ${pid}: ${r.status}`); break; }
+      const batch = await r.json();
+      if (!batch.length) break;
+      orders = orders.concat(batch);
+      const totalPages = parseInt(r.headers.get('X-WP-TotalPages') || '1');
+      if (page >= totalPages) break;
+      page++;
+    }
+    console.log(`WC product ${pid}: ${orders.length} orders`);
+    return orders;
+  }));
+
+  // Deduplicate by order ID
+  const seen = new Set();
+  all = orderSets.flat().filter(o => { if (seen.has(o.id)) return false; seen.add(o.id); return true; });
+  console.log(`WC fetch complete: ${all.length} orders across ${productIds.length} products`);
   return all.map(parseOrder);
 }
 
