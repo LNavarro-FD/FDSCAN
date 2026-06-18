@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.02</title>
+<title>FD Door Scanner v6.03</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -508,7 +508,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.02</div>
+    <div class="brand-sub">Door Scanner · v6.03</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -524,7 +524,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.02</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.03</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1329,9 +1329,14 @@ async function loadGuestList() {
     });
 
     console.log(`Guest list: ${Object.keys(guestMap).length} total (MEC: ${Object.keys(mecGuests).length}, WC: ${wcGuests.length})`);
-    await loadCompGuests();
+    // Render MEC/WC guests immediately — don't wait for sheet
     renderFilterPills();
     renderGuestList(); updateGLStats();
+    // Load Google Sheet in background — re-renders when done
+    loadCompGuests().then(() => {
+      renderFilterPills();
+      renderGuestList(); updateGLStats();
+    }).catch(e => console.warn('Sheet load failed:', e));
 
     // Load real check-in state from our database proxy
     // MEC's API doesn't reflect our direct writes, so we read back from fd2/v1/checkins
@@ -1355,7 +1360,14 @@ function extractSheetId(url) {
 
 async function fetchSheetTab(sheetId, tabName) {
   const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
-  const r = await fetch(url);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000); // 8s timeout per tab
+  let r;
+  try {
+    r = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!r.ok) throw new Error(`Sheet tab "${tabName}" returned ${r.status}`);
   const text = await r.text();
   const rows = parseSheetCSV(text);
