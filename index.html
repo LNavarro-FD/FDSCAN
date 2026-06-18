@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.71</title>
+<title>FD Door Scanner v5.72</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.71</div>
+    <div class="brand-sub">Door Scanner · v5.72</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.71</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.72</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1114,7 +1114,39 @@ async function fetchMecAttendees(events) {
           );
           if (!r.ok) continue;
           const data = await r.json();
-          const attendees = Array.isArray(data) ? data : (data.attendees || []);
+          let attendees = Array.isArray(data) ? data : (data.attendees || []);
+
+          // Fallback: if attendees empty but bookings exist, fetch all event bookings directly
+          if (attendees.length === 0) {
+            try {
+              const br = await fetch(
+                `${cfg.siteUrl}/wp-json/mec-utility/v1/events/${ev.id}/bookings?include_details=true&per_page=200`,
+                { headers: { 'X-MEC-KEY': cfg.mecKey } }
+              );
+              if (br.ok) {
+                const bd = await br.json();
+                const bookings = Array.isArray(bd) ? bd : (bd.bookings || bd.data || []);
+                // Expand bookings into individual attendees
+                for (const bk of bookings) {
+                  const numTickets = parseInt(bk.ticket_count || bk.tickets || 1);
+                  for (let p = 1; p <= numTickets; p++) {
+                    attendees.push({
+                      booking_id: bk.id || bk.booking_id,
+                      attendee_key: p,
+                      invoice_id: bk.invoice_id || bk.id,
+                      name: [bk.first_name, bk.last_name].filter(Boolean).join(' ') || bk.name || 'Guest',
+                      first_name: bk.first_name || '',
+                      last_name: bk.last_name || '',
+                      email: bk.email || '',
+                      ticket_name: bk.ticket_name || '',
+                      checkin_status: bk.checked_in || 0
+                    });
+                  }
+                }
+              }
+            } catch(e) { console.warn('MEC bookings fallback failed:', e.message); }
+          }
+
           for (const a of attendees) {
             const key = `mec-${a.booking_id}-${a.attendee_key}`;
             const ticketId   = String(a.ticket_id || '1');
