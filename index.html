@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.66</title>
+<title>FD Door Scanner v5.67</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.66</div>
+    <div class="brand-sub">Door Scanner · v5.67</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.66</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.67</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -649,7 +649,7 @@ input::placeholder { color: #999; }
   <!-- Find new booking button -->
   <div style="padding:10px 14px;border-top:1px solid var(--border);background:var(--white);flex-shrink:0;">
     <button onclick="openFindBooking()" style="width:100%;padding:12px;background:var(--navy);color:white;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:.03em;-webkit-tap-highlight-color:transparent;">
-      🔍 Find New Booking
+      🔍 Search by Order Number
     </button>
   </div>
   <nav class="bottom-nav">
@@ -664,11 +664,11 @@ input::placeholder { color: #999; }
 <div id="find-booking-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:24px;">
   <div style="background:white;border-radius:16px;width:100%;max-width:360px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
     <div style="background:var(--navy);color:white;padding:14px 18px;font-size:14px;font-weight:800;letter-spacing:.05em;display:flex;justify-content:space-between;align-items:center;">
-      <span>🔍 Find New Booking</span>
+      <span>🔍 Search by Order Number</span>
       <button onclick="closeFindBooking()" style="background:none;border:none;color:white;font-size:22px;cursor:pointer;padding:0;line-height:1;">×</button>
     </div>
     <div style="padding:18px;">
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Enter the invoice or booking number from the guest's confirmation email.</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Enter the WooCommerce order number from the guest's confirmation email.</p>
       <input id="find-booking-input" type="number" placeholder="e.g. 30602"
         style="width:100%;padding:13px 14px;border:2px solid var(--border);border-radius:10px;font-size:18px;font-family:inherit;outline:none;-webkit-appearance:none;"
         onkeydown="if(event.key==='Enter') fetchSingleBooking()">
@@ -3054,185 +3054,66 @@ async function fetchSingleBooking() {
   const resultEl = document.getElementById('find-booking-result');
   const btn = document.getElementById('find-booking-btn');
 
-  if (!input) { resultEl.textContent = 'Please enter a booking or order number.'; return; }
+  if (!input) { resultEl.textContent = 'Please enter an order number.'; return; }
 
   btn.textContent = 'Looking up…';
   btn.disabled = true;
-  resultEl.innerHTML = '<span style="color:var(--muted);">Checking MEC and WooCommerce…</span>';
+  resultEl.innerHTML = '<span style="color:var(--muted);">Checking WooCommerce…</span>';
 
   try {
-    // ── 1. Try MEC invoice ID via our proxy ──
-    let mecFound = false;
-    const mecR = await fetch(`${cfg.siteUrl}/wp-json/fd2/v1/checkins?invoice_id=${encodeURIComponent(input)}`);
-    if (mecR.ok) {
-      const mecData = await mecR.json();
-      if (mecData.found) {
-        await addMecBookingToList(mecData, input);
-        mecFound = true;
-      } else {
-        // Try input+1 (booking ID vs invoice ID offset)
-        const altInvoice = String(parseInt(input) + 1);
-        const mecR2 = await fetch(`${cfg.siteUrl}/wp-json/fd2/v1/checkins?invoice_id=${encodeURIComponent(altInvoice)}`);
-        if (mecR2.ok) {
-          const mecData2 = await mecR2.json();
-          if (mecData2.found) {
-            await addMecBookingToList(mecData2, altInvoice);
-            mecFound = true;
-          }
-        }
-      }
-    }
-
-    if (mecFound) {
-      btn.textContent = 'Find Booking'; btn.disabled = false;
-      return;
-    }
-
-    // ── 2. Try WooCommerce order number ──
-    resultEl.innerHTML = '<span style="color:var(--muted);">Not in MEC — checking WooCommerce…</span>';
     const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
-    const wcR = await fetch(
+    const r = await fetch(
       `${cfg.siteUrl}/wp-json/wc/v3/orders/${encodeURIComponent(input)}`,
       { headers: { 'Authorization': `Basic ${creds}` } }
     );
 
-    if (wcR.ok) {
-      const order = await wcR.json();
-      await addWcOrderToList(order);
+    if (!r.ok) {
+      resultEl.innerHTML = `<span style="color:var(--err);">Order #${input} not found.</span>`;
+      btn.textContent = 'Find Booking'; btn.disabled = false;
+      return;
+    }
+
+    const order = await r.json();
+    const name = [order.billing?.first_name, order.billing?.last_name].filter(Boolean).join(' ') || 'Guest';
+    const email = order.billing?.email || '';
+    const items = (order.line_items || []).map(i => i.name).join(', ');
+    const qty = (order.line_items || []).reduce((s, i) => s + (i.quantity || 1), 0);
+
+    resultEl.innerHTML = `
+      <div style="background:#f0f7ff;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+        <div style="font-weight:800;font-size:14px;color:var(--navy);">${name}</div>
+        ${email ? `<div style="font-size:12px;color:var(--muted);">${email}</div>` : ''}
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;">${qty} ticket${qty>1?'s':''} · Order #${input}</div>
+      </div>`;
+
+    // Add to guest list if not already there
+    const wcKey = `wc-${input}`;
+    if (!bookingMap[wcKey]) {
+      const tickets = (order.line_items || []).flatMap((item, i) =>
+        Array.from({length: item.quantity||1}, (_, j) => ({
+          key: `${wcKey}-${j+1}`, attendeeKey: String(j+1),
+          name, ticketName: item.name, isVip: /vip/i.test(item.name), checkedIn: false
+        }))
+      );
+      bookingMap[wcKey] = {
+        bookingId: wcKey, invoiceID: input, name, email,
+        eventTitle: (order.line_items?.[0]?.name || ''), eventDay: '',
+        tickets, source: 'wc', isComp: false, isTM: false
+      };
+      invoiceMap[String(input)] = bookingMap[wcKey];
+      renderGuestList(); updateGLStats();
+      resultEl.innerHTML += `<div style="color:var(--ok);font-size:12px;font-weight:700;">✓ Added to guest list</div>`;
     } else {
-      resultEl.innerHTML = '<span style="color:var(--err);">❌ Not found in MEC or WooCommerce. Check the number and try again.</span>';
+      resultEl.innerHTML += `<div style="color:var(--muted);font-size:12px;">Already in guest list</div>`;
     }
 
   } catch(e) {
-    resultEl.innerHTML = '<span style="color:var(--err);">⚠️ Connection error. Check signal and try again.</span>';
+    resultEl.innerHTML = `<span style="color:var(--err);">Error: ${e.message}</span>`;
   }
 
   btn.textContent = 'Find Booking'; btn.disabled = false;
 }
 
-async function addWcOrderToList(order) {
-  const resultEl = document.getElementById('find-booking-result');
-  const name = [order.billing?.first_name, order.billing?.last_name].filter(Boolean).join(' ') || 'Guest';
-  const orderId = String(order.id);
-  const key = `wc-${orderId}`;
-
-  if (guestMap[key]) {
-    resultEl.innerHTML = `<span style="color:var(--ok);">✓ Already loaded: <strong>${name}</strong></span>`;
-    setTimeout(closeFindBooking, 1500);
-    return;
-  }
-
-  // Find ticket product names
-  const items = order.line_items || [];
-  const ticketName = items.map(i => i.name).join(', ') || 'General Admission';
-  const qty = items.reduce((s, i) => s + (i.quantity || 1), 0);
-  const isVip  = /vip/i.test(ticketName);
-  const isComp = parseFloat(order.total || '0') === 0;
-  const isTM   = /ticketmaster/i.test(ticketName);
-
-  const g = {
-    id: orderId, orderNumber: orderId,
-    name, email: order.billing?.email || '',
-    ticketName, isVip, isComp, isTM,
-    qty, checkedInTickets: [], checkedIn: false,
-    eventDay: '', _eventId: '', _source: 'wc',
-    orderDate: order.date_created ? order.date_created.substring(0,10) : ''
-  };
-
-  guestMap[key] = g;
-  if (g.email) emailMap[g.email] = g;
-
-  // Also add to bookingMap for unified guest list display
-  bookingMap[key] = {
-    bookingId: key, invoiceID: key,
-    name, email: g.email, eventTitle: ticketName, eventDay: '',
-    tickets: Array.from({length: qty}, (_, i) => ({
-      key: `${key}-${i}`, attendeeKey: String(i),
-      name, ticketName, isVip, checkedIn: false
-    })),
-    source: 'wc', isComp, isTM
-  };
-
-  resultEl.innerHTML = `<span style="color:var(--ok);">✓ WooCommerce order #${orderId} added: <strong>${name}</strong>${isVip?' ⭐ VIP':''}${isComp?' 🎁 Comp':''} — ${qty} ticket${qty!==1?'s':''}<br><small style="color:var(--muted);">No QR code — check in manually from guest list</small></span>`;
-  renderGuestList(); updateGLStats();
-  setTimeout(closeFindBooking, 2500);
-}
-
-async function addMecBookingToList(data, invoiceId) {
-  const resultEl = document.getElementById('find-booking-result');
-  const btn = document.getElementById('find-booking-btn');
-
-  // Check if already in bookingMap
-  if (invoiceMap[invoiceId]) {
-    const existing = invoiceMap[invoiceId];
-    resultEl.innerHTML = `<span style="color:var(--ok);">✓ Already loaded: <strong>${existing.name}</strong></span>`;
-    btn.textContent = 'Find Booking'; btn.disabled = false;
-    setTimeout(closeFindBooking, 1500);
-    return;
-  }
-
-  // Fetch full booking details from MEC Utility
-  try {
-    const r = await fetch(
-      `${cfg.siteUrl}/wp-json/mec-utility/v1/bookings/${data.booking_id}`,
-      { headers: { 'X-MEC-KEY': cfg.mecKey } }
-    );
-
-    if (r.ok) {
-      const booking = await r.json();
-      // Build a booking entry and add to maps
-      const name = [booking.first_name, booking.last_name].filter(Boolean).join(' ') || 'Guest';
-      const bid  = String(data.booking_id);
-
-      bookingMap[bid] = {
-        bookingId:  bid,
-        invoiceID:  String(invoiceId),
-        name,
-        email:      booking.email || '',
-        eventTitle: booking.event_title || '',
-        eventDay:   '',
-        _eventId:   String(booking.event_id || ''),
-        tickets:    data.attendees.map(a => ({
-          key:         `${bid}-${a.place}`,
-          attendeeKey: String(a.place),
-          name,
-          ticketName:  booking.ticket_name || 'General Admission',
-          isVip:       /vip/i.test(booking.ticket_name || ''),
-          checkedIn:   a.checked_in === 1
-        })),
-        source: 'mec'
-      };
-
-      invoiceMap[String(invoiceId)] = bookingMap[bid];
-      invoiceMap[bid] = bookingMap[bid];
-
-      resultEl.innerHTML = `<span style="color:var(--ok);">✓ Added: <strong>${name}</strong> — ${data.attendees.length} ticket${data.attendees.length!==1?'s':''}</span>`;
-      renderGuestList(); updateGLStats();
-      setTimeout(closeFindBooking, 1800);
-    } else {
-      // API returned error — build from checkins data alone
-      const bid = String(data.booking_id);
-      const name = data.attendees[0]?.name || 'New Guest';
-      bookingMap[bid] = {
-        bookingId: bid, invoiceID: String(invoiceId),
-        name, email: '', eventTitle: '', eventDay: '', _eventId: '',
-        tickets: data.attendees.map(a => ({
-          key: `${bid}-${a.place}`, attendeeKey: String(a.place),
-          name, ticketName: 'General Admission', isVip: false,
-          checkedIn: a.checked_in === 1
-        })),
-        source: 'mec'
-      };
-      invoiceMap[String(invoiceId)] = bookingMap[bid];
-      resultEl.innerHTML = `<span style="color:var(--ok);">✓ Added: <strong>${name}</strong></span>`;
-      renderGuestList(); updateGLStats();
-      setTimeout(closeFindBooking, 1800);
-    }
-  } catch(e) {
-    resultEl.innerHTML = '<span style="color:var(--err);">⚠️ Could not fetch booking details.</span>';
-  }
-  btn.textContent = 'Find Booking'; btn.disabled = false;
-}
 // ═══════════════════════════════════════════
 let wakeLockObj = null;
 // iOS Add to Home Screen prompt
