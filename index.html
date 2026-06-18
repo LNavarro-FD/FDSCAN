@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.94</title>
+<title>FD Door Scanner v5.95</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.94</div>
+    <div class="brand-sub">Door Scanner · v5.95</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.94</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.95</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -2940,21 +2940,22 @@ function showTab(tab) {
 
   const video = document.getElementById('qr-video');
   if (tab === 'scan') {
-    // Restart scanner if camera was released
-    if (video && (!video.srcObject || video.srcObject.getTracks().every(t => t.readyState === 'ended'))) {
-      if (scanner && scanner._onResult) {
-        try {
-          scanner.decodeFromVideoDevice(scanner._deviceId || null, 'qr-video', scanner._onResult);
-        } catch(e) { console.warn('Scanner restart failed:', e.message); }
-      }
-    } else if (video && video.paused) {
+    if (!scanner) {
+      // Scanner never initialised — init now
+      initCamera();
+    } else if (!video?.srcObject || video.srcObject.getTracks().every(t => t.readyState === 'ended')) {
+      // Camera stream was released — restart it
+      try {
+        scanner.decodeFromVideoDevice(scanner._deviceId || null, 'qr-video', scanner._onResult);
+      } catch(e) { console.warn('Scanner restart failed:', e.message); initCamera(); }
+    } else if (video?.paused) {
       video.play().catch(()=>{});
     }
   } else {
     // Stop ZXing decode loop
     if (scanner) { try { scanner.stopContinuousDecode(); } catch(e) {} }
-    // Fully release camera stream — stops the iOS camera indicator and saves battery
-    if (video && video.srcObject) {
+    // Fully release camera stream — stops iOS camera indicator and saves battery
+    if (video?.srcObject) {
       video.srcObject.getTracks().forEach(t => t.stop());
       video.srcObject = null;
     }
