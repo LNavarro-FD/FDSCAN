@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.75</title>
+<title>FD Door Scanner v5.76</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.75</div>
+    <div class="brand-sub">Door Scanner · v5.76</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.75</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.76</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1939,10 +1939,10 @@ function renderGuestList() {
     }).join('');
 
     const statusText = allIn
-      ? `<span style="font-size:12px;font-weight:800;color:var(--ok);">✓ ALL IN</span>`
+      ? `<span style="font-size:12px;font-weight:800;color:var(--ok);">✓ All ${total} in</span>`
       : admitted > 0
-        ? `<span style="font-size:12px;font-weight:700;color:var(--warn);">${admitted}/${total} in</span>`
-        : `<span style="font-size:12px;font-weight:700;color:var(--muted);">0/${total} in</span>`;
+        ? `<span style="font-size:12px;font-weight:700;color:var(--warn);">${admitted} of ${total} checked in</span>`
+        : `<span style="font-size:12px;font-weight:700;color:var(--muted);">${total} ticket${total!==1?'s':''}</span>`;
 
     // Name row — NO tap action. Expand is chevron button only.
     // Action buttons are ONLY inside expanded panel.
@@ -1965,7 +1965,9 @@ function renderGuestList() {
       </div>
 
       <!-- EXPANDED PANEL — all actions live here -->
-      <div class="gl-attendees hidden" id="att-${b.bookingId}" style="width:100%;overflow:hidden;box-sizing:border-box;">
+      <div class="gl-attendees ${
+        q && !nameMatch(b.name, q) && b.tickets.some(t => t.name && nameMatch(t.name, q)) ? '' : 'hidden'
+      }" id="att-${b.bookingId}" style="width:100%;overflow:hidden;box-sizing:border-box;">
 
         <!-- Check in ALL button always at top -->
         <div style="padding:12px 16px 8px;border-bottom:1px solid var(--border);box-sizing:border-box;">
