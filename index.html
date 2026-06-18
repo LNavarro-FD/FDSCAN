@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.63</title>
+<title>FD Door Scanner v5.64</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -494,7 +494,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.63</div>
+    <div class="brand-sub">Door Scanner · v5.64</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -510,7 +510,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.63</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.64</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1224,7 +1224,8 @@ async function loadGuestList() {
       // Skip if this WC order is already represented by an MEC booking
       if (mecInvoiceIds.has(String(g.orderNumber))) return;
 
-      // Universal rule: only show WC orders whose ticket event date matches a current MEC event
+      // Only filter out WC tickets whose event date has already passed
+      // Future tickets always load regardless of MEC event dates
       if (upcomingEvents.length > 0) {
         const now = Date.now();
         const rawTicket = (g.ticketName || '').replace(/&#8211;|&ndash;/g, '–');
@@ -1233,16 +1234,8 @@ async function loadGuestList() {
           const day = dateMatch[1], mon = dateMatch[2];
           let yr = dateMatch[3];
           if (yr.length === 2) yr = '20' + yr;
-          const ticketEventDate = `${yr}-${mon}-${day}`;
-          // Only load if this ticket's event date matches an active MEC event's start_date
-          const matchesEvent = upcomingEvents.some(ev => {
-            const evStart = ev.mec_data?.start_date; // e.g. "2026-07-02"
-            const evEnd   = ev.mec_data?.end_date;
-            if (!evStart) return false;
-            // Match if ticket date is within event's start-end range
-            return ticketEventDate >= evStart && ticketEventDate <= (evEnd || evStart);
-          });
-          if (!matchesEvent) return; // no matching event — skip
+          const eventDate = new Date(`${yr}-${mon}-${day}T23:59:59`).getTime();
+          if ((now - eventDate) > 24 * 60 * 60 * 1000) return; // past event date — skip
         }
       }
       g._source = 'wc';
