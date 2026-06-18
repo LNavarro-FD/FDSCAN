@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.91</title>
+<title>FD Door Scanner v5.92</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.91</div>
+    <div class="brand-sub">Door Scanner · v5.92</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.91</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.92</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1417,35 +1417,39 @@ async function loadCheckinState() {
 }
 
 async function fetchWooOrders() {
-  const base  = `${cfg.siteUrl}/wp-json/wc/v3/orders`;
+  const base  = `${cfg.siteUrl}/wp-json/wc/v3`;
   const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
   const hdrs  = { 'Authorization': `Basic ${creds}` };
-  let page = 1, all = [];
+  let all = [];
 
-  // Build date filter from upcoming MEC event dates
-  // Orders for an event can be placed up to a year in advance
-  // so we fetch from 1 year before the earliest event to the latest event date
-  let dateParams = '';
+  // Step 1: Dynamically look up WC product IDs for current MEC events
+  const SKIP = ['funky','dory','during','henley','royal','regatta','meets','and','the','party','white'];
+  let productIds = [];
   if (upcomingEvents.length > 0) {
-    const eventDates = upcomingEvents
-      .map(e => e.mec_data ? e.mec_data.start_date : null)
-      .filter(Boolean)
-      .sort();
-    if (eventDates.length > 0) {
-      const earliest = new Date(eventDates[0]);
-      const latest   = new Date(eventDates[eventDates.length - 1]);
-      earliest.setDate(earliest.getDate() - 30); // 30 days before earliest event
-      latest.setDate(latest.getDate() + 1); // day after latest event
-      // WC REST API needs ISO 8601 datetime format
-      const fmt = d => d.toISOString().replace('.000Z', '');
-      dateParams = `&after=${fmt(earliest)}&before=${fmt(latest)}`;
-      console.log(`WC date filter: ${fmt(earliest)} to ${fmt(latest)}`);
-    }
+    const productSearches = await Promise.all(upcomingEvents.map(async ev => {
+      const word = (ev.title||'').split(/\W+/).find(w => w.length > 3 && !SKIP.includes(w.toLowerCase()));
+      if (!word) return [];
+      try {
+        const r = await fetch(`${base}/products?search=${encodeURIComponent(word)}&per_page=20&status=publish&_fields=id,name`, {headers: hdrs});
+        if (!r.ok) return [];
+        return await r.json();
+      } catch(e) { return []; }
+    }));
+    productIds = [...new Set(productSearches.flat().map(p => p.id))];
+    console.log(`WC product IDs for current events: ${productIds.join(',')}`);
   }
 
+  // Step 2: Fetch orders filtered by those product IDs
+  if (productIds.length === 0) {
+    console.warn('No WC product IDs found — skipping WC order fetch');
+    return [];
+  }
+
+  const productParam = productIds.map(id => `product[]=${id}`).join('&');
+  let page = 1;
   while (true) {
-    const url = `${base}?status=completed,processing,on-hold&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data,date_created${dateParams}`;
-    console.log(`Fetching WC orders page ${page}`);
+    const url = `${base}/orders?status=completed,processing,on-hold&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data,date_created&${productParam}`;
+    console.log(`Fetching WC orders page ${page} (by product IDs)`);
     const r = await fetch(url, { headers: hdrs });
     if (!r.ok) throw new Error(`WooCommerce API ${r.status} — check credentials`);
     const orders = await r.json();
@@ -1454,7 +1458,7 @@ async function fetchWooOrders() {
     const totalPages = parseInt(r.headers.get('X-WP-TotalPages') || r.headers.get('x-wp-totalpages') || '1');
     const total      = parseInt(r.headers.get('X-WP-Total')      || r.headers.get('x-wp-total')      || '0');
     console.log(`WC page ${page}: got ${orders.length} orders (total: ${total})`);
-    if (page >= totalPages || !total || all.length >= total || page >= 3) break;
+    if (page >= totalPages || !total || all.length >= total) break;
     page++;
   }
   console.log(`WC fetch complete: ${all.length} orders`);
