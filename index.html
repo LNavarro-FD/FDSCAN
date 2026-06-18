@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.93</title>
+<title>FD Door Scanner v5.94</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.93</div>
+    <div class="brand-sub">Door Scanner · v5.94</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.93</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.94</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -2146,29 +2146,31 @@ function initCamera() {
     return;
   }
   const videoEl = document.getElementById('qr-video');
-  // Use timeBetweenDecodingAttempts to throttle — reduces CPU usage significantly
-  const codeReader = new ZXing.BrowserMultiFormatReader(null, 500); // 500ms between attempts
+  const codeReader = new ZXing.BrowserMultiFormatReader(null, 500);
   scanner = codeReader;
+
+  const hints = new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
+  codeReader.hints = hints;
+
+  const onDecode = (result, err) => {
+    if (result) {
+      if (result.getBarcodeFormat && result.getBarcodeFormat() !== ZXing.BarcodeFormat.QR_CODE) return;
+      const code = result.getText();
+      const now = Date.now();
+      if (isScanning) return;
+      if (code === lastCode && now - lastAt < 8000) return;
+      lastCode = code; lastAt = now;
+      lookupTicket(code);
+    }
+  };
+  // Store callback and a restart function for when switching back to scan tab
+  scanner._onResult = onDecode;
 
   codeReader.listVideoInputDevices().then(devices => {
     const backCam = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
-    const deviceId = backCam ? backCam.deviceId : undefined;
-
-    const hints = new Map();
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
-    codeReader.hints = hints;
-
-  codeReader.decodeFromVideoDevice(deviceId, 'qr-video', (result, err) => {
-      if (result) {
-        if (result.getBarcodeFormat && result.getBarcodeFormat() !== ZXing.BarcodeFormat.QR_CODE) return;
-        const code = result.getText();
-        const now = Date.now();
-        if (isScanning) return;
-        if (code === lastCode && now - lastAt < 8000) return;
-        lastCode = code; lastAt = now;
-        lookupTicket(code);
-      }
-    });
+    scanner._deviceId = backCam ? backCam.deviceId : undefined;
+    codeReader.decodeFromVideoDevice(scanner._deviceId, 'qr-video', onDecode);
   }).catch(e => console.warn('Camera error:', e));
 }
 
@@ -2935,14 +2937,29 @@ function showTab(tab) {
   document.getElementById(tab+'-screen').classList.remove('hidden');
   if (tab==='stats') { renderLogs(); renderEventCards(); }
   if (tab==='settings') renderSettingsQR();
-  // Stop ZXing decode loop when not on scan tab — it hammers CPU even with video paused
+
   const video = document.getElementById('qr-video');
   if (tab === 'scan') {
-    if (video && video.paused) video.play().catch(()=>{});
+    // Restart scanner if camera was released
+    if (video && (!video.srcObject || video.srcObject.getTracks().every(t => t.readyState === 'ended'))) {
+      if (scanner && scanner._onResult) {
+        try {
+          scanner.decodeFromVideoDevice(scanner._deviceId || null, 'qr-video', scanner._onResult);
+        } catch(e) { console.warn('Scanner restart failed:', e.message); }
+      }
+    } else if (video && video.paused) {
+      video.play().catch(()=>{});
+    }
   } else {
+    // Stop ZXing decode loop
     if (scanner) { try { scanner.stopContinuousDecode(); } catch(e) {} }
-    if (video && !video.paused) video.pause();
+    // Fully release camera stream — stops the iOS camera indicator and saves battery
+    if (video && video.srcObject) {
+      video.srcObject.getTracks().forEach(t => t.stop());
+      video.srcObject = null;
+    }
   }
+
   // Update nav active state
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const navMap = {scan:0, guests:1, stats:2, settings:3};
