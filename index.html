@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.79</title>
+<title>FD Door Scanner v5.80</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.79</div>
+    <div class="brand-sub">Door Scanner · v5.80</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.79</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.80</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -627,7 +627,10 @@ input::placeholder { color: #999; }
 <!-- GUEST LIST TAB -->
 <div id="guests-screen" class="screen hidden">
   <div class="gl-toolbar">
-    <input class="gl-search" type="text" id="gl-search" placeholder="Search by name…" oninput="debouncedSearch()" autocomplete="off" autocorrect="off" autocapitalize="none">
+    <div style="position:relative;flex:1;">
+      <input class="gl-search" type="text" id="gl-search" placeholder="Search by name…" oninput="debouncedSearch()" autocomplete="off" autocorrect="off" autocapitalize="none" style="width:100%;padding-right:36px;box-sizing:border-box;">
+      <button id="gl-search-clear" onclick="document.getElementById('gl-search').value='';debouncedSearch();" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;padding:0;line-height:1;-webkit-tap-highlight-color:transparent;">✕</button>
+    </div>
     <button class="gl-refresh" onclick="refreshGuests()" title="Refresh">↻</button>
   </div>
   <!-- event-bar removed — replaced by dynamic event filter pills -->
@@ -3193,6 +3196,9 @@ let wakeLockObj = null;
 // Debounced search — waits 200ms after typing stops
 let _searchTimer = null;
 function debouncedSearch() {
+  const inp = document.getElementById('gl-search');
+  const clr = document.getElementById('gl-search-clear');
+  if (clr) clr.style.display = inp.value ? 'block' : 'none';
   clearTimeout(_searchTimer);
   _searchTimer = setTimeout(() => renderGuestList(), 200);
 }
