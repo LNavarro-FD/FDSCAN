@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.74</title>
+<title>FD Door Scanner v5.75</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.74</div>
+    <div class="brand-sub">Door Scanner · v5.75</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.74</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.75</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1227,30 +1227,40 @@ async function loadGuestList() {
 
     // 2b. Pre-populate bookingMap from bulk endpoint (catches bookings missed by occurrence API)
     const currentEventIds = new Set(upcomingEvents.map(e => String(e.id)));
+    // Group bulk checkins by booking_id first
+    const bulkByBooking = {};
     (bulkData.checkins || []).forEach(c => {
-      if (!currentEventIds.has(String(c.event_id))) return; // only current events
+      if (!currentEventIds.has(String(c.event_id))) return;
       const bid = String(c.booking_id);
-      const inv = String(c.invoice_id);
+      if (!bulkByBooking[bid]) bulkByBooking[bid] = { inv: String(c.invoice_id), eventId: String(c.event_id), attendees: [] };
+      bulkByBooking[bid].attendees.push(c);
+    });
+    Object.entries(bulkByBooking).forEach(([bid, data]) => {
       if (!bookingMap[bid]) {
+        // Use lead name (first attendee)
+        const leadName = data.attendees[0]?.name || 'Guest';
         bookingMap[bid] = {
-          bookingId: bid, invoiceID: inv,
-          name: c.name || 'Guest', email: '',
+          bookingId: bid, invoiceID: data.inv,
+          name: leadName, email: '',
           eventTitle: '', eventDay: '',
-          _eventId: String(c.event_id),
+          _eventId: data.eventId,
           tickets: [], source: 'mec', isComp: false, isTM: false
         };
-        invoiceMap[inv] = bookingMap[bid];
-      }
-      // Add ticket/attendee if not already there
-      const existing = bookingMap[bid].tickets.find(t => String(t.attendeeKey) === String(c.place));
-      if (!existing) {
-        bookingMap[bid].tickets.push({
-          key: `${bid}-${c.place}`, attendeeKey: String(c.place),
-          name: c.name || 'Guest', ticketName: 'MEC Ticket',
-          isVip: false, checkedIn: !!c.checked_in
+        invoiceMap[data.inv] = bookingMap[bid];
+        // Add all attendees using sequential index as key
+        data.attendees.forEach((a, idx) => {
+          bookingMap[bid].tickets.push({
+            key: `${bid}-${idx+1}`, attendeeKey: String(idx+1),
+            name: a.name || 'Guest', ticketName: 'MEC Ticket',
+            isVip: false, checkedIn: !!a.checked_in
+          });
         });
       } else {
-        existing.checkedIn = !!c.checked_in;
+        // Booking already exists — just sync checkedIn state from bulk
+        data.attendees.forEach((a, idx) => {
+          const t = bookingMap[bid].tickets[idx];
+          if (t && a.checked_in) t.checkedIn = true;
+        });
       }
     });
 
@@ -1829,6 +1839,7 @@ function renderGuestList() {
                   g._bookingId === b.bookingId && 
                   g.name && nameMatch(g.name, q)
                 );
+    if (!mq) return false; // search query didn't match
     if (glFilter === 'none') return false; // no event selected yet
     // Apply type filters
     // Dynamic event filter — show only MEC attendees for this specific event
