@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.00</title>
+<title>FD Door Scanner v6.01</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -508,7 +508,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.00</div>
+    <div class="brand-sub">Door Scanner · v6.01</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -524,7 +524,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.00</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.01</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -649,7 +649,7 @@ input::placeholder { color: #999; }
   <div class="gl-filter-bar" id="gl-filter-bar">
     <button class="filter-pill" onclick="setFilter('comp',this)">🎁 Comp</button>
     <!-- Event pills injected dynamically by renderFilterPills() -->
-    <button class="filter-pill" onclick="setFilter('tm',this)">🎫 Ticketmaster</button>
+    <button class="filter-pill" onclick="setFilter('tm',this)">🎟 Remenham Farm</button>
     <button class="filter-pill" onclick="setFilter('in',this)">✓ In</button>
     <button class="filter-pill" onclick="setFilter('pending',this)">👻 No Show</button>
   </div>
@@ -2002,7 +2002,7 @@ function renderGuestList() {
     }
     if (glFilter === 'vip')        return b.tickets.some(t => t.isVip);
     if (glFilter === 'comp')       return b.isComp;
-    if (glFilter === 'tm')         return b.isTM;
+    if (glFilter === 'tm')         return b.isTM || b.source === 'remenham' || (b.bookingId||'').startsWith('FD-RF-') || (b.bookingId||'').startsWith('sheet-rem-');
     if (glFilter === 'in')         return getBookingAdmittedCount(b) > 0;
     if (glFilter === 'pending')    return getBookingAdmittedCount(b) < b.tickets.length;
 
