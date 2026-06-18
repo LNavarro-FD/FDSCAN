@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.89</title>
+<title>FD Door Scanner v5.90</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.89</div>
+    <div class="brand-sub">Door Scanner · v5.90</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.89</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.90</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1222,9 +1222,8 @@ async function loadGuestList() {
     await fetchUpcomingEvents();
 
     // 2. Fetch MEC attendees, WC orders, and bulk checkins in parallel
-    const [mecGuests, wcGuests, bulkData] = await Promise.all([
+    const [mecGuests, bulkData] = await Promise.all([
       upcomingEvents.length > 0 ? fetchMecAttendees(upcomingEvents) : Promise.resolve({}),
-      fetchWooOrders(),
       fetch(`${cfg.siteUrl}/wp-json/fd2/v1/bulk2`).then(r => r.ok ? r.json() : {checkins:[]}).catch(() => ({checkins:[]}))
     ]);
 
@@ -1283,53 +1282,7 @@ async function loadGuestList() {
       if (ticket && g.name) ticket.name = g.name;
     });
 
-    // 4. Add WC guests — only those NOT already covered by MEC (comps, TM, Remenham Farm)
-    // A WC order is "already in MEC" if its order number matches an MEC invoice ID
-    const mecInvoiceIds = new Set(Object.values(bookingMap).map(b => String(b.invoiceID)));
-    wcGuests.forEach(g => {
-      // Skip if this WC order is already represented by an MEC booking
-      if (mecInvoiceIds.has(String(g.orderNumber))) return;
-
-      // Only load WC tickets that relate to a current MEC event by keyword
-      if (upcomingEvents.length > 0) {
-        const ticketLower = (g.ticketName || '').replace(/&#8211;|&ndash;/g, '–').toLowerCase();
-        const KEYWORDS = ['ladies day', 'ibiza', 'white party', 'studio 54', 'brunch on the banks', 'henley royal regatta'];
-        if (!KEYWORDS.some(kw => ticketLower.includes(kw))) return;
-      }
-      g._source = 'wc';
-      guestMap[`wc-${g.orderNumber}`] = g;
-      if (g.email && !emailMap[g.email]) emailMap[g.email] = g;
-      if (g.id) idMap[g.id] = g;
-
-      // Add to bookingMap
-      const wcKey = `wc-${g.orderNumber}`;
-      if (!bookingMap[wcKey]) {
-        bookingMap[wcKey] = {
-          bookingId:  wcKey,
-          invoiceID:  g.orderNumber,
-          name:       g.name,
-          email:      g.email,
-          eventTitle: g.ticketName,
-          eventDay:   g.eventDay,
-          orderDate:  g.orderDate || null,
-          tickets:    Array.from({length: g.qty || 1}, (_, i) => ({
-            key:        `${wcKey}-${i+1}`,
-            attendeeKey: String(i + 1),
-            name:       g.name,
-            ticketName: g.ticketName,
-            isVip:      g.isVip,
-            checkedIn:  g.checkedInTickets.includes(String(i)) || g.checkedInTickets.includes(String(i+1))
-          })),
-          source: 'wc',
-          isComp: g.isComp,
-          isTM:   g.isTM
-        };
-        // Add to invoiceMap so duplicate scan detection works
-        if (g.orderNumber) invoiceMap[String(g.orderNumber)] = bookingMap[wcKey];
-      }
-    });
-
-    console.log(`Guest list: ${Object.keys(guestMap).length} total (MEC: ${Object.keys(mecGuests).length}, WC comps: ${wcGuests.length})`);
+    console.log(`Guest list: ${Object.keys(guestMap).length} total (MEC: ${Object.keys(mecGuests).length})`);
     await loadCompGuests();
     renderFilterPills();
     renderGuestList(); updateGLStats();
