@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.83</title>
+<title>FD Door Scanner v5.84</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.83</div>
+    <div class="brand-sub">Door Scanner · v5.84</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.83</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.84</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -3203,17 +3203,8 @@ async function fetchSingleBooking() {
       return;
     }
 
-    // No MEC booking — WC-only order, add to guest list
+    // No MEC booking — WC-only order, add to guest list (searchable, no pill needed)
     const wcKey = `wc-${input}`;
-
-    // Match to an event by ticket name keywords
-    const ticketTitle = (order.line_items?.[0]?.name || '').toLowerCase();
-    const matchedEv = upcomingEvents.find(ev => {
-      const evTitle = (ev.title || '').toLowerCase();
-      const SKIP = ['funky','dory','during','henley','royal','regatta','meets','general','admission'];
-      const evWords = evTitle.split(/\W+/).filter(w => w.length > 3 && !SKIP.includes(w));
-      return evWords.some(w => ticketTitle.includes(w));
-    });
 
     if (!bookingMap[wcKey]) {
       const tickets = (order.line_items || []).flatMap((item, i) =>
@@ -3225,21 +3216,20 @@ async function fetchSingleBooking() {
       bookingMap[wcKey] = {
         bookingId: wcKey, invoiceID: input, name, email,
         eventTitle: (order.line_items?.[0]?.name || ''), eventDay: '',
-        _eventId: matchedEv ? String(matchedEv.id) : '',
-        tickets, source: 'wc', isComp: false, isTM: false
+        _eventId: '', tickets, source: 'wc', isComp: false, isTM: false
       };
       invoiceMap[String(input)] = bookingMap[wcKey];
       renderGuestList(); updateGLStats();
-      resultEl.innerHTML += `<div style="color:var(--ok);font-size:12px;font-weight:700;margin-bottom:8px;">✓ Added to guest list${matchedEv ? ' · ' + matchedEv.title.split(' ').slice(2,4).join(' ') : ''}</div>
-        <button onclick="viewBookingInList('${wcKey}');"
+      resultEl.innerHTML += `<div style="color:var(--ok);font-size:12px;font-weight:700;margin-bottom:8px;">✓ Added — search by name to check in</div>
+        <button onclick="closeFindBooking();document.getElementById('gl-search').value='${name.split(' ')[0]}';debouncedSearch();"
           style="width:100%;padding:12px;background:var(--navy);color:white;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">
-          👁 View in Guest List
+          🔍 Find ${name.split(' ')[0]} in Guest List
         </button>`;
     } else {
       resultEl.innerHTML += `<div style="color:var(--muted);font-size:12px;margin-bottom:8px;">Already in guest list</div>
-        <button onclick="viewBookingInList('${wcKey}');"
+        <button onclick="closeFindBooking();document.getElementById('gl-search').value='${name.split(' ')[0]}';debouncedSearch();"
           style="width:100%;padding:12px;background:var(--navy);color:white;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">
-          👁 View in Guest List
+          🔍 Find ${name.split(' ')[0]} in Guest List
         </button>`;
     }
 
