@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.0</title>
+<title>FD Door Scanner v5.61</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -494,7 +494,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.60</div>
+    <div class="brand-sub">Door Scanner · v5.61</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -510,7 +510,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.60</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.61</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1656,7 +1656,9 @@ function renderFilterPills() {
     if (isHistoric) pill.style.opacity = '0.6';
     pill.dataset.eventColour = col.bg;
     pill.onclick = function() { setFilter('event:' + ev.id, this); };
-    allBtn ? allBtn.insertAdjacentElement('afterend', pill) : bar.appendChild(pill);
+    // Insert event pills after Comp but before Ticketmaster — in sorted order
+    const tmBtn = bar.querySelector('[onclick*="setFilter(\'tm\'"]');
+    tmBtn ? bar.insertBefore(pill, tmBtn) : bar.appendChild(pill);
 
     // Auto-select first event pill if nothing selected yet
     if (!bar.querySelector('.filter-pill.active')) {
