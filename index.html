@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.81</title>
+<title>FD Door Scanner v5.82</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.81</div>
+    <div class="brand-sub">Door Scanner · v5.82</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.81</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.82</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -3109,6 +3109,39 @@ function openFindBooking() {
   setTimeout(() => document.getElementById('find-booking-input').focus(), 100);
 }
 
+function viewBookingInList(bookingId) {
+  closeFindBooking();
+  // Clear search
+  const inp = document.getElementById('gl-search');
+  if (inp) { inp.value = ''; const clr = document.getElementById('gl-search-clear'); if (clr) clr.style.display = 'none'; }
+  // Find the booking and switch to its event pill
+  const b = bookingMap[bookingId];
+  if (b && b._eventId) {
+    const newFilter = `event:${b._eventId}`;
+    if (glFilter !== newFilter) { glFilter = newFilter; }
+  } else if (b && b.source === 'wc') {
+    // WC order — find which event pill it belongs to and switch
+    const matchedEv = upcomingEvents.find(ev => {
+      const bTitle = (b.eventTitle || '').toLowerCase();
+      const evTitle = (ev.title || '').toLowerCase();
+      const SKIP = ['funky','dory','during','henley','royal','regatta','meets'];
+      const evWords = evTitle.split(/\W+/).filter(w => w.length > 3 && !SKIP.includes(w));
+      return evWords.some(w => bTitle.includes(w));
+    });
+    if (matchedEv) glFilter = `event:${matchedEv.id}`;
+  }
+  renderGuestList();
+  // Scroll to booking after render
+  setTimeout(() => {
+    const el = document.getElementById(`bk-${bookingId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.outline = '3px solid var(--pink)';
+      setTimeout(() => el.style.outline = '', 2000);
+    }
+  }, 300);
+}
+
 function closeFindBooking() {
   document.getElementById('find-booking-modal').style.display = 'none';
 }
@@ -3167,13 +3200,13 @@ async function fetchSingleBooking() {
       invoiceMap[String(input)] = bookingMap[wcKey];
       renderGuestList(); updateGLStats();
       resultEl.innerHTML += `<div style="color:var(--ok);font-size:12px;font-weight:700;margin-bottom:8px;">✓ Added to guest list</div>
-        <button onclick="closeFindBooking();setTimeout(()=>{const el=document.getElementById('bk-${wcKey}');if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.style.outline='3px solid var(--pink)';setTimeout(()=>el.style.outline='',1500);}},200);"
+        <button onclick="viewBookingInList('${wcKey}');"
           style="width:100%;padding:12px;background:var(--navy);color:white;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">
           👁 View in Guest List
         </button>`;
     } else {
       resultEl.innerHTML += `<div style="color:var(--muted);font-size:12px;margin-bottom:8px;">Already in guest list</div>
-        <button onclick="closeFindBooking();setTimeout(()=>{const el=document.getElementById('bk-${wcKey}');if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.style.outline='3px solid var(--pink)';setTimeout(()=>el.style.outline='',1500);}},200);"
+        <button onclick="viewBookingInList('${wcKey}');"
           style="width:100%;padding:12px;background:var(--navy);color:white;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">
           👁 View in Guest List
         </button>`;
