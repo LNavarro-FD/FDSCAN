@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.70</title>
+<title>FD Door Scanner v5.71</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.70</div>
+    <div class="brand-sub">Door Scanner · v5.71</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.70</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.71</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -2257,11 +2257,22 @@ async function lookupTicket(code) {
               if (ticket) ticket.checkedIn = true;
               renderGuestList(); updateGLStats();
             } else {
-              const gKey = Object.keys(guestMap).find(k => {
-                const g = guestMap[k];
-                return String(g._invoiceID) === String(invId) && String(g._attendeeKey) === String(placeNo);
-              });
-              if (gKey) guestMap[gKey].checkedIn = true;
+              // Booking wasn't in initial load — add it now so duplicate detection works
+              const newTicket = {
+                key: `${invId}-${placeNo}`, attendeeKey: String(placeNo),
+                name: mecGuest.name, ticketName: mecGuest.ticketName || 'General Admission',
+                isVip: mecGuest.isVip, checkedIn: true
+              };
+              const newBooking = {
+                bookingId: String(invId), invoiceID: String(invId),
+                name: mecGuest.name, email: mecGuest.email || '',
+                eventTitle: mecGuest.ticketName || '', eventDay: '',
+                _eventId: String(mecGuest._eventId || ''),
+                tickets: [newTicket], source: 'mec', isComp: false, isTM: false
+              };
+              bookingMap[String(invId)] = newBooking;
+              invoiceMap[String(invId)] = newBooking;
+              renderGuestList(); updateGLStats();
             }
             const now = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
             const detail = [
