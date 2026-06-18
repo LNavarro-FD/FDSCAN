@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.99</title>
+<title>FD Door Scanner v6.00</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -508,7 +508,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.99</div>
+    <div class="brand-sub">Door Scanner · v6.00</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -524,7 +524,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.99</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.00</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -850,7 +850,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════
-let cfg      = { siteUrl:'', wcKey:'', wcSecret:'', mecKey:'', sheetUrl:'', demo:false };
+let cfg      = { siteUrl:'', wcKey:'', wcSecret:'', mecKey:'', sheetUrl:'https://docs.google.com/spreadsheets/d/16kQx7cUd0Ie52iPes0w9H1__Q50sGU6m/edit', demo:false };
 let sheetData  = { comps:[], djs:[], staff:[], remenham:[] }; // Google Sheet cache
 let guestMap   = {};  // orderNumber/mec-key → guest (individual)
 let bookingMap = {};  // bookingId → { name, email, tickets:[], source }
