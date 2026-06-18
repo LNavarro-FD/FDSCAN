@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.84</title>
+<title>FD Door Scanner v5.85</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -500,7 +500,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.84</div>
+    <div class="brand-sub">Door Scanner · v5.85</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -516,7 +516,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.84</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.85</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -3117,18 +3117,11 @@ function viewBookingInList(bookingId) {
   // Find the booking and switch to its event pill
   const b = bookingMap[bookingId];
   if (b && b._eventId) {
-    const newFilter = `event:${b._eventId}`;
-    if (glFilter !== newFilter) { glFilter = newFilter; }
-  } else if (b && b.source === 'wc') {
-    // WC order — find which event pill it belongs to and switch
-    const matchedEv = upcomingEvents.find(ev => {
-      const bTitle = (b.eventTitle || '').toLowerCase();
-      const evTitle = (ev.title || '').toLowerCase();
-      const SKIP = ['funky','dory','during','henley','royal','regatta','meets'];
-      const evWords = evTitle.split(/\W+/).filter(w => w.length > 3 && !SKIP.includes(w));
-      return evWords.some(w => bTitle.includes(w));
-    });
-    if (matchedEv) glFilter = `event:${matchedEv.id}`;
+    glFilter = `event:${b._eventId}`;
+  } else if (b) {
+    // No eventId — search by name so it appears regardless of pill
+    const inp = document.getElementById('gl-search');
+    if (inp) { inp.value = b.name.split(' ')[0]; const clr = document.getElementById('gl-search-clear'); if (clr) clr.style.display = 'block'; }
   }
   renderGuestList();
   // Scroll to booking after render
@@ -3188,13 +3181,12 @@ async function fetchSingleBooking() {
                        Object.values(bookingMap).find(b => b.source === 'mec' && String(b.invoiceID) === String(input));
 
     if (mecBooking) {
-      // MEC booking exists — just show it and link to it
+      // MEC booking exists — link straight to it
       resultEl.innerHTML = `
         <div style="background:#f0f7ff;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
           <div style="font-weight:800;font-size:14px;color:var(--navy);">${mecBooking.name}</div>
           <div style="font-size:12px;color:var(--muted);margin-top:4px;">${mecBooking.tickets.length} ticket${mecBooking.tickets.length!==1?'s':''} · MEC booking #${input}</div>
         </div>
-        <div style="color:var(--ok);font-size:12px;font-weight:700;margin-bottom:8px;">✓ Already in guest list</div>
         <button onclick="viewBookingInList('${mecBooking.bookingId}');"
           style="width:100%;padding:12px;background:var(--navy);color:white;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">
           👁 View in Guest List
@@ -3203,10 +3195,28 @@ async function fetchSingleBooking() {
       return;
     }
 
-    // No MEC booking — WC-only order, add to guest list (searchable, no pill needed)
+    // Check if already loaded as WC booking
     const wcKey = `wc-${input}`;
+    const existingWc = bookingMap[wcKey];
 
-    if (!bookingMap[wcKey]) {
+    if (existingWc) {
+      // Already in guest list as WC order — link straight to it
+      resultEl.innerHTML = `
+        <div style="background:#f0f7ff;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+          <div style="font-weight:800;font-size:14px;color:var(--navy);">${existingWc.name}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">${existingWc.tickets.length} ticket${existingWc.tickets.length!==1?'s':''} · Order #${input}</div>
+        </div>
+        <button onclick="viewBookingInList('${wcKey}');"
+          style="width:100%;padding:12px;background:var(--navy);color:white;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">
+          👁 View in Guest List
+        </button>`;
+      btn.textContent = 'Find Booking'; btn.disabled = false;
+      return;
+    }
+
+    // Not loaded yet — add it
+
+    if (true) {  // Not in bookingMap yet
       const tickets = (order.line_items || []).flatMap((item, i) =>
         Array.from({length: item.quantity||1}, (_, j) => ({
           key: `${wcKey}-${j+1}`, attendeeKey: String(j+1),
@@ -3220,16 +3230,10 @@ async function fetchSingleBooking() {
       };
       invoiceMap[String(input)] = bookingMap[wcKey];
       renderGuestList(); updateGLStats();
-      resultEl.innerHTML += `<div style="color:var(--ok);font-size:12px;font-weight:700;margin-bottom:8px;">✓ Added — search by name to check in</div>
-        <button onclick="closeFindBooking();document.getElementById('gl-search').value='${name.split(' ')[0]}';debouncedSearch();"
+      resultEl.innerHTML += `<div style="color:var(--ok);font-size:12px;font-weight:700;margin-bottom:8px;">✓ Added to guest list</div>
+        <button onclick="viewBookingInList('${wcKey}');"
           style="width:100%;padding:12px;background:var(--navy);color:white;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">
-          🔍 Find ${name.split(' ')[0]} in Guest List
-        </button>`;
-    } else {
-      resultEl.innerHTML += `<div style="color:var(--muted);font-size:12px;margin-bottom:8px;">Already in guest list</div>
-        <button onclick="closeFindBooking();document.getElementById('gl-search').value='${name.split(' ')[0]}';debouncedSearch();"
-          style="width:100%;padding:12px;background:var(--navy);color:white;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">
-          🔍 Find ${name.split(' ')[0]} in Guest List
+          👁 View in Guest List
         </button>`;
     }
 
