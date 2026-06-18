@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.01</title>
+<title>FD Door Scanner v6.02</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -508,7 +508,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.01</div>
+    <div class="brand-sub">Door Scanner · v6.02</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -524,7 +524,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.01</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.02</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1509,8 +1509,16 @@ async function loadCompGuests() {
         guestType:r['Guest Type']||'Remenham Farm',
         isComp:true, source:'remenham' });
       // Wire QR code directly into invoiceMap so scanner resolves it instantly
+      // Register both the full QR (with event title) and the base key (FD-RF-{order}-{ticket})
       if (qrCode && bookingMap[key]) {
         invoiceMap[qrCode] = bookingMap[key];
+        // Also register base key (FD-RF-{orderid}-{ticketnum}) in case QR has event title suffix
+        const baseMatch = qrCode.match(/^(FD-RF-\d+-\d+)/i);
+        if (baseMatch && baseMatch[1] !== qrCode) {
+          invoiceMap[baseMatch[1]] = bookingMap[key];
+        }
+        // And register the key itself
+        invoiceMap[key] = bookingMap[key];
       }
       // Wire RF order ID for order number search (FD system checked first, RF fallback)
       if (orderId && bookingMap[key] && !invoiceMap[orderId]) {
@@ -2577,11 +2585,12 @@ function resolveGuest(code) {
   const clean = code.replace(/^#/,'').trim();
   // FD-RF- prefix = Remenham Farm ticket — look up directly in invoiceMap
   if (/^FD-RF-/i.test(clean)) {
-    const b = invoiceMap[clean];
+    // QR may contain full event title: FD-RF-{orderid}-{ticket}-{event title}
+    // Strip to base key FD-RF-{orderid}-{ticket} for lookup
+    const baseKey = clean.match(/^(FD-RF-\d+-\d+)/i)?.[1] || clean;
+    const b = invoiceMap[baseKey] || invoiceMap[clean];
     if (b) {
-      // Return a guest-shaped object from the booking
-      const t = b.tickets[0] || {};
-      return guestMap[b.bookingId] || guestMap[clean] || null;
+      return guestMap[b.bookingId] || guestMap[baseKey] || guestMap[clean] || null;
     }
   }
   return guestMap[clean] || guestMap[code] || invoiceMap[clean] && Object.assign({}, invoiceMap[clean], {
