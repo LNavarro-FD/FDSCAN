@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.61</title>
+<title>FD Door Scanner v5.62</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -494,7 +494,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.61</div>
+    <div class="brand-sub">Door Scanner · v5.62</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -510,7 +510,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.61</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.62</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1810,19 +1810,16 @@ function renderGuestList() {
       const evId = glFilter.replace('event:', '');
       // MEC bookings — match by eventId
       if (b._eventId) return b._eventId === evId;
-      // Comp/WC guests — match by event date in ticket title
+      // Comp/WC guests — match by event name keywords since dates may differ between MEC and WC
       if (b.isComp || b.source === 'wc') {
         const ev = upcomingEvents.find(e => String(e.id) === evId);
-        if (!ev || !ev.mec_data?.start_date) return false;
-        // Extract date from event (YYYY-MM-DD) and ticket title (DD.MM.YY or DD.MM.YYYY)
-        const evDate = ev.mec_data.start_date; // e.g. "2026-07-02"
-        const [evY, evM, evD] = evDate.split('-');
-        const rawTitle = (b.eventTitle || '').replace(/&#8211;|&ndash;/g, '–');
-        const m = rawTitle.match(/(\d{2})\.(\d{2})\.(\d{2,4})/);
-        if (!m) return false;
-        const [, bD, bM, bYraw] = m;
-        const bY = bYraw.length === 2 ? '20' + bYraw : bYraw;
-        return bD === evD && bM === evM && bY === evY;
+        if (!ev) return false;
+        const bTitle = (b.eventTitle || '').toLowerCase();
+        const evTitle = (ev.title || '').toLowerCase();
+        // Match by distinctive event name words
+        const SKIP = ['funky','dory','during','henley','royal','regatta','meets','general','admission','access','release','early','bird','final','full','2026','scan','test','party'];
+        const evWords = evTitle.split(/\W+/).filter(w => w.length > 3 && !SKIP.includes(w));
+        return evWords.length > 0 && evWords.some(w => bTitle.includes(w));
       }
       return false;
     }
