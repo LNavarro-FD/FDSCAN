@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.04</title>
+<title>FD Door Scanner v6.05</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -508,7 +508,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.04</div>
+    <div class="brand-sub">Door Scanner · v6.05</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -524,7 +524,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.04</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.05</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1329,17 +1329,26 @@ async function loadGuestList() {
     });
 
     console.log(`Guest list: ${Object.keys(guestMap).length} total (MEC: ${Object.keys(mecGuests).length}, WC: ${wcGuests.length})`);
-    // Render MEC/WC guests first so staff can see progress
+    // Render MEC/WC guests immediately
     renderFilterPills();
     renderGuestList(); updateGLStats();
-    // Now load Google Sheet — MUST complete before app is ready (comps/DJs/RF are sheet-only)
-    document.getElementById('gl-list').insertAdjacentHTML('afterbegin',
-      '<div id="sheet-loading-banner" style="background:#FF4B7B;color:white;padding:10px 14px;font-size:13px;font-weight:700;text-align:center;border-radius:8px;margin-bottom:8px;">⏳ Loading comps, DJs & Remenham Farm guests…</div>');
-    await loadCompGuests();
-    const banner = document.getElementById('sheet-loading-banner');
-    if (banner) banner.remove();
-    renderFilterPills();
-    renderGuestList(); updateGLStats();
+    // Load Google Sheet in background — shows banner while loading
+    const sheetBanner = document.createElement('div');
+    sheetBanner.id = 'sheet-loading-banner';
+    sheetBanner.style.cssText = 'background:#FF4B7B;color:white;padding:10px 14px;font-size:13px;font-weight:700;text-align:center;border-radius:8px;margin-bottom:8px;';
+    sheetBanner.textContent = '⏳ Loading comps, DJs & Remenham Farm guests…';
+    const glList = document.getElementById('gl-list');
+    if (glList) glList.insertAdjacentElement('beforebegin', sheetBanner);
+    loadCompGuests().then(() => {
+      const b = document.getElementById('sheet-loading-banner');
+      if (b) b.remove();
+      renderFilterPills();
+      renderGuestList(); updateGLStats();
+    }).catch(e => {
+      const b = document.getElementById('sheet-loading-banner');
+      if (b) { b.style.background='#C06000'; b.textContent='⚠️ Could not load sheet guests — check sharing settings'; }
+      console.warn('Sheet load failed:', e);
+    });
 
     // Load real check-in state from our database proxy
     // MEC's API doesn't reflect our direct writes, so we read back from fd2/v1/checkins
