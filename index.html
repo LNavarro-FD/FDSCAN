@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.20</title>
+<title>FD Door Scanner v6.21</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.20</div>
+    <div class="brand-sub">Door Scanner · v6.21</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.20</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.21</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1808,12 +1808,12 @@ function showWristbandToast(booking, ticket) {
   const dot     = document.getElementById('wb-toast-dot');
   const span    = document.getElementById('wb-toast-msg');
   const imgEl   = document.getElementById('wb-toast-img');
-  const evId    = String(booking._eventId || '');
-  const evColours = { '30589': '#5BB8E8', '30590': '#F04E30', '30591': '#E91E8C' };
-  dot.style.background = evColours[evId] || '#22224C';
+  const evId2   = String(booking._eventId || '');
+  const wbColours = { '30589': '#5BB8E8', '30590': '#F04E30', '30591': '#E91E8C' };
+  dot.style.background = wbColours[evId2] || '#22224C';
   span.textContent = (ticket.name || booking.name) + ' · ' + msg;
   // Show wristband image if available
-  const wbKey = getWristbandKey(evId, entryType);
+  const wbKey = getWristbandKey(evId2, entryType);
   const wbSrc = wbKey && typeof WRISTBAND_IMGS !== 'undefined' ? WRISTBAND_IMGS[wbKey] : null;
   if (wbSrc && imgEl) { imgEl.src = wbSrc; imgEl.style.display = 'block'; }
   else if (imgEl) { imgEl.style.display = 'none'; }
