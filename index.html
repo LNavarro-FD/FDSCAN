@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.12</title>
+<title>FD Door Scanner v6.13</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -537,7 +537,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.12</div>
+    <div class="brand-sub">Door Scanner · v6.13</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -553,7 +553,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.12</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.13</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -761,6 +761,8 @@ input::placeholder { color: #999; }
     </div>
     <div class="setup-title">By event</div>
     <div id="event-cards"></div>
+    <div class="setup-title">Door tickets</div>
+    <div id="door-ticket-stats" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
     <div class="log-hdr"><span class="log-label">Full scan log</span><button class="btn-secondary" onclick="exportCSV()" style="background:var(--ok);color:#fff;border-color:var(--ok);padding:6px 14px;font-size:12px;">⬇ Export CSV</button></div>
     <ul class="log-list" id="full-log" style="max-height:none;"></ul>
   </div>
@@ -901,6 +903,20 @@ let scanLog  = [];
 let stats    = { admitted:0, total:0, dupe:0, invalid:0 };
 let glFilter = 'all';
 let glSubFilter = 'all';
+
+// Door ticket counters (persisted in localStorage)
+const DOOR_TICKETS = {
+  'FD-DOOR-LD-DAY':  { label: 'Ladies Day · Day',      event: '30589', limit: 500 },
+  'FD-DOOR-LD-EVE':  { label: 'Ladies Day · Evening',  event: '30589', limit: 500 },
+  'FD-DOOR-IB-DAY':  { label: 'Ibiza · Day',           event: '30590', limit: 500 },
+  'FD-DOOR-IB-EVE':  { label: 'Ibiza · Evening',       event: '30590', limit: 500 },
+  'FD-DOOR-S54-DAY': { label: 'Studio 54 · Day',       event: '30591', limit: 500 },
+  'FD-DOOR-S54-EVE': { label: 'Studio 54 · Evening',   event: '30591', limit: 500 },
+};
+function getDoorCounts() {
+  try { return JSON.parse(localStorage.getItem('fd_door_counts') || '{}'); } catch(e) { return {}; }
+}
+function saveDoorCounts(c) { localStorage.setItem('fd_door_counts', JSON.stringify(c)); }
 let scanner  = null;
 let lastCode = ''; let lastAt = 0; let isScanning = false;
 let pendingTMCode = null;
@@ -2464,6 +2480,28 @@ document.addEventListener('keydown', e => {
 });
 
 async function lookupTicket(code) {
+  // Check if it's a door ticket QR
+  if (DOOR_TICKETS[code]) {
+    const dt = DOOR_TICKETS[code];
+    const counts = getDoorCounts();
+    const current = counts[code] || 0;
+    if (current >= dt.limit) {
+      vibrate([300, 100, 300]);
+      setResult('err', '🚫', 'Door Ticket Full', `${dt.label} has reached ${dt.limit} scans`);
+      return;
+    }
+    counts[code] = current + 1;
+    saveDoorCounts(counts);
+    stats.admitted++;
+    stats.total++;
+    document.getElementById('hdr-count').textContent = stats.admitted;
+    updateStats();
+    vibrate([80]);
+    setResult('ok', '🚪', dt.label, `Scan ${counts[code]} of ${dt.limit}`, false);
+    document.getElementById('ent-banner').classList.add('hidden');
+    return;
+  }
+
   if (isScanning) return;
   isScanning = true;
 
@@ -3246,7 +3284,7 @@ function updateGLStats() {
 function showTab(tab) {
   ['scan','guests','stats','settings'].forEach(t => document.getElementById(t+'-screen').classList.add('hidden'));
   document.getElementById(tab+'-screen').classList.remove('hidden');
-  if (tab==='stats') { renderLogs(); renderEventCards(); }
+  if (tab==='stats') { renderLogs(); renderEventCards(); renderDoorStats(); }
   if (tab==='settings') renderSettingsQR();
 
   const video = document.getElementById('qr-video');
@@ -3274,6 +3312,27 @@ function showTab(tab) {
 // ═══════════════════════════════════════════
 //  EVENT CARDS
 // ═══════════════════════════════════════════
+function renderDoorStats() {
+  const el = document.getElementById('door-ticket-stats');
+  if (!el) return;
+  const counts = getDoorCounts();
+  const rows = Object.entries(DOOR_TICKETS).map(([code, dt]) => {
+    const count = counts[code] || 0;
+    const pct = Math.round(count / dt.limit * 100);
+    const evColours = { '30589': '#5BB8E8', '30590': '#F04E30', '30591': '#E91E8C' };
+    const col = evColours[dt.event] || '#22224C';
+    return `<div style="background:var(--card);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px;">
+      <div style="width:12px;height:12px;border-radius:50%;background:${col};flex-shrink:0;"></div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);">${dt.label}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">${count} / ${dt.limit} scans</div>
+      </div>
+      <div style="font-size:18px;font-weight:900;color:${col};">${count}</div>
+    </div>`;
+  }).join('');
+  el.innerHTML = rows || '<div style="color:var(--muted);font-size:13px;padding:8px;">No door ticket scans yet</div>';
+}
+
 function renderEventCards() {
   const el = document.getElementById('event-cards');
   if (!el) return;
