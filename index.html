@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.09</title>
+<title>FD Door Scanner v6.10</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -199,6 +199,21 @@ input::placeholder { color: #999; }
 .warn { min-height: 90px; }
 .warn .rc-detail { color: rgba(255,255,255,0.85); }
 .rc-detail { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+/* ── Wristband toast ── */
+.wb-toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  background: var(--navy); color: #fff;
+  border-radius: 14px; padding: 12px 20px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; font-weight: 700;
+  box-shadow: 0 4px 20px rgba(0,0,0,.3);
+  z-index: 9999; opacity: 0; pointer-events: none;
+  transition: opacity .2s;
+  white-space: nowrap;
+}
+.wb-toast.show { opacity: 1; }
+.wb-toast-dot { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; }
 
 /* ── Ticketmaster confirm buttons ── */
 .tm-actions { display: flex; gap: 10px; }
@@ -522,7 +537,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.09</div>
+    <div class="brand-sub">Door Scanner · v6.10</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -538,7 +553,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.09</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.10</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -665,6 +680,7 @@ input::placeholder { color: #999; }
     <button class="filter-pill" onclick="setFilter('pending',this)">👻 No Show</button>
   </div>
   <div id="ptr-indicator" class="ptr-indicator">↓ Release to refresh</div>
+  <div class="wb-toast" id="wb-toast"><div class="wb-toast-dot" id="wb-toast-dot"></div><span id="wb-toast-msg"></span></div>
   <div id="gl-list" class="gl-list">
     <div class="gl-loading"><span class="spin"></span>&nbsp; Loading…</div>
   </div>
@@ -1751,6 +1767,36 @@ async function refreshGuests() {
 // ═══════════════════════════════════════════
 let showAll = false;
 
+function showWristbandToast(booking, ticket) {
+  const evId = String(booking._eventId || '');
+  const evColours = {
+    '30589': { bg: '#5BB8E8', name: 'Sky Blue · Ladies Day' },
+    '30590': { bg: '#F04E30', name: 'Coral · Ibiza' },
+    '30591': { bg: '#E91E8C', name: 'Hot Pink · Studio 54' },
+  };
+  let evCol = evColours[evId];
+  if (!evCol) {
+    const t = ((ticket.ticketName||'') + ' ' + (booking.eventTitle||'')).toLowerCase();
+    if (t.includes('ladies')) evCol = evColours['30589'];
+    else if (t.includes('ibiza') || t.includes('white party')) evCol = evColours['30590'];
+    else if (t.includes('studio')) evCol = evColours['30591'];
+  }
+  const entryType = ticket.entryType || booking.entryType || (ticket.isVip ? 'VIP' : 'GE');
+  let msg = '';
+  if (entryType === 'VIP' || ticket.isVip) msg = '⭐ VIP — Wristband + Food tokens';
+  else if (entryType === 'AAA') msg = '🎫 AAA — Lanyard + Wristband';
+  else msg = `🎽 Wristband${evCol ? ' — ' + evCol.name : ''}`;
+
+  const toast = document.getElementById('wb-toast');
+  const dot   = document.getElementById('wb-toast-dot');
+  const span  = document.getElementById('wb-toast-msg');
+  dot.style.background = evCol ? evCol.bg : '#22224C';
+  span.textContent = (ticket.name || booking.name) + ' · ' + msg;
+  toast.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
 function admitSpecific(bookingId, attendeeKey) {
   const b = bookingMap[bookingId];
   if (!b) return;
@@ -1758,6 +1804,7 @@ function admitSpecific(bookingId, attendeeKey) {
   if (!ticket || ticket.checkedIn) return;
 
   ticket.checkedIn = true;
+  showWristbandToast(b, ticket);
   const admitted = getBookingAdmittedCount(b);
 
   if (b.source === 'mec') {
