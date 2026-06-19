@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.20</title>
+<title>FD Door Scanner v6.21</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -508,7 +508,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.20</div>
+    <div class="brand-sub">Door Scanner · v6.21</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -524,7 +524,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.20</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.21</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1232,129 +1232,81 @@ async function fetchMecAttendees(events) {
 async function loadGuestList() {
   document.getElementById('gl-list').innerHTML = '<div class="gl-loading"><span class="spin"></span>&nbsp; Loading…</div>';
   guestMap = {}; bookingMap = {}; invoiceMap = {}; emailMap = {}; idMap = {};
-  if (cfg.demo) { loadDemoGuests(); renderGuestList(); updateGLStats(); return; }
+  if (cfg.demo) { loadDemoGuests(); renderFilterPills(); renderGuestList(); updateGLStats(); return; }
   try {
-    // 1. Fetch upcoming MEC events
+    // Step 1 — fetch MEC events (best-effort, non-blocking)
     await fetchUpcomingEvents();
 
-    // 2. Fetch bulk2 first — this is the primary guest source
+    // Step 2 — fetch bulk2 (primary guest source)
     const bulkData = await fetchWithTimeout(`${cfg.siteUrl}/wp-json/fd2/v1/bulk2`, {}, 15000)
-      .then(r => r.ok ? r.json() : {checkins:[]}).catch(() => ({checkins:[]}));
+      .then(r => r.ok ? r.json() : {checkins:[]})
+      .catch(() => ({checkins:[]}));
 
-    // Only fetch MEC attendees if bulk2 returned nothing
-    const hasBulkGuests = (bulkData.checkins || []).length > 0;
-    const mecGuests = hasBulkGuests ? {} : 
-      (upcomingEvents.length > 0 ? await fetchMecAttendees(upcomingEvents) : {});
-    const wcGuests = [];
-    console.log(`bulk2: ${(bulkData.checkins||[]).length} records, MEC attendees: ${Object.keys(mecGuests).length}`);
+    const allCheckins = bulkData.checkins || [];
+    console.log(`bulk2: ${allCheckins.length} total records`);
 
-    // 2b. Pre-populate bookingMap from bulk endpoint (catches bookings missed by occurrence API)
-    // Only process current HRR 2026 events — skip years of historical data
-    const currentEventIds = new Set(upcomingEvents.map(e => String(e.id)));
-    console.log('Current event IDs:', [...currentEventIds]);
-    // Group bulk checkins by booking_id first
+    // Step 3 — decide which event_ids to keep
+    // If MEC gave us events, filter to those IDs.
+    // If MEC failed (upcomingEvents empty), keep records from the 5 most recent event_ids.
+    let keepEventIds;
+    if (upcomingEvents.length > 0) {
+      keepEventIds = new Set(upcomingEvents.map(e => String(e.id)));
+      console.log('Filtering bulk2 to MEC event IDs:', [...keepEventIds]);
+    } else {
+      // No MEC events — infer from bulk2: take the highest event_ids (most recent)
+      const allIds = [...new Set(allCheckins.map(c => c.event_id))].sort((a,b) => b - a);
+      keepEventIds = new Set(allIds.slice(0, 5).map(String));
+      console.log('No MEC events — using top bulk2 event IDs:', [...keepEventIds]);
+    }
+
+    // Step 4 — build bookingMap from bulk2
     const bulkByBooking = {};
-    (bulkData.checkins || []).forEach(c => {
-      if (currentEventIds.size > 0 && !currentEventIds.has(String(c.event_id))) return;
+    allCheckins.forEach(c => {
+      if (!keepEventIds.has(String(c.event_id))) return;
       const bid = String(c.booking_id);
       if (!bulkByBooking[bid]) bulkByBooking[bid] = { inv: String(c.invoice_id), eventId: String(c.event_id), attendees: [] };
       bulkByBooking[bid].attendees.push(c);
     });
+
+    console.log(`bulk2 bookings after filter: ${Object.keys(bulkByBooking).length}`);
+
     Object.entries(bulkByBooking).forEach(([bid, data]) => {
-      if (!bookingMap[bid]) {
-        // Use lead name (first attendee)
-        const leadName = data.attendees[0]?.name || 'Guest';
-        bookingMap[bid] = {
-          bookingId: bid, invoiceID: data.inv,
-          name: leadName, email: '',
-          eventTitle: '', eventDay: '',
-          _eventId: data.eventId,
-          tickets: [], source: 'mec', isComp: false, isTM: false
-        };
-        invoiceMap[data.inv] = bookingMap[bid];
-        // Add all attendees using sequential index as key
-        data.attendees.forEach((a, idx) => {
-          bookingMap[bid].tickets.push({
-            key: `${bid}-${idx+1}`, attendeeKey: String(idx+1),
-            name: a.name || 'Guest', ticketName: 'MEC Ticket',
-            isVip: false, checkedIn: !!a.checked_in
-          });
-        });
-      } else {
-        // Booking already exists — just sync checkedIn state from bulk
-        data.attendees.forEach((a, idx) => {
-          const t = bookingMap[bid].tickets[idx];
-          if (t && a.checked_in) t.checkedIn = true;
-        });
-      }
+      const leadName = data.attendees[0]?.name || 'Guest';
+      // Find matching MEC event title for display
+      const mecEv = upcomingEvents.find(e => String(e.id) === data.eventId);
+      const evTitle = mecEv ? (mecEv.title || '').replace(/copy of /i,'').replace(/funky dory\s*/i,'').replace(/during henley\s*(royal\s*)?regatta\s*/i,'').replace(/\s{2,}/g,' ').trim() : '';
+      bookingMap[bid] = {
+        bookingId: bid, invoiceID: data.inv,
+        name: leadName, email: '',
+        eventTitle: evTitle, eventDay: '',
+        _eventId: data.eventId,
+        tickets: data.attendees.map((a, idx) => ({
+          key: `${bid}-${idx+1}`, attendeeKey: String(idx+1),
+          name: a.name || 'Guest', ticketName: evTitle || 'Ticket',
+          isVip: false, checkedIn: !!a.checked_in
+        })),
+        source: 'mec', isComp: false, isTM: false
+      };
+      invoiceMap[data.inv] = bookingMap[bid];
+      invoiceMap[bid] = bookingMap[bid];
     });
 
-    // 3. Add MEC guests first (source of truth for ticketed attendees)
-    Object.entries(mecGuests).forEach(([key, g]) => {
-      guestMap[key] = g;
-      if (g.email) emailMap[g.email] = g;
-    });
+    console.log(`bookingMap: ${Object.keys(bookingMap).length} bookings`);
 
-    // 3b. Enrich bookingMap ticket names from individual guestMap attendee entries
-    // This ensures Kurt/Marc etc show up in search and in ticket rows
-    Object.values(guestMap).forEach(g => {
-      if (!g._bookingId || !g._attendeeKey) return;
-      const booking = bookingMap[g._bookingId];
-      if (!booking) return;
-      const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(g._attendeeKey));
-      if (ticket && g.name) ticket.name = g.name;
-    });
-
-    // 4. Add WC guests — only those NOT already covered by MEC (comps, TM, Remenham Farm)
-    const mecInvoiceIds = new Set(Object.values(bookingMap).map(b => String(b.invoiceID)));
-    wcGuests.forEach(g => {
-      if (mecInvoiceIds.has(String(g.orderNumber))) return;
-      if (upcomingEvents.length > 0) {
-        const ticketLower = (g.ticketName || '').replace(/&#8211;|&ndash;/g, '–').toLowerCase();
-        const KEYWORDS = ['ladies day', 'ibiza', 'white party', 'studio 54', 'brunch on the banks', 'henley royal regatta'];
-        if (!KEYWORDS.some(kw => ticketLower.includes(kw))) return;
-      }
-      g._source = 'wc';
-      guestMap[`wc-${g.orderNumber}`] = g;
-      if (g.email && !emailMap[g.email]) emailMap[g.email] = g;
-      if (g.id) idMap[g.id] = g;
-      const wcKey = `wc-${g.orderNumber}`;
-      if (!bookingMap[wcKey]) {
-        bookingMap[wcKey] = {
-          bookingId: wcKey, invoiceID: g.orderNumber,
-          name: g.name, email: g.email,
-          eventTitle: g.ticketName, eventDay: g.eventDay,
-          orderDate: g.orderDate || null,
-          tickets: Array.from({length: g.qty || 1}, (_, i) => ({
-            key: `${wcKey}-${i+1}`, attendeeKey: String(i+1),
-            name: g.name, ticketName: g.ticketName,
-            isVip: g.isVip,
-            checkedIn: g.checkedInTickets.includes(String(i)) || g.checkedInTickets.includes(String(i+1))
-          })),
-          source: 'wc', isComp: g.isComp, isTM: g.isTM
-        };
-        if (g.orderNumber) invoiceMap[String(g.orderNumber)] = bookingMap[wcKey];
-      }
-    });
-
-    console.log(`Guest list: ${Object.keys(guestMap).length} total (MEC: ${Object.keys(mecGuests).length}, WC: ${wcGuests.length})`);
-    // Diagnostic: log event IDs from MEC vs bulk2
-    const bulk2EventIds = new Set(Object.values(bookingMap).map(b => b._eventId).filter(Boolean));
-    console.log('MEC event IDs:', upcomingEvents.map(e => e.id));
-    console.log('bulk2 event IDs in bookingMap:', [...bulk2EventIds]);
-    console.log('bookingMap size:', Object.keys(bookingMap).length);
     renderFilterPills();
-    renderGuestList(); updateGLStats();
-    // Sheet loads in background — app never waits for it
+    renderGuestList();
+    updateGLStats();
+
+    // Sheet loads in background
     setTimeout(() => {
       loadCompGuests().then(() => {
         renderFilterPills();
-        renderGuestList(); updateGLStats();
+        renderGuestList();
+        updateGLStats();
       }).catch(e => console.warn('Sheet load failed:', e));
     }, 100);
 
-    // Load real check-in state from our database proxy
-    // MEC's API doesn't reflect our direct writes, so we read back from fd2/v1/checkins
+    // Sync check-in state from DB
     await loadCheckinState();
 
   } catch(e) {
@@ -1364,238 +1316,6 @@ async function loadGuestList() {
   }
 }
 
-// ═══════════════════════════════════════════
-//  GOOGLE SHEET READER
-// ═══════════════════════════════════════════
-
-function extractSheetId(url) {
-  const m = (url || '').match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-  return m ? m[1] : null;
-}
-
-async function fetchSheetTab(sheetId, tabName) {
-  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 5000); // 5s timeout per tab
-  let r;
-  try {
-    r = await fetch(url, { signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-  if (!r.ok) throw new Error(`Sheet tab "${tabName}" returned ${r.status}`);
-  const text = await r.text();
-  const rows = parseSheetCSV(text);
-  if (rows.length < 2) return [];
-  const headers = rows[0].map(h => h.trim());
-  return rows.slice(1).map(row => {
-    const obj = {};
-    headers.forEach((h, i) => { obj[h] = (row[i] || '').trim(); });
-    return obj;
-  }).filter(r => Object.values(r).some(v => v));
-}
-
-function parseSheetCSV(text) {
-  const rows = [];
-  let row = [], field = '', inQ = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (inQ) {
-      if (c === '"' && text[i+1] === '"') { field += '"'; i++; }
-      else if (c === '"') inQ = false;
-      else field += c;
-    } else {
-      if (c === '"') { inQ = true; }
-      else if (c === ',') { row.push(field); field = ''; }
-      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
-      else if (c === '\r') { /* skip */ }
-      else field += c;
-    }
-  }
-  if (field || row.length) { row.push(field); rows.push(row); }
-  return rows;
-}
-
-function resolveEventId(eventStr) {
-  if (!eventStr) return '';
-  const s = eventStr.toLowerCase();
-  const match = upcomingEvents.find(ev => {
-    const t = (ev.title || '').toLowerCase();
-    if (s.includes('ladies')) return t.includes('ladies');
-    if (s.includes('ibiza')) return t.includes('ibiza');
-    if (s.includes('studio')) return t.includes('studio');
-    if (s.includes('brunch')) return t.includes('brunch');
-    return false;
-  });
-  return match ? String(match.id) : '';
-}
-
-function entryTypeFields(code) {
-  const c = (code || 'GE').toUpperCase();
-  return {
-    entryType: c,
-    isVip:   c === 'VIP',
-    isAAA:   c === 'AAA',
-    isStaff: c === 'STAFF' || c === 'STAFF',
-  };
-}
-
-function addSheetGuest({ key, name, email, eventStr, entryCode, guestType, guestOf, multiDay, isComp, source }) {
-  if (!name) return;
-  if (guestMap[key]) return;
-  const et = entryTypeFields(entryCode);
-  const primaryEventId = eventStr === 'All' ? (upcomingEvents[0] ? String(upcomingEvents[0].id) : '') : resolveEventId(eventStr);
-  const ticketLabel = et.entryType === 'AAA' ? 'AAA — All Areas' :
-                      et.isVip               ? 'VIP Ticket' :
-                      et.isStaff             ? 'Staff Pass' : 'General Admission';
-  const guest = {
-    id: key, orderNumber: key,
-    name, email: (email || '').toLowerCase(),
-    ticketName: ticketLabel,
-    isVip: et.isVip, isAAA: et.isAAA, isStaff: et.isStaff,
-    entryType: et.entryType, guestType: guestType || '',
-    isComp: !!isComp, isTM: false,
-    qty: 1, checkedInTickets: [], checkedIn: false,
-    multiDay: !!multiDay, eventDay: '', _source: source || 'sheet',
-    guestOf: guestOf || '', _eventId: primaryEventId,
-    orderDate: new Date().toISOString()
-  };
-  guestMap[key] = guest;
-  if (guest.email) emailMap[guest.email] = guest;
-  bookingMap[key] = {
-    bookingId: key, invoiceID: key,
-    name, email: guest.email,
-    eventTitle: ticketLabel, eventDay: '',
-    orderDate: guest.orderDate,
-    guestOf: guestOf || '', guestType: guestType || '',
-    entryType: et.entryType, _eventId: primaryEventId,
-    tickets: [{ key: `${key}-0`, attendeeKey: '0', name,
-      ticketName: ticketLabel,
-      isVip: et.isVip, isAAA: et.isAAA, isStaff: et.isStaff,
-      entryType: et.entryType, checkedIn: false }],
-    source: 'sheet', isComp: !!isComp, isTM: false, multiDay: !!multiDay
-  };
-}
-
-async function loadCompGuests() {
-  return; // DISABLED — debug tomorrow
-  const sheetId = extractSheetId(cfg.sheetUrl);
-  if (!sheetId) { console.log('ℹ No Google Sheet configured'); return; }
-  let total = 0;
-  const errors = [];
-
-  try {
-    const rows = await fetchSheetTab(sheetId, 'Guests');
-    rows.forEach((r, i) => {
-      addSheetGuest({ key:`sheet-comp-${i}`, name:r['Name'], email:r['Email'],
-        eventStr:r['Event'], entryCode:r['Entry Type'], guestType:r['Guest Type'],
-        isComp:true, source:'comp' });
-      total++;
-    });
-    console.log(`✓ Sheet Comps: ${rows.length} rows`);
-  } catch(e) { errors.push(`Comps: ${e.message}`); }
-
-  try {
-    const rows = await fetchSheetTab(sheetId, 'DJs & Guests');
-    rows.forEach((r, i) => {
-      addSheetGuest({ key:`sheet-dj-${i}`, name:r['Artist Name'], email:r['Email'],
-        eventStr:r['Event'], entryCode:r['Entry Type']||'AAA', guestType:r['Guest Type']||'DJ',
-        isComp:true, source:'dj' });
-      total++;
-      ['Guest 1','Guest 2','Guest 3'].forEach((col, gi) => {
-        if (!r[col]) return;
-        addSheetGuest({ key:`sheet-dj-${i}-g${gi}`, name:r[col], email:'',
-          eventStr:r['Event'], entryCode:r['Entry Type']||'AAA', guestType:'DJ Guest',
-          guestOf:r['Artist Name'], isComp:true, source:'dj' });
-        total++;
-      });
-    });
-    console.log(`✓ Sheet DJs & Artists: ${rows.length} rows`);
-  } catch(e) { errors.push(`DJs & Artists: ${e.message}`); }
-
-  try {
-    const rows = await fetchSheetTab(sheetId, 'Resources');
-    rows.forEach((r, i) => {
-      addSheetGuest({ key:`sheet-staff-${i}`, name:r['Name'], email:r['Email'],
-        eventStr:r['Event'], entryCode:r['Entry Type']||'Staff',
-        guestType:r['Guest Type']||r['Role']||'Staff',
-        multiDay:(r['Multi Day']||'').toLowerCase()==='yes',
-        isComp:false, source:'staff' });
-      total++;
-    });
-    console.log(`✓ Sheet Staff & Crew: ${rows.length} rows`);
-  } catch(e) { errors.push(`Staff & Crew: ${e.message}`); }
-
-  try {
-    const rows = await fetchSheetTab(sheetId, 'Remenham Farm');
-    rows.forEach((r, i) => {
-      const qrCode  = (r['QR Code'] || '').trim();
-      const orderId = String(r['Order ID'] || '').trim();
-      const key     = qrCode || `sheet-rem-${i}`;
-      addSheetGuest({ key, name:r['Name'], email:r['Email'],
-        eventStr:r['Event'], entryCode:r['Entry Type']||'GE',
-        guestType:r['Guest Type']||'Remenham Farm',
-        isComp:true, source:'remenham' });
-      // Wire QR code directly into invoiceMap so scanner resolves it instantly
-      // Register both the full QR (with event title) and the base key (FD-RF-{order}-{ticket})
-      if (qrCode && bookingMap[key]) {
-        invoiceMap[qrCode] = bookingMap[key];
-        // Also register base key (FD-RF-{orderid}-{ticketnum}) in case QR has event title suffix
-        const baseMatch = qrCode.match(/^(FD-RF-\d+-\d+)/i);
-        if (baseMatch && baseMatch[1] !== qrCode) {
-          invoiceMap[baseMatch[1]] = bookingMap[key];
-        }
-        // And register the key itself
-        invoiceMap[key] = bookingMap[key];
-      }
-      // Wire RF order ID for order number search (FD system checked first, RF fallback)
-      if (orderId && bookingMap[key] && !invoiceMap[orderId]) {
-        invoiceMap['rf-' + orderId] = bookingMap[key];
-        bookingMap[key].rfOrderId = orderId;
-      }
-      total++;
-    });
-    console.log(`✓ Sheet Remenham Farm: ${rows.length} rows`);
-  } catch(e) { errors.push(`Remenham Farm: ${e.message}`); }
-
-  if (errors.length) console.warn('Sheet warnings:', errors.join(' | '));
-  console.log(`✓ Google Sheet total: ${total} guests`);
-}
-
-async function loadCheckinState() {
-  if (cfg.demo || !cfg.siteUrl) return;
-  try {
-    // Single bulk call — get all checked-in attendees at once
-    const r = await fetchWithTimeout(`${cfg.siteUrl}/wp-json/fd2/v1/checkins/bulk`, {}, 8000);
-    if (!r.ok) {
-      console.warn('Bulk checkin load failed:', r.status);
-      return;
-    }
-    const data = await r.json();
-    if (!data.checkins) return;
-
-    let totalChecked = 0;
-    data.checkins.forEach(c => {
-      // c = { invoice_id, booking_id, place, checked_in }
-      const booking = invoiceMap[c.invoice_id] || bookingMap[c.booking_id];
-      if (!booking) return;
-      const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(c.place));
-      if (ticket && c.checked_in) {
-        ticket.checkedIn = true;
-        totalChecked++;
-      }
-    });
-
-    if (totalChecked > 0) {
-      console.log(`✓ Loaded ${totalChecked} checked-in tickets from database`);
-      stats.admitted = totalChecked;
-      document.getElementById('hdr-count').textContent = totalChecked;
-      updateStats(); updateGLStats(); renderGuestList();
-    }
-  } catch(e) {
-    console.warn('loadCheckinState failed:', e.message);
-  }
-}
 
 async function fetchWithTimeout(url, options={}, ms=10000) {
   const ctrl = new AbortController();
@@ -1823,20 +1543,20 @@ function admitAllBooking(bookingId) {
 // Dynamic event filter pills
 function renderFilterPills() {
   const bar = document.getElementById('gl-filter-bar');
-  if (!bar || upcomingEvents.length === 0) return;
+  if (!bar) return;
 
+  // Remove old event pills
   bar.querySelectorAll('.event-pill').forEach(p => p.remove());
 
-  const allBtn = bar.querySelector('.filter-pill');
+  if (upcomingEvents.length === 0) {
+    // No MEC events — just show all guests, no event pills needed
+    return;
+  }
+
   const now = Date.now();
   const reportingMode = localStorage.getItem('fd_reporting_mode') === '1';
+  const cutoff = reportingMode ? 365*24*60*60*1000 : 48*60*60*1000;
 
-  const cutoff = reportingMode
-    ? 365 * 24 * 60 * 60 * 1000
-    : 24 * 60 * 60 * 1000;
-
-  // Define preferred pill order
-  const ORDER = ['ladies', 'ibiza', 'studio', 'brunch'];
   const rank = t => {
     const tl = t.toLowerCase();
     if (/ladies/.test(tl))  return 0;
@@ -1846,44 +1566,36 @@ function renderFilterPills() {
     return 4;
   };
 
-  const filtered = upcomingEvents
+  const eventsToShow = upcomingEvents
     .filter(ev => {
-      if (!ev.mec_data || !ev.mec_data.end_date) return true;
-      const endTime = new Date(ev.mec_data.end_date + 'T23:59:59').getTime();
-      return (now - endTime) < cutoff;
+      if (!ev.mec_data?.end_date) return true;
+      const end = new Date(ev.mec_data.end_date + 'T23:59:59').getTime();
+      return (now - end) < cutoff;
     })
     .sort((a, b) => rank(a.title) - rank(b.title));
 
-  filtered.forEach(ev => {
+  if (eventsToShow.length === 0) return;
+
+  const tmBtn = bar.querySelector('[onclick*="setFilter('tm'"]');
+
+  eventsToShow.forEach((ev, idx) => {
+    const cleanTitle = (ev.title || 'Event')
+      .replace(/copy of /i, '').replace(/funky dory\s*/i, '')
+      .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
+      .replace(/\s*[-–]\s*\d{2}[./]\d{2}([./]\d{2,4})?/g, '')
+      .replace(/\(SCAN TEST[^)]*\)/i, '').replace(/\s{2,}/g, ' ').trim();
+
+    const col = getEventColour(ev.title);
     const pill = document.createElement('button');
     pill.className = 'filter-pill event-pill';
     pill.dataset.eventId = String(ev.id);
-
-    // Strip noise AND dates from pill label
-    const cleanTitle = (ev.title || 'Event')
-      .replace(/copy of /i, '')
-      .replace(/funky dory\s*/i, '')
-      .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
-      .replace(/meets\s*/i, '× ')
-      .replace(/\s*[-–]\s*\d{2}[./]\d{2}([./]\d{2,4})?/g, '')
-      .replace(/\(SCAN TEST[^)]*\)/i, '')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
-
-    const isHistoric = ev.mec_data?.end_date &&
-      new Date(ev.mec_data.end_date + 'T23:59:59').getTime() < now;
-
-    const col = getEventColour(ev.title);
-    pill.textContent = (isHistoric ? '📁 ' : '') + cleanTitle;
-    if (isHistoric) pill.style.opacity = '0.6';
     pill.dataset.eventColour = col.bg;
+    pill.textContent = cleanTitle;
     pill.onclick = function() { setFilter('event:' + ev.id, this); };
-    // Insert event pills after Comp but before Ticketmaster — in sorted order
-    const tmBtn = bar.querySelector('[onclick*="setFilter(\'tm\'"]');
     tmBtn ? bar.insertBefore(pill, tmBtn) : bar.appendChild(pill);
 
-    // Auto-select first event pill if nothing selected yet
-    if (!bar.querySelector('.filter-pill.active')) {
+    // Auto-select first pill only if no active pill yet
+    if (idx === 0 && !glFilter.startsWith('event:')) {
       pill.classList.add('active');
       pill.style.background = col.bg;
       pill.style.color = '#fff';
@@ -1901,6 +1613,7 @@ function renderFilterPills() {
     }
   });
 }
+
 
 function toggleBooking(bookingId) {
   const att     = document.getElementById(`att-${bookingId}`);
@@ -2014,41 +1727,40 @@ function renderGuestList() {
   }
   const all = Object.values(bookingMap);
   const filtered = all.filter(b => {
-    const mq = !q || nameMatch(b.name, q) || 
-                String(b.bookingId).includes(q) || 
+    // Search match
+    const mq = !q || nameMatch(b.name, q) ||
+                String(b.bookingId).includes(q) ||
                 (b.email && b.email.includes(q)) ||
                 (b.guestOf && nameMatch(b.guestOf, q)) ||
                 b.tickets.some(t => t.name && nameMatch(t.name, q));
-    if (!mq) return false; // search query didn't match
-    if (glFilter === 'none') return true; // no events loaded — show everything
-    // If there's a search query, show results across all current events
+    if (!mq) return false;
+
+    // With a search query, show across all events
     if (q) return true;
-    // Apply type filters
-    // Dynamic event filter — show only MEC attendees for this specific event
-    // WC-only comps appear under All but not under specific event pills
+
+    // Event pill filter
     if (glFilter.startsWith('event:')) {
       const evId = glFilter.replace('event:', '');
-      // MEC bookings — match by eventId (compare as strings AND numbers)
+      // Primary match: exact event_id from bulk2
       if (b._eventId) return String(b._eventId) === String(evId);
-      // Comp/WC guests — match by event name keywords since dates may differ between MEC and WC
-      if (b.isComp || b.source === 'wc') {
+      // Fallback for sheet/comp guests: match by event title keywords
+      if (b.isComp || b.source === 'wc' || b.source === 'sheet') {
         const ev = upcomingEvents.find(e => String(e.id) === evId);
-        if (!ev) return false;
-        const bTitle = (b.eventTitle || '').toLowerCase();
-        const evTitle = (ev.title || '').toLowerCase();
-        // Match by distinctive event name words
-        const SKIP = ['funky','dory','during','henley','royal','regatta','meets','general','admission','access','release','early','bird','final','full','2026','scan','test','party'];
-        const evWords = evTitle.split(/\W+/).filter(w => w.length > 3 && !SKIP.includes(w));
-        return evWords.length > 0 && evWords.some(w => bTitle.includes(w));
+        if (!ev) return true; // show if we can't determine
+        const SKIP = new Set(['funky','dory','during','henley','royal','regatta','meets','general','admission','2026','scan','test','party','white']);
+        const evWords = (ev.title||'').toLowerCase().split(/\W+/).filter(w => w.length > 3 && !SKIP.has(w));
+        const bTitle = (b.eventTitle||'').toLowerCase();
+        return evWords.length === 0 || evWords.some(w => bTitle.includes(w));
       }
-      return false;
+      return true; // show unknown-source bookings
     }
-    if (glFilter === 'vip')        return b.tickets.some(t => t.isVip);
-    if (glFilter === 'comp')       return b.isComp;
-    if (glFilter === 'tm')         return b.isTM || b.source === 'remenham' || (b.bookingId||'').startsWith('FD-RF-') || (b.bookingId||'').startsWith('sheet-rem-');
-    if (glFilter === 'in')         return getBookingAdmittedCount(b) > 0;
-    if (glFilter === 'pending')    return getBookingAdmittedCount(b) < b.tickets.length;
 
+    if (glFilter === 'none' || glFilter === 'all') return true;
+    if (glFilter === 'vip')     return b.tickets.some(t => t.isVip);
+    if (glFilter === 'comp')    return b.isComp;
+    if (glFilter === 'tm')      return b.isTM || b.source === 'remenham' || (b.bookingId||'').startsWith('FD-RF-') || (b.bookingId||'').startsWith('sheet-rem-');
+    if (glFilter === 'in')      return getBookingAdmittedCount(b) > 0;
+    if (glFilter === 'pending') return getBookingAdmittedCount(b) < b.tickets.length;
     return true;
   }).sort((a,b) => {
     const aVip = a.tickets.some(t => t.isVip);
