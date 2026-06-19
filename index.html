@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.25</title>
+<title>FD Door Scanner v5.97</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -221,10 +221,8 @@ input::placeholder { color: #999; }
   border-radius: 10px; padding: 10px 14px;
   display: flex; align-items: center; gap: 10px; flex-shrink: 0;
 }
-.ent-banner.std  { background: #fff; border: 2px solid var(--border); }
-.ent-banner.vip  { background: #FFFBE6; border: 2px solid #C89500; }
-.ent-banner.aaa  { background: #F0F4FF; border: 2px solid #3B6FD4; }
-.ent-banner.staff { background: #F0FAF4; border: 2px solid #2E9E5B; }
+.ent-banner.std { background: #fff; border: 2px solid var(--border); }
+.ent-banner.vip { background: #FFFBE6; border: 2px solid #C89500; }
 .eb-icon  { font-size: 22px; }
 .eb-title { font-size: 13px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--text); }
 .vip .eb-title { color: #7A5500; }
@@ -439,15 +437,11 @@ input::placeholder { color: #999; }
 .drawer-name   { font-size: 26px; font-weight: 900; color: var(--text); line-height: 1.1; }
 .drawer-ticket { font-size: 14px; color: var(--muted); margin-top: 5px; }
 .drawer-ent    { border-radius: 12px; padding: 16px; }
-.drawer-ent.std   { background: var(--bg); border: 2px solid var(--border); }
-.drawer-ent.vip   { background: #FFFBE6; border: 2px solid #C89500; }
-.drawer-ent.tm    { background: #E6F0FF; border: 2px solid #0050B3; }
-.drawer-ent.aaa   { background: #EEF2FF; border: 2px solid #3B6FD4; }
-.drawer-ent.staff { background: #EDFAF3; border: 2px solid #2E9E5B; }
+.drawer-ent.std { background: var(--bg); border: 2px solid var(--border); }
+.drawer-ent.vip { background: #FFFBE6; border: 2px solid #C89500; }
+.drawer-ent.tm  { background: #E6F0FF; border: 2px solid #0050B3; }
 .drawer-ent-title { font-size: 12px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; margin-bottom: 12px; color: var(--muted); }
-.vip   .drawer-ent-title { color: #7A5500; }
-.aaa   .drawer-ent-title { color: #2045A0; }
-.staff .drawer-ent-title { color: #1A6B3C; }
+.vip .drawer-ent-title  { color: #7A5500; }
 .tm-dr .drawer-ent-title { color: #0050B3; }
 .ent-row { display: flex; align-items: center; gap: 11px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .ent-row:last-child { border-bottom: none; }
@@ -508,7 +502,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.25</div>
+    <div class="brand-sub">Door Scanner · v5.97</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -524,7 +518,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.25</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.97</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -649,7 +643,7 @@ input::placeholder { color: #999; }
   <div class="gl-filter-bar" id="gl-filter-bar">
     <button class="filter-pill" onclick="setFilter('comp',this)">🎁 Comp</button>
     <!-- Event pills injected dynamically by renderFilterPills() -->
-    <button class="filter-pill" onclick="setFilter('tm',this)">🎟 Remenham Farm</button>
+    <button class="filter-pill" onclick="setFilter('tm',this)">🎫 Ticketmaster</button>
     <button class="filter-pill" onclick="setFilter('in',this)">✓ In</button>
     <button class="filter-pill" onclick="setFilter('pending',this)">👻 No Show</button>
   </div>
@@ -679,7 +673,7 @@ input::placeholder { color: #999; }
       <button onclick="closeFindBooking()" style="background:none;border:none;color:white;font-size:22px;cursor:pointer;padding:0;line-height:1;">×</button>
     </div>
     <div style="padding:18px;">
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Enter the order number from the guest's confirmation email. Checks FD system first, then Remenham Farm tickets.</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Enter the WooCommerce order number from the guest's confirmation email.</p>
       <input id="find-booking-input" type="number" placeholder="e.g. 30602"
         style="width:100%;padding:13px 14px;border:2px solid var(--border);border-radius:10px;font-size:18px;font-family:inherit;outline:none;-webkit-appearance:none;"
         onkeydown="if(event.key==='Enter') fetchSingleBooking()">
@@ -754,8 +748,6 @@ input::placeholder { color: #999; }
     <div class="field-group"><label>Consumer Key</label><input type="text" id="s-key" autocomplete="off"></div>
     <div class="field-group"><label>Consumer Secret</label><input type="password" id="s-secret" autocomplete="off"></div>
     <div class="field-group"><label>MEC API Key</label><input type="password" id="s-mec-key" autocomplete="off"></div>
-    <div class="setup-title" style="margin-top:8px;">Google Sheet (Comps / DJs / Staff / Remenham)</div>
-    <div class="field-group"><label>Sheet URL</label><input type="url" id="s-sheet-url" autocomplete="off" autocapitalize="none" placeholder="https://docs.google.com/spreadsheets/d/..."></div>
     <button class="btn-primary" onclick="saveSettings()">Save &amp; Reload Guest List</button>
     <button class="btn-secondary" onclick="clearLocalCheckins()">Clear local check-ins (testing)</button>
     <button class="btn-secondary" onclick="undoLastCheckin()">↩ Undo last check-in</button>
@@ -850,8 +842,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════
-let cfg      = { siteUrl:'', wcKey:'', wcSecret:'', mecKey:'', sheetUrl:'https://docs.google.com/spreadsheets/d/1qy9_HFxFZg9L3M2UzV_cSMesZp6UdYJZmlR-k9d3OCc/edit', demo:false };
-let sheetData  = { comps:[], djs:[], staff:[], remenham:[] }; // Google Sheet cache
+let cfg      = { siteUrl:'', wcKey:'', wcSecret:'', mecKey:'', demo:false };
 let guestMap   = {};  // orderNumber/mec-key → guest (individual)
 let bookingMap = {};  // bookingId → { name, email, tickets:[], source }
 let invoiceMap = {};  // invoiceId → booking (for QR lookup)
@@ -995,7 +986,6 @@ function launch() {
   ['wc-key','s-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.wcKey||''; });
   ['wc-secret','s-secret'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.wcSecret||''; });
   ['mec-key','s-mec-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.mecKey||''; });
-  const sheetEl = document.getElementById('s-sheet-url'); if(sheetEl) sheetEl.value = cfg.sheetUrl||'';
   showTab('guests');
   loadGuestList().then(() => startSync());
   initCamera();
@@ -1006,7 +996,6 @@ function saveSettings() {
   cfg.wcKey    = document.getElementById('s-key').value.trim();
   cfg.wcSecret = document.getElementById('s-secret').value.trim();
   cfg.mecKey   = document.getElementById('s-mec-key').value.trim();
-  cfg.sheetUrl = document.getElementById('s-sheet-url').value.trim();
   cfg.demo     = false;
   saveConfig(); loadGuestList(); showTab('guests');
 }
@@ -1045,29 +1034,26 @@ async function fetchUpcomingEvents() {
       `${cfg.siteUrl}/wp-json/mec-utility/v1/event-list?date_filter=upcoming&start_date=${fmt(now)}&end_date=${fmt(in10)}&per_page=50`,
     ];
 
-    // Try all combinations in parallel — first one with data wins
-    const attempts = [];
     for (const hdrs of authHeaders) {
       for (const url of baseUrls) {
-        attempts.push(
-          fetchWithTimeout(url, { headers: hdrs }, 5000)
-            .then(r => r.ok ? r.json() : null)
-            .then(data => {
-              if (!data) return null;
-              const events = Array.isArray(data) ? data : (data.events || data.data || data.results || []);
-              return events.length > 0 ? events : null;
-            })
-            .catch(() => null)
-        );
+        try {
+          const r = await fetch(url, { headers: hdrs });
+          console.log('MEC events:', url.split('?')[0], 'auth:', Object.keys(hdrs)[0], 'status:', r.status);
+          if (!r.ok) continue;
+          const data = await r.json();
+          console.log('MEC events response keys:', Object.keys(data));
+          const events = Array.isArray(data) ? data : (data.events || data.data || data.results || []);
+          console.log('Events found in response:', events.length);
+          if (events.length > 0) {
+            upcomingEventNames = events.map(e => (e.title || e.name || e.post_title || '').toLowerCase());
+            upcomingEvents = events;
+            console.log('✓ Upcoming events loaded:', upcomingEventNames.length, upcomingEventNames);
+            return;
+          }
+        } catch(e) {
+          console.warn('MEC endpoint failed:', e.message);
+        }
       }
-    }
-    const results = await Promise.all(attempts);
-    const found = results.find(r => r && r.length > 0);
-    if (found) {
-      upcomingEventNames = found.map(e => (e.title || e.name || e.post_title || '').toLowerCase());
-      upcomingEvents = found;
-      console.log('✓ Upcoming events loaded:', upcomingEvents.length);
-      return;
     }
     console.warn('✗ No upcoming events found — check MEC API key and permissions');
   } catch(e) {
@@ -1127,9 +1113,9 @@ async function fetchMecAttendees(events) {
           }
         } else {
           // Fetch attendees for this occurrence from API
-          const r = await fetchWithTimeout(
+          const r = await fetch(
             `${cfg.siteUrl}/wp-json/mec-utility/v1/events/${ev.id}/occurrences/${occ.start_timestamp}/attendees?include_details=true`,
-            { headers: { 'X-MEC-KEY': cfg.mecKey } }, 5000
+            { headers: { 'X-MEC-KEY': cfg.mecKey } }
           );
           if (!r.ok) continue;
           const data = await r.json();
@@ -1138,9 +1124,9 @@ async function fetchMecAttendees(events) {
           // Fallback: if attendees empty, try without occurrence timestamp
           if (attendees.length === 0) {
             try {
-              const br = await fetchWithTimeout(
+              const br = await fetch(
                 `${cfg.siteUrl}/wp-json/mec-utility/v1/events/${ev.id}/attendees?include_details=true&per_page=200`,
-                { headers: { 'X-MEC-KEY': cfg.mecKey } }, 5000
+                { headers: { 'X-MEC-KEY': cfg.mecKey } }
               );
               if (br.ok) {
                 const bd = await br.json();
@@ -1232,116 +1218,112 @@ async function fetchMecAttendees(events) {
 async function loadGuestList() {
   document.getElementById('gl-list').innerHTML = '<div class="gl-loading"><span class="spin"></span>&nbsp; Loading…</div>';
   guestMap = {}; bookingMap = {}; invoiceMap = {}; emailMap = {}; idMap = {};
-  if (cfg.demo) { loadDemoGuests(); renderFilterPills(); renderGuestList(); updateGLStats(); return; }
-
+  if (cfg.demo) { loadDemoGuests(); renderGuestList(); updateGLStats(); return; }
   try {
-    // ── SOURCE 1: MEC via bulk2 ──────────────────────────────────────────────
-    // Fetch upcoming events first (for event pill labels and ID mapping)
+    // 1. Fetch upcoming MEC events
     await fetchUpcomingEvents();
 
-    const bulkData = await fetchWithTimeout(`${cfg.siteUrl}/wp-json/fd2/v1/bulk2`, {}, 15000)
-      .then(r => r.ok ? r.json() : {checkins:[]})
-      .catch(() => ({checkins:[]}));
+    // 2. Fetch MEC attendees, WC orders, and bulk checkins in parallel
+    const [mecGuests, wcGuests, bulkData] = await Promise.all([
+      upcomingEvents.length > 0 ? fetchMecAttendees(upcomingEvents) : Promise.resolve({}),
+      fetchWooOrders(),
+      fetch(`${cfg.siteUrl}/wp-json/fd2/v1/bulk2`).then(r => r.ok ? r.json() : {checkins:[]}).catch(() => ({checkins:[]}))
+    ]);
 
-    const allCheckins = bulkData.checkins || [];
-    console.log(`bulk2: ${allCheckins.length} total records`);
-
-    // Always derive event IDs from bulk2 itself — take the 5 highest IDs (most recent events).
-    // Never filter by MEC event IDs — MEC API may return different IDs than bulk2 event_ids.
-    const sortedIds = [...new Set(allCheckins.map(c => c.event_id))].sort((a,b) => b - a);
-    const keepEventIds = new Set(sortedIds.slice(0, 5).map(String));
-    console.log('Keeping bulk2 event IDs:', [...keepEventIds]);
-
-    // Group by booking_id
+    // 2b. Pre-populate bookingMap from bulk endpoint (catches bookings missed by occurrence API)
+    const currentEventIds = new Set(upcomingEvents.map(e => String(e.id)));
+    // Group bulk checkins by booking_id first
     const bulkByBooking = {};
-    allCheckins.forEach(c => {
-      if (!keepEventIds.has(String(c.event_id))) return;
+    (bulkData.checkins || []).forEach(c => {
+      if (!currentEventIds.has(String(c.event_id))) return;
       const bid = String(c.booking_id);
       if (!bulkByBooking[bid]) bulkByBooking[bid] = { inv: String(c.invoice_id), eventId: String(c.event_id), attendees: [] };
       bulkByBooking[bid].attendees.push(c);
     });
-    console.log(`MEC bookings: ${Object.keys(bulkByBooking).length}`);
-
     Object.entries(bulkByBooking).forEach(([bid, data]) => {
-      const mecEv    = upcomingEvents.find(e => String(e.id) === data.eventId);
-      const evTitle  = mecEv
-        ? (mecEv.title||'').replace(/copy of /i,'').replace(/funky dory\s*/i,'')
-            .replace(/during henley\s*(royal\s*)?regatta\s*/i,'').replace(/\s{2,}/g,' ').trim()
-        : '';
-      bookingMap[bid] = {
-        bookingId: bid, invoiceID: data.inv,
-        name: data.attendees[0]?.name || 'Guest', email: '',
-        eventTitle: evTitle, eventDay: '',
-        _eventId: data.eventId,
-        tickets: data.attendees.map((a, idx) => ({
-          key: `${bid}-${idx+1}`, attendeeKey: String(a.place || idx+1),
-          name: a.name || 'Guest', ticketName: evTitle || 'Ticket',
-          isVip: false, checkedIn: !!a.checked_in
-        })),
-        source: 'mec', isComp: false, isTM: false
-      };
-      invoiceMap[data.inv] = bookingMap[bid];
-      invoiceMap[bid]      = bookingMap[bid];
+      if (!bookingMap[bid]) {
+        // Use lead name (first attendee)
+        const leadName = data.attendees[0]?.name || 'Guest';
+        bookingMap[bid] = {
+          bookingId: bid, invoiceID: data.inv,
+          name: leadName, email: '',
+          eventTitle: '', eventDay: '',
+          _eventId: data.eventId,
+          tickets: [], source: 'mec', isComp: false, isTM: false
+        };
+        invoiceMap[data.inv] = bookingMap[bid];
+        // Add all attendees using sequential index as key
+        data.attendees.forEach((a, idx) => {
+          bookingMap[bid].tickets.push({
+            key: `${bid}-${idx+1}`, attendeeKey: String(idx+1),
+            name: a.name || 'Guest', ticketName: 'MEC Ticket',
+            isVip: false, checkedIn: !!a.checked_in
+          });
+        });
+      } else {
+        // Booking already exists — just sync checkedIn state from bulk
+        data.attendees.forEach((a, idx) => {
+          const t = bookingMap[bid].tickets[idx];
+          if (t && a.checked_in) t.checkedIn = true;
+        });
+      }
     });
 
-    // ── SOURCE 2: WooCommerce orders ─────────────────────────────────────────
-    // Paid WC orders — separate from MEC. WC has its own order numbers.
-    // These are NOT comps — comps come from Google Sheet.
-    let wcGuests = [];
-    try {
-      wcGuests = await fetchWooOrders();
-      console.log(`WC orders: ${wcGuests.length}`);
-    } catch(e) {
-      console.warn('WC fetch failed:', e.message);
-    }
+    // 3. Add MEC guests first (source of truth for ticketed attendees)
+    Object.entries(mecGuests).forEach(([key, g]) => {
+      guestMap[key] = g;
+      if (g.email) emailMap[g.email] = g;
+    });
 
+    // 3b. Enrich bookingMap ticket names from individual guestMap attendee entries
+    // This ensures Kurt/Marc etc show up in search and in ticket rows
+    Object.values(guestMap).forEach(g => {
+      if (!g._bookingId || !g._attendeeKey) return;
+      const booking = bookingMap[g._bookingId];
+      if (!booking) return;
+      const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(g._attendeeKey));
+      if (ticket && g.name) ticket.name = g.name;
+    });
+
+    // 4. Add WC guests — only those NOT already covered by MEC (comps, TM, Remenham Farm)
+    const mecInvoiceIds = new Set(Object.values(bookingMap).map(b => String(b.invoiceID)));
     wcGuests.forEach(g => {
-      // Filter to HRR products only (by keyword in ticket name)
-      const tl = (g.ticketName || '').toLowerCase();
-      const HRR = ['ladies day','ibiza','white party','studio 54','brunch on the banks','henley royal regatta','henley regatta'];
-      if (!HRR.some(kw => tl.includes(kw))) return;
-
+      if (mecInvoiceIds.has(String(g.orderNumber))) return;
+      if (upcomingEvents.length > 0) {
+        const ticketLower = (g.ticketName || '').replace(/&#8211;|&ndash;/g, '–').toLowerCase();
+        const KEYWORDS = ['ladies day', 'ibiza', 'white party', 'studio 54', 'brunch on the banks', 'henley royal regatta'];
+        if (!KEYWORDS.some(kw => ticketLower.includes(kw))) return;
+      }
       g._source = 'wc';
+      guestMap[`wc-${g.orderNumber}`] = g;
       if (g.email && !emailMap[g.email]) emailMap[g.email] = g;
       if (g.id) idMap[g.id] = g;
       const wcKey = `wc-${g.orderNumber}`;
-      // Add to bookingMap (WC and MEC are separate systems — don't deduplicate)
       if (!bookingMap[wcKey]) {
         bookingMap[wcKey] = {
           bookingId: wcKey, invoiceID: g.orderNumber,
           name: g.name, email: g.email,
           eventTitle: g.ticketName, eventDay: g.eventDay,
-          _eventId: '',
+          orderDate: g.orderDate || null,
           tickets: Array.from({length: g.qty || 1}, (_, i) => ({
             key: `${wcKey}-${i+1}`, attendeeKey: String(i+1),
             name: g.name, ticketName: g.ticketName,
             isVip: g.isVip,
             checkedIn: g.checkedInTickets.includes(String(i)) || g.checkedInTickets.includes(String(i+1))
           })),
-          source: 'wc', isComp: false, isTM: g.isTM
+          source: 'wc', isComp: g.isComp, isTM: g.isTM
         };
-        invoiceMap[String(g.orderNumber)] = bookingMap[wcKey];
+        if (g.orderNumber) invoiceMap[String(g.orderNumber)] = bookingMap[wcKey];
       }
     });
 
-    console.log(`bookingMap total: ${Object.keys(bookingMap).length} (MEC: ${Object.keys(bulkByBooking).length}, WC: ${wcGuests.length})`);
-
-    // Render immediately with MEC + WC data
+    console.log(`Guest list: ${Object.keys(guestMap).length} total (MEC: ${Object.keys(mecGuests).length}, WC: ${wcGuests.length})`);
+    await loadCompGuests();
     renderFilterPills();
-    renderGuestList();
-    updateGLStats();
+    renderGuestList(); updateGLStats();
 
-    // ── SOURCE 3: Google Sheet ────────────────────────────────────────────────
-    // DJs, staff, Remenham Farm, additional comps — loads in background
-    setTimeout(() => {
-      loadCompGuests().then(() => {
-        renderFilterPills();
-        renderGuestList();
-        updateGLStats();
-      }).catch(e => console.warn('Sheet load failed:', e));
-    }, 100);
-
-    // Sync check-in state from DB proxy
+    // Load real check-in state from our database proxy
+    // MEC's API doesn't reflect our direct writes, so we read back from fd2/v1/checkins
     await loadCheckinState();
 
   } catch(e) {
@@ -1351,12 +1333,89 @@ async function loadGuestList() {
   }
 }
 
+async function loadCompGuests() {
+  try {
+    const r = await fetch('./fd-comps.json?v=' + Date.now());
+    if (!r.ok) return;
+    const data = await r.json();
+    let added = 0;
+    Object.entries(data.events || {}).forEach(([eventName, ev]) => {
+      (ev.guests || []).forEach((g, i) => {
+        const key = `comp-${eventName.replace(/\s/g,'-').toLowerCase()}-${i}`;
+        if (guestMap[key]) return;
+        const ticketName = `${eventName} - ${g.ticket}`;
+        const matchedEvent = upcomingEvents.find(ev => {
+          const t = (ev.title || '').toLowerCase();
+          const n = eventName.toLowerCase();
+          // Match by first significant word of event name
+          const words = n.split(' ').filter(w => w.length > 3);
+          return words.some(w => t.includes(w));
+        });
+        const eventId = matchedEvent ? String(matchedEvent.id) : '';
+        const guest = {
+          id: key, orderNumber: key,
+          name: g.name, email: (g.email || '').toLowerCase(),
+          ticketName, isVip: !!g.vip, isComp: true, isTM: false,
+          qty: 1, checkedInTickets: [], checkedIn: false,
+          eventDay: '', _source: 'wc',
+          guestOf: g.guestOf || '',
+          _eventId: eventId,
+          orderDate: ev.date ? ev.date + 'T12:00:00' : new Date().toISOString()
+        };
+        guestMap[key] = guest;
+        if (guest.email) emailMap[guest.email] = guest;
+        bookingMap[key] = {
+          bookingId: key, invoiceID: key,
+          name: g.name, email: guest.email,
+          eventTitle: ticketName, eventDay: '',
+          orderDate: guest.orderDate,
+          guestOf: g.guestOf || '',
+          _eventId: eventId,
+          tickets: [{ key: `${key}-0`, attendeeKey: '0', name: g.name, ticketName, isVip: !!g.vip, checkedIn: false }],
+          source: 'wc', isComp: true, isTM: false
+        };
+        added++;
+      });
+    });
+    if (added > 0) console.log(`✓ Loaded ${added} comp guests from fd-comps.json`);
+  } catch(e) {
+    console.warn('Could not load comp guests:', e.message);
+  }
+}
 
-async function fetchWithTimeout(url, options={}, ms=10000) {
-  const ctrl = new AbortController();
-  const id = setTimeout(() => ctrl.abort(), ms);
-  try { return await fetch(url, {...options, signal: ctrl.signal}); }
-  finally { clearTimeout(id); }
+async function loadCheckinState() {
+  if (cfg.demo || !cfg.siteUrl) return;
+  try {
+    // Single bulk call — get all checked-in attendees at once
+    const r = await fetch(`${cfg.siteUrl}/wp-json/fd2/v1/checkins/bulk`);
+    if (!r.ok) {
+      console.warn('Bulk checkin load failed:', r.status);
+      return;
+    }
+    const data = await r.json();
+    if (!data.checkins) return;
+
+    let totalChecked = 0;
+    data.checkins.forEach(c => {
+      // c = { invoice_id, booking_id, place, checked_in }
+      const booking = invoiceMap[c.invoice_id] || bookingMap[c.booking_id];
+      if (!booking) return;
+      const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(c.place));
+      if (ticket && c.checked_in) {
+        ticket.checkedIn = true;
+        totalChecked++;
+      }
+    });
+
+    if (totalChecked > 0) {
+      console.log(`✓ Loaded ${totalChecked} checked-in tickets from database`);
+      stats.admitted = totalChecked;
+      document.getElementById('hdr-count').textContent = totalChecked;
+      updateStats(); updateGLStats(); renderGuestList();
+    }
+  } catch(e) {
+    console.warn('loadCheckinState failed:', e.message);
+  }
 }
 
 async function fetchWooOrders() {
@@ -1373,7 +1432,7 @@ async function fetchWooOrders() {
       const word = (ev.title||'').split(/\W+/).find(w => w.length > 3 && !SKIP.includes(w.toLowerCase()));
       if (!word) return [];
       try {
-        const r = await fetchWithTimeout(`${base}/products?search=${encodeURIComponent(word)}&per_page=20&status=publish&_fields=id,name`, {headers: hdrs});
+        const r = await fetch(`${base}/products?search=${encodeURIComponent(word)}&per_page=20&status=publish&_fields=id,name`, {headers: hdrs});
         if (!r.ok) return [];
         return await r.json();
       } catch(e) { return []; }
@@ -1392,7 +1451,7 @@ async function fetchWooOrders() {
     let page = 1, orders = [];
     while (true) {
       const url = `${base}/orders?status=completed,processing,on-hold&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data,date_created&product=${pid}`;
-      const r = await fetchWithTimeout(url, { headers: hdrs }, 10000);
+      const r = await fetch(url, { headers: hdrs });
       if (!r.ok) { console.warn(`WC orders for product ${pid}: ${r.status}`); break; }
       const batch = await r.json();
       if (!batch.length) break;
@@ -1578,20 +1637,20 @@ function admitAllBooking(bookingId) {
 // Dynamic event filter pills
 function renderFilterPills() {
   const bar = document.getElementById('gl-filter-bar');
-  if (!bar) return;
+  if (!bar || upcomingEvents.length === 0) return;
 
-  // Remove old event pills
   bar.querySelectorAll('.event-pill').forEach(p => p.remove());
 
-  if (upcomingEvents.length === 0) {
-    // No MEC events — just show all guests, no event pills needed
-    return;
-  }
-
+  const allBtn = bar.querySelector('.filter-pill');
   const now = Date.now();
   const reportingMode = localStorage.getItem('fd_reporting_mode') === '1';
-  const cutoff = reportingMode ? 365*24*60*60*1000 : 48*60*60*1000;
 
+  const cutoff = reportingMode
+    ? 365 * 24 * 60 * 60 * 1000
+    : 24 * 60 * 60 * 1000;
+
+  // Define preferred pill order
+  const ORDER = ['ladies', 'ibiza', 'studio', 'brunch'];
   const rank = t => {
     const tl = t.toLowerCase();
     if (/ladies/.test(tl))  return 0;
@@ -1601,36 +1660,44 @@ function renderFilterPills() {
     return 4;
   };
 
-  const eventsToShow = upcomingEvents
+  const filtered = upcomingEvents
     .filter(ev => {
-      if (!ev.mec_data?.end_date) return true;
-      const end = new Date(ev.mec_data.end_date + 'T23:59:59').getTime();
-      return (now - end) < cutoff;
+      if (!ev.mec_data || !ev.mec_data.end_date) return true;
+      const endTime = new Date(ev.mec_data.end_date + 'T23:59:59').getTime();
+      return (now - endTime) < cutoff;
     })
     .sort((a, b) => rank(a.title) - rank(b.title));
 
-  if (eventsToShow.length === 0) return;
-
-  const tmBtn = bar.querySelector('[onclick*="setFilter('tm'"]');
-
-  eventsToShow.forEach((ev, idx) => {
-    const cleanTitle = (ev.title || 'Event')
-      .replace(/copy of /i, '').replace(/funky dory\s*/i, '')
-      .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
-      .replace(/\s*[-–]\s*\d{2}[./]\d{2}([./]\d{2,4})?/g, '')
-      .replace(/\(SCAN TEST[^)]*\)/i, '').replace(/\s{2,}/g, ' ').trim();
-
-    const col = getEventColour(ev.title);
+  filtered.forEach(ev => {
     const pill = document.createElement('button');
     pill.className = 'filter-pill event-pill';
     pill.dataset.eventId = String(ev.id);
+
+    // Strip noise AND dates from pill label
+    const cleanTitle = (ev.title || 'Event')
+      .replace(/copy of /i, '')
+      .replace(/funky dory\s*/i, '')
+      .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
+      .replace(/meets\s*/i, '× ')
+      .replace(/\s*[-–]\s*\d{2}[./]\d{2}([./]\d{2,4})?/g, '')
+      .replace(/\(SCAN TEST[^)]*\)/i, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    const isHistoric = ev.mec_data?.end_date &&
+      new Date(ev.mec_data.end_date + 'T23:59:59').getTime() < now;
+
+    const col = getEventColour(ev.title);
+    pill.textContent = (isHistoric ? '📁 ' : '') + cleanTitle;
+    if (isHistoric) pill.style.opacity = '0.6';
     pill.dataset.eventColour = col.bg;
-    pill.textContent = cleanTitle;
     pill.onclick = function() { setFilter('event:' + ev.id, this); };
+    // Insert event pills after Comp but before Ticketmaster — in sorted order
+    const tmBtn = bar.querySelector('[onclick*="setFilter(\'tm\'"]');
     tmBtn ? bar.insertBefore(pill, tmBtn) : bar.appendChild(pill);
 
-    // Auto-select first pill only if no active pill yet
-    if (idx === 0 && !glFilter.startsWith('event:')) {
+    // Auto-select first event pill if nothing selected yet
+    if (!bar.querySelector('.filter-pill.active')) {
       pill.classList.add('active');
       pill.style.background = col.bg;
       pill.style.color = '#fff';
@@ -1648,7 +1715,6 @@ function renderFilterPills() {
     }
   });
 }
-
 
 function toggleBooking(bookingId) {
   const att     = document.getElementById(`att-${bookingId}`);
@@ -1762,40 +1828,41 @@ function renderGuestList() {
   }
   const all = Object.values(bookingMap);
   const filtered = all.filter(b => {
-    // Search match
-    const mq = !q || nameMatch(b.name, q) ||
-                String(b.bookingId).includes(q) ||
+    const mq = !q || nameMatch(b.name, q) || 
+                String(b.bookingId).includes(q) || 
                 (b.email && b.email.includes(q)) ||
                 (b.guestOf && nameMatch(b.guestOf, q)) ||
                 b.tickets.some(t => t.name && nameMatch(t.name, q));
-    if (!mq) return false;
-
-    // With a search query, show across all events
+    if (!mq) return false; // search query didn't match
+    if (glFilter === 'none') return false; // no event selected yet
+    // If there's a search query, show results across all current events
     if (q) return true;
-
-    // Event pill filter
+    // Apply type filters
+    // Dynamic event filter — show only MEC attendees for this specific event
+    // WC-only comps appear under All but not under specific event pills
     if (glFilter.startsWith('event:')) {
       const evId = glFilter.replace('event:', '');
-      // Primary match: exact event_id from bulk2
-      if (b._eventId) return String(b._eventId) === String(evId);
-      // Fallback for sheet/comp guests: match by event title keywords
-      if (b.isComp || b.source === 'wc' || b.source === 'sheet') {
+      // MEC bookings — match by eventId
+      if (b._eventId) return b._eventId === evId;
+      // Comp/WC guests — match by event name keywords since dates may differ between MEC and WC
+      if (b.isComp || b.source === 'wc') {
         const ev = upcomingEvents.find(e => String(e.id) === evId);
-        if (!ev) return true; // show if we can't determine
-        const SKIP = new Set(['funky','dory','during','henley','royal','regatta','meets','general','admission','2026','scan','test','party','white']);
-        const evWords = (ev.title||'').toLowerCase().split(/\W+/).filter(w => w.length > 3 && !SKIP.has(w));
-        const bTitle = (b.eventTitle||'').toLowerCase();
-        return evWords.length === 0 || evWords.some(w => bTitle.includes(w));
+        if (!ev) return false;
+        const bTitle = (b.eventTitle || '').toLowerCase();
+        const evTitle = (ev.title || '').toLowerCase();
+        // Match by distinctive event name words
+        const SKIP = ['funky','dory','during','henley','royal','regatta','meets','general','admission','access','release','early','bird','final','full','2026','scan','test','party'];
+        const evWords = evTitle.split(/\W+/).filter(w => w.length > 3 && !SKIP.includes(w));
+        return evWords.length > 0 && evWords.some(w => bTitle.includes(w));
       }
-      return true; // show unknown-source bookings
+      return false;
     }
+    if (glFilter === 'vip')        return b.tickets.some(t => t.isVip);
+    if (glFilter === 'comp')       return b.isComp;
+    if (glFilter === 'tm')         return b.isTM;
+    if (glFilter === 'in')         return getBookingAdmittedCount(b) > 0;
+    if (glFilter === 'pending')    return getBookingAdmittedCount(b) < b.tickets.length;
 
-    if (glFilter === 'none' || glFilter === 'all') return true;
-    if (glFilter === 'vip')     return b.tickets.some(t => t.isVip);
-    if (glFilter === 'comp')    return b.isComp;
-    if (glFilter === 'tm')      return b.isTM || b.source === 'remenham' || (b.bookingId||'').startsWith('FD-RF-') || (b.bookingId||'').startsWith('sheet-rem-');
-    if (glFilter === 'in')      return getBookingAdmittedCount(b) > 0;
-    if (glFilter === 'pending') return getBookingAdmittedCount(b) < b.tickets.length;
     return true;
   }).sort((a,b) => {
     const aVip = a.tickets.some(t => t.isVip);
@@ -1994,21 +2061,6 @@ function openDrawer(bookingId) {
       ${g.isVip ? `<div class="ent-row"><span class="ent-icon">🍽️</span><span class="ent-label">Food tokens</span><span class="ent-val">Issue now</span></div>` : ''}
       ${g.table ? `<div class="ent-row"><span class="ent-icon">🪑</span><span class="ent-label">Table</span><span class="ent-val">${g.table}</span></div>` : ''}
     `;
-  } else if ((g.entryType||'').toUpperCase() === 'AAA' || g.isAAA) {
-    entEl.className   = 'drawer-ent aaa';
-    titleEl.textContent = 'All Areas' + (g.guestType ? ` — ${g.guestType}` : '');
-    rowsEl.innerHTML  = `
-      <div class="ent-row"><span class="ent-icon">🎫</span><span class="ent-label">Lanyard</span><span class="ent-val">Issue now</span></div>
-      <div class="ent-row"><span class="ent-icon">🎽</span><span class="ent-label">Wristband</span><span class="ent-val">AAA band</span></div>
-      ${g.guestOf ? `<div class="ent-row"><span class="ent-icon">🎟</span><span class="ent-label">Guest of</span><span class="ent-val">${g.guestOf}</span></div>` : ''}
-    `;
-  } else if ((g.entryType||'').toUpperCase() === 'STAFF' || g.isStaff) {
-    entEl.className   = 'drawer-ent staff';
-    titleEl.textContent = 'Staff' + (g.guestType ? ` — ${g.guestType}` : '');
-    rowsEl.innerHTML  = `
-      <div class="ent-row"><span class="ent-icon">🎽</span><span class="ent-label">Wristband</span><span class="ent-val">Staff band</span></div>
-      ${g.multiDay ? `<div class="ent-row"><span class="ent-icon">♻️</span><span class="ent-label">Multi-day pass</span><span class="ent-val">Valid all days</span></div>` : ''}
-    `;
   } else if (g.isVip) {
     entEl.className   = 'drawer-ent vip';
     titleEl.textContent = 'VIP Entitlements';
@@ -2019,7 +2071,7 @@ function openDrawer(bookingId) {
     `;
   } else {
     entEl.className   = 'drawer-ent std';
-    titleEl.textContent = 'Entitlements' + (g.guestType ? ` — ${g.guestType}` : '');
+    titleEl.textContent = 'Entitlements';
     rowsEl.innerHTML  = `
       <div class="ent-row"><span class="ent-icon">🎽</span><span class="ent-label">Wristband</span><span class="ent-val">Standard</span></div>
     `;
@@ -2172,7 +2224,7 @@ async function lookupTicket(code) {
         let alreadyInDb = false;
         if (!alreadyInLocal && cfg.siteUrl && invoiceId && place) {
           try {
-            const cr = await fetchWithTimeout(`${cfg.siteUrl}/wp-json/fd2/v1/checkins?invoice_id=${encodeURIComponent(invoiceId)}`, {}, 5000);
+            const cr = await fetch(`${cfg.siteUrl}/wp-json/fd2/v1/checkins?invoice_id=${encodeURIComponent(invoiceId)}`);
             if (cr.ok) {
               const cd = await cr.json();
               if (cd.found && cd.attendees) {
@@ -2311,16 +2363,9 @@ async function lookupTicket(code) {
       // Continue to WC lookup below
     }
 
-    // 2. Try local guest map — FD system first, then RF sheet
-    // FD-RF- codes resolve directly from sheet data loaded at startup
+    // 2. Try local guest map (WC orders already loaded)
     const guest = resolveGuest(code);
     if (guest) { handleGuest(guest, code); isScanning = false; return; }
-
-    // 2b. FD-RF code not found in local map — reject immediately (no WC lookup needed)
-    if (/^FD-RF-/i.test(code)) {
-      rejectCode(code, 'Remenham Farm ticket not found');
-      isScanning = false; return;
-    }
 
     // 3. Try WC external ticket lookup (Ticketmaster barcodes stored as meta)
     if (!cfg.demo) {
@@ -2351,7 +2396,7 @@ async function lookupTicket(code) {
     }
 
     // 6. Not found anywhere
-    rejectCode(code, 'Not found in guest list');
+    rejectCode(code, 'Not found in MEC or WooCommerce');
 
   } catch(err) {
     vibrate([300, 100, 300]);
@@ -2365,29 +2410,7 @@ async function lookupTicket(code) {
 
 function resolveGuest(code) {
   const clean = code.replace(/^#/,'').trim();
-  // FD-RF- prefix = Remenham Farm ticket — look up directly in invoiceMap
-  if (/^FD-RF-/i.test(clean)) {
-    // QR may contain full event title: FD-RF-{orderid}-{ticket}-{event title}
-    // Strip to base key FD-RF-{orderid}-{ticket} for lookup
-    const baseKey = clean.match(/^(FD-RF-\d+-\d+)/i)?.[1] || clean;
-    const b = invoiceMap[baseKey] || invoiceMap[clean];
-    if (b) {
-      return guestMap[b.bookingId] || guestMap[baseKey] || guestMap[clean] || null;
-    }
-  }
-  return guestMap[clean] || guestMap[code] || invoiceMap[clean] && Object.assign({}, invoiceMap[clean], {
-    id: invoiceMap[clean].bookingId,
-    orderNumber: invoiceMap[clean].invoiceID,
-    qty: invoiceMap[clean].tickets.length,
-    checkedInTickets: [],
-    checkedIn: false,
-    ticketName: (invoiceMap[clean].tickets[0]||{}).ticketName || '',
-    isVip: (invoiceMap[clean].tickets[0]||{}).isVip || false,
-    isComp: invoiceMap[clean].isComp,
-    isTM: false,
-    eventDay: '',
-    _eventId: invoiceMap[clean]._eventId || '',
-  }) || emailMap[code.toLowerCase()] || null;
+  return guestMap[clean] || guestMap[code] || emailMap[code.toLowerCase()] || null;
 }
 
 // ═══════════════════════════════════════════
@@ -2800,27 +2823,15 @@ function setResult(state, icon, name, detail, pulse) {
 function showEnt(g) {
   const el    = document.getElementById('ent-banner');
   const items = document.getElementById('ent-items');
-  const et    = (g.entryType || (g.isVip ? 'VIP' : g.isAAA ? 'AAA' : g.isStaff ? 'Staff' : 'GE')).toUpperCase();
-  const gtBadge = g.guestType ? ` <span style="background:rgba(255,255,255,.25);border-radius:4px;padding:1px 6px;font-size:11px;margin-left:6px;">${g.guestType}</span>` : '';
-  if (et === 'AAA') {
-    el.className = 'ent-banner aaa';
-    el.querySelector('.eb-icon').textContent  = '🎫';
-    el.querySelector('.eb-title').innerHTML   = 'All Areas' + gtBadge;
-    items.innerHTML = '🎫 Lanyard &nbsp;·&nbsp; 🎽 Wristband';
-  } else if (et === 'VIP' || g.isVip) {
+  if (g.isVip) {
     el.className = 'ent-banner vip';
     el.querySelector('.eb-icon').textContent  = '⭐';
-    el.querySelector('.eb-title').innerHTML   = 'VIP — Issue now:' + gtBadge;
+    el.querySelector('.eb-title').textContent = 'VIP — Issue now:';
     items.innerHTML = `🎽 Wristband &nbsp;·&nbsp; 🍽️ Food tokens${g.table?' &nbsp;·&nbsp; 🪑 Table '+g.table:''}`;
-  } else if (et === 'STAFF' || g.isStaff) {
-    el.className = 'ent-banner staff';
-    el.querySelector('.eb-icon').textContent  = '🏷️';
-    el.querySelector('.eb-title').innerHTML   = 'Staff' + gtBadge;
-    items.innerHTML = '🎽 Wristband' + (g.multiDay ? ' &nbsp;·&nbsp; ♻️ Multi-day pass' : '');
   } else {
     el.className = 'ent-banner std';
     el.querySelector('.eb-icon').textContent  = '🎽';
-    el.querySelector('.eb-title').innerHTML   = 'General Entry' + gtBadge;
+    el.querySelector('.eb-title').textContent = 'Wristband';
     items.textContent = 'Standard wristband';
   }
   el.classList.remove('hidden');
@@ -3154,27 +3165,9 @@ async function fetchSingleBooking() {
 
   btn.textContent = 'Looking up…';
   btn.disabled = true;
-  resultEl.innerHTML = '<span style="color:var(--muted);">Searching…</span>';
+  resultEl.innerHTML = '<span style="color:var(--muted);">Checking WooCommerce…</span>';
 
   try {
-    // RF fallback — check Remenham Farm sheet data first (FD system has no record of these)
-    const rfKey = 'rf-' + input;
-    const rfBooking = invoiceMap[rfKey];
-    if (rfBooking) {
-      resultEl.innerHTML = `
-        <div style="background:#FFF4E5;border:2px solid #F04E30;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
-          <div style="font-weight:800;font-size:14px;color:var(--navy);">${rfBooking.name}</div>
-          <div style="font-size:12px;color:#F04E30;font-weight:700;margin-top:2px;">Remenham Farm ticket</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:4px;">${rfBooking.tickets.length} ticket${rfBooking.tickets.length!==1?'s':''} · RF Order #${input}</div>
-        </div>
-        <button onclick="viewBookingInList('${rfBooking.bookingId}');"
-          style="width:100%;padding:12px;background:var(--navy);color:white;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">
-          👁 View in Guest List
-        </button>`;
-      btn.textContent = 'Find Booking'; btn.disabled = false;
-      return;
-    }
-
     const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
     const r = await fetch(
       `${cfg.siteUrl}/wp-json/wc/v3/orders/${encodeURIComponent(input)}`,
@@ -3488,17 +3481,15 @@ window.addEventListener('DOMContentLoaded', () => {
       const c = JSON.parse(saved);
       if (c.siteUrl && c.wcKey) {
         cfg = c;
-        // Safe field population — null-checked so a missing element never blocks launch
-        const setField = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-        setField('site-url', c.siteUrl); setField('s-url', c.siteUrl);
-        setField('wc-key',   c.wcKey);   setField('s-key', c.wcKey);
-        setField('wc-secret',c.wcSecret);setField('s-secret', c.wcSecret);
-        setField('mec-key',  c.mecKey);  setField('s-mec-key', c.mecKey);
-        setField('s-sheet-url', c.sheetUrl);
+        ['site-url','s-url'].forEach(id => document.getElementById(id).value = c.siteUrl);
+        ['wc-key','s-key'].forEach(id => document.getElementById(id).value = c.wcKey);
+        ['wc-secret','s-secret'].forEach(id => document.getElementById(id).value = c.wcSecret);
+        ['mec-key','s-mec-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = c.mecKey||''; });
+        // Auto-launch if we have saved creds
         launch();
         return;
       }
-    } catch(e){ console.error('Saved config load failed:', e); }
+    } catch(e){}
   }
   // 3. Show setup screen
 });
