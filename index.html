@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.23</title>
+<title>FD Door Scanner v6.24</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.23</div>
+    <div class="brand-sub">Door Scanner · v6.24</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.23</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.24</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -3113,11 +3113,11 @@ function handleGuest(g, code) {
   // Check if this specific ticket already scanned
   if (g.checkedInTickets.includes(code)) {
     vibrate([200,80,200]);
-    addLog({ name:g.name, ticket:`${g.ticketName} (ticket ${parseInt(suffix)+1} of ${g.qty})`, status:'warn', code });
+    const scannedNum = g.checkedInTickets.length;
+    addLog({ name:g.name, ticket:`${g.ticketName} (${scannedNum} of ${g.qty} scanned)`, status:'warn', code });
     stats.dupe++; stats.total++;
-    setResult('warn','⚠️', g.name, `Ticket ${parseInt(suffix)+1} of ${g.qty} already scanned`);
-    showEnt(g);
-    showChips([{ label:`${parseInt(suffix)+1} of ${g.qty} tickets`, cls:'' }, { label:'DUPLICATE', cls:'hi' }]);
+    setResult('warn','⚠️', g.name, `Already scanned`);
+    showChips([{ label:`${scannedNum} of ${g.qty} scanned`, cls:'' }, { label:'DUPLICATE', cls:'hi' }]);
     updateStats();
     return;
   }
