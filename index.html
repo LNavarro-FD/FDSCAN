@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.03</title>
+<title>FD Door Scanner v6.04</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -502,7 +502,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.03</div>
+    <div class="brand-sub">Door Scanner · v6.04</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -518,7 +518,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.03</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.04</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1379,10 +1379,10 @@ async function loadGuestList() {
 // ── Google Sheet integration ─────────────────────────────────────────────────
 const SHEET_ID = '1qy9_HFxFZg9L3M2UzV_cSMesZp6UdYJZmlR-k9d3OCc';
 const SHEET_TABS = {
-  guests:     '0',       // Guests tab (gid=0)
-  djs:        '476175960',  // DJs and Guests
-  resources:  '1773190235', // Resources
-  remenham:   '1496864112', // Remenham Farm
+  guests:     '0',          // Guests tab
+  djs:        '1627244189', // DJs and Guests
+  resources:  '734386291',  // Resources
+  remenham:   '630690329',  // Remenham Farm
 };
 
 // Map sheet event name → MEC event id
