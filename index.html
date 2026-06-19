@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.04</title>
+<title>FD Door Scanner v6.05</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -502,7 +502,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.04</div>
+    <div class="brand-sub">Door Scanner · v6.05</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -518,7 +518,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.04</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.05</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1576,17 +1576,20 @@ async function loadGoogleSheet() {
     } catch(e) { console.warn('Sheet Resources failed:', e.message); }
 
     // ── Tab 4: Remenham Farm ───────────────────────────────────────
-    // Name | Email | Event | Entry Type | Guest Type | Notes
+    // WC order export: billing_first_name(16) | billing_last_name(17) | billing_email(20) | item_name(40)
     try {
       const rows = await fetchSheetTab(SHEET_TABS.remenham);
       let added = 0;
       rows.slice(1).forEach((r, i) => {
-        const [name, email, event, entryTypeRaw, guestType] = r;
+        const firstName = (r[16] || '').trim();
+        const lastName  = (r[17] || '').trim();
+        const email     = (r[20] || '').toLowerCase().trim();
+        const itemName  = (r[40] || '').trim();
+        const name = [firstName, lastName].filter(Boolean).join(' ');
         if (!name) return;
-        const entryType = parseEntryType(entryTypeRaw);
-        const eventIds  = sheetEventToId(event);
+        const eventIds = sheetEventToId(itemName); // extract event from item_name
         if (!eventIds.length) return;
-        addSheetBooking({ key: `rf-${i}`, name, email, entryType, guestType: (guestType||'Remenham Farm').trim(), hasLanyard: false, eventIds, ticketName: 'Remenham Farm', isComp: false, isRemenham: true, source: 'sheet' });
+        addSheetBooking({ key: `rf-${i}`, name, email, entryType: 'GE', guestType: 'Remenham Farm', hasLanyard: false, eventIds, ticketName: itemName || 'Remenham Farm', isComp: false, isRemenham: true, source: 'sheet' });
         added++;
       });
       console.log(`✓ Sheet Remenham Farm: ${added}`);
