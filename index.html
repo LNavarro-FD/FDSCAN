@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.15</title>
+<title>FD Door Scanner v6.16</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -234,16 +234,18 @@ input::placeholder { color: #999; }
 
 /* ── Entitlement banner ── */
 .ent-banner {
-  border-radius: 12px; padding: 14px 16px;
-  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
-  border-width: 3px;
+  border-radius: 12px; padding: 12px 14px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px; flex-shrink: 0;
+  border: 3px solid var(--border);
+  overflow: hidden;
 }
-.ent-banner.std { background: #fff; border: 2px solid var(--border); }
-.ent-banner.vip { background: #FFFBE6; border: 2px solid #C89500; }
+.ent-banner.std { background: #fff; }
+.ent-banner.vip { background: #FFFBE6; border-color: #C89500; }
 .eb-icon  { font-size: 30px; }
-.eb-title { font-size: 15px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; color: var(--text); }
+.eb-icon img { width: 100%; height: 52px; object-fit: cover; object-position: center; border-radius: 6px; display: block; }
+.eb-title { font-size: 14px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; color: var(--text); }
 .vip .eb-title { color: #7A5500; }
-.eb-items { font-size: 14px; color: var(--muted); margin-top: 4px; line-height: 1.4; font-weight: 600; }
+.eb-items { font-size: 13px; color: var(--muted); margin-top: 2px; line-height: 1.4; font-weight: 600; }
 .vip .eb-items { color: #7A5500; }
 
 /* ── Chips ── */
@@ -537,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.15</div>
+    <div class="brand-sub">Door Scanner · v6.16</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -553,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.15</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.16</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -2585,7 +2587,7 @@ async function lookupTicket(code) {
           // Already checked in — hide entitlement banner
           addLog({ name:mecGuest.name, ticket:`${mecGuest.ticketName} (${code})`, status:'warn', code });
           stats.dupe++; stats.total++;
-          setResult('warn','⚠️', mecGuest.name, `Ticket already checked in`);
+          setResult('warn','⚠️', mecGuest.name, `Already scanned`);
           document.getElementById('ent-banner').classList.add('hidden');
           showChips([{ label:mecGuest.ticketName, cls:'' }, { label:'DUPLICATE', cls:'hi' }]);
           updateStats();
@@ -3175,7 +3177,7 @@ function showEnt(g) {
   const wbKey = getWristbandKey(evId, entryType);
   const wbSrc = wbKey ? WRISTBAND_IMGS[wbKey] : null;
   const iconEl = el.querySelector('.eb-icon');
-  const imgHtml = wbSrc ? `<img src="${wbSrc}" style="height:52px;width:auto;border-radius:6px;display:block;">` : null;
+  const imgHtml = wbSrc ? `<img src="${wbSrc}">` : null;
 
   const evColours = { '30589': '#5BB8E8', '30590': '#F04E30', '30591': '#E91E8C' };
 
