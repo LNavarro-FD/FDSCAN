@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.10</title>
+<title>FD Door Scanner v6.11</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -537,7 +537,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.10</div>
+    <div class="brand-sub">Door Scanner · v6.11</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -553,7 +553,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.10</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.11</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -680,7 +680,6 @@ input::placeholder { color: #999; }
     <button class="filter-pill" onclick="setFilter('pending',this)">👻 No Show</button>
   </div>
   <div id="ptr-indicator" class="ptr-indicator">↓ Release to refresh</div>
-  <div class="wb-toast" id="wb-toast"><div class="wb-toast-dot" id="wb-toast-dot"></div><span id="wb-toast-msg"></span></div>
   <div id="gl-list" class="gl-list">
     <div class="gl-loading"><span class="spin"></span>&nbsp; Loading…</div>
   </div>
@@ -1882,6 +1881,7 @@ function admitAllBooking(bookingId) {
   if (!b) return;
   const pending = b.tickets.filter(t => !t.checkedIn);
   if (!pending.length) return;
+  if (pending.length) showWristbandToast(b, pending[0]);
   pending.forEach(t => {
     t.checkedIn = true;
     if (b.source === 'mec') {
@@ -2376,6 +2376,9 @@ function admitFromDrawer() {
   g.checkedInTickets.push(nextSuffix);
   g.checkedIn = g.checkedInTickets.length >= g.qty;
   writeCheckIn(g.id, nextSuffix, g.checkedInTickets);
+  // Show wristband toast — build a minimal booking/ticket object
+  const drawerBooking = bookingMap[Object.keys(bookingMap).find(k => bookingMap[k].name === g.name)] || { _eventId: g._eventId, eventTitle: g.ticketName, entryType: g.isVip ? 'VIP' : 'GE' };
+  showWristbandToast(drawerBooking, { name: g.name, ticketName: g.ticketName, entryType: g.isVip ? 'VIP' : 'GE', isVip: g.isVip });
   addLog({ name:g.name, ticket:`${g.ticketName} (${g.checkedInTickets.length} of ${g.qty})`, status:'ok', note:'Manual' });
   stats.admitted++; stats.total++;
   document.getElementById('hdr-count').textContent = stats.admitted;
@@ -3783,5 +3786,6 @@ window.addEventListener('DOMContentLoaded', () => {
   // 3. Show setup screen
 });
 </script>
+  <div class="wb-toast" id="wb-toast"><div class="wb-toast-dot" id="wb-toast-dot"></div><span id="wb-toast-msg"></span></div>
 </body>
 </html>
