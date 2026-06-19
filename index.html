@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.19</title>
+<title>FD Door Scanner v6.20</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.19</div>
+    <div class="brand-sub">Door Scanner · v6.20</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.19</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.20</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1819,7 +1819,8 @@ function showWristbandToast(booking, ticket) {
   else if (imgEl) { imgEl.style.display = 'none'; }
   toast.classList.add('show');
   clearTimeout(window._toastTimer);
-  toast.onclick = () => toast.classList.remove('show');
+  window._toastTimer = setTimeout(() => toast.classList.remove('show'), 5000);
+  toast.onclick = () => { clearTimeout(window._toastTimer); toast.classList.remove('show'); };
 }
 
 function admitSpecific(bookingId, attendeeKey) {
@@ -3153,6 +3154,16 @@ function rejectCode(code, msg) {
 function setResult(state, icon, name, detail, pulse) {
   const el = document.getElementById('result-card');
   el.className = 'result-card' + (state==='ok'?' ok':state==='err'?' err':state==='warn'?' warn':state==='tm'?' tm':'');
+  clearTimeout(window._resultTimer);
+  if (state === 'ok' || state === 'warn') {
+    window._resultTimer = setTimeout(() => {
+      el.className = 'result-card';
+      el.querySelector('.rc-status').textContent = '';
+      el.querySelector('.rc-name').textContent = 'Ready';
+      el.querySelector('.rc-detail').textContent = 'Scan a ticket or search below';
+      document.getElementById('ent-banner').classList.add('hidden');
+    }, 5000);
+  }
   if (pulse) {
     el.classList.add('pulse-ok');
     setTimeout(() => el.classList.remove('pulse-ok'), 700);
