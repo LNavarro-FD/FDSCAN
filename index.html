@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.06</title>
+<title>FD Door Scanner v6.07</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -194,7 +194,7 @@ input::placeholder { color: #999; }
 .err  .rc-status { color: var(--err); }
 .warn .rc-status { color: #fff; font-size: 14px; letter-spacing: .22em; }
 .tm   .rc-status { color: var(--tm); }
-.rc-name   { font-size: 22px; font-weight: 900; line-height: 1.1; color: var(--text); }
+.rc-name   { font-size: 26px; font-weight: 900; line-height: 1.1; color: var(--text); }
 .warn .rc-name   { color: #fff; font-size: 26px; }
 .warn .rc-detail { color: rgba(255,255,255,0.85); }
 .rc-detail { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
@@ -218,15 +218,16 @@ input::placeholder { color: #999; }
 
 /* ── Entitlement banner ── */
 .ent-banner {
-  border-radius: 10px; padding: 10px 14px;
-  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  border-radius: 12px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+  border-width: 3px;
 }
 .ent-banner.std { background: #fff; border: 2px solid var(--border); }
 .ent-banner.vip { background: #FFFBE6; border: 2px solid #C89500; }
-.eb-icon  { font-size: 22px; }
-.eb-title { font-size: 13px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--text); }
+.eb-icon  { font-size: 30px; }
+.eb-title { font-size: 15px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; color: var(--text); }
 .vip .eb-title { color: #7A5500; }
-.eb-items { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+.eb-items { font-size: 14px; color: var(--muted); margin-top: 4px; line-height: 1.4; font-weight: 600; }
 .vip .eb-items { color: #7A5500; }
 
 /* ── Chips ── */
@@ -520,7 +521,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.06</div>
+    <div class="brand-sub">Door Scanner · v6.07</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -536,7 +537,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.06</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.07</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -3045,16 +3046,36 @@ function setResult(state, icon, name, detail, pulse) {
 function showEnt(g) {
   const el    = document.getElementById('ent-banner');
   const items = document.getElementById('ent-items');
-  if (g.isVip) {
+
+  // Determine event colour for wristband
+  const evId = String(g._eventId || '');
+  const evColours = {
+    '30589': { bg: '#5BB8E8', label: 'Ladies Day',       name: 'Sky Blue' },
+    '30590': { bg: '#F04E30', label: 'Ibiza White Party', name: 'Coral' },
+    '30591': { bg: '#E91E8C', label: 'Studio 54',         name: 'Hot Pink' },
+  };
+  const evCol = evColours[evId];
+
+  // Determine entry type
+  const entryType = g.entryType || (g.isVip ? 'VIP' : 'GE');
+
+  if (entryType === 'VIP' || g.isVip) {
     el.className = 'ent-banner vip';
     el.querySelector('.eb-icon').textContent  = '⭐';
     el.querySelector('.eb-title').textContent = 'VIP — Issue now:';
     items.innerHTML = `🎽 Wristband &nbsp;·&nbsp; 🍽️ Food tokens${g.table?' &nbsp;·&nbsp; 🪑 Table '+g.table:''}`;
+  } else if (entryType === 'AAA') {
+    el.className = 'ent-banner std';
+    el.style.borderColor = '#22224C';
+    el.querySelector('.eb-icon').textContent  = '🎫';
+    el.querySelector('.eb-title').textContent = 'AAA — Issue now:';
+    items.innerHTML = `🎫 Lanyard &nbsp;·&nbsp; 🎽 Wristband`;
   } else {
     el.className = 'ent-banner std';
+    el.style.borderColor = evCol ? evCol.bg : 'var(--border)';
     el.querySelector('.eb-icon').textContent  = '🎽';
-    el.querySelector('.eb-title').textContent = 'Wristband';
-    items.textContent = 'Standard wristband';
+    el.querySelector('.eb-title').textContent = 'Wristband — Issue now:';
+    items.textContent = evCol ? `${evCol.name} band · ${evCol.label}` : 'Standard wristband';
   }
   el.classList.remove('hidden');
 }
