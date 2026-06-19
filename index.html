@@ -502,7 +502,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.98</div>
+    <div class="brand-sub">Door Scanner · v5.99</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -518,7 +518,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.98</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.99</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -839,6 +839,23 @@ input::placeholder { color: #999; }
 
 </div><!-- /app -->
 <script>
+// ═══════════════════════════════════════════
+//  AUTO-UPDATE CHECK
+// ═══════════════════════════════════════════
+const APP_VERSION = '5.99';
+(function checkForUpdate() {
+  fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
+    .then(r => r.text())
+    .then(html => {
+      const m = html.match(/APP_VERSION = '([\d.]+)'/);
+      if (m && m[1] !== APP_VERSION) {
+        console.log('New version available:', m[1], '— reloading');
+        window.location.reload(true);
+      }
+    })
+    .catch(() => {});
+})();
+
 // ═══════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════
