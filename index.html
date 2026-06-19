@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.05</title>
+<title>FD Door Scanner v6.06</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -297,45 +297,32 @@ input::placeholder { color: #999; }
   flex-shrink: 0; display: flex; flex-wrap: nowrap; gap: 7px; padding: 9px 14px;
   border-bottom: 1px solid var(--border);
   background: var(--white);
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow-x: auto; overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  width: 100%;
+  scrollbar-width: none; width: 100%;
 }
 .gl-filter-bar::-webkit-scrollbar { display: none; }
-.gl-filter-bar.collapsed {
-  max-height: none;
-  overflow: visible;
-  flex-wrap: nowrap;
-  padding: 8px 14px;
-}
-/* Active event bar — shown when an event is selected */
-.gl-active-filter {
-  flex-shrink: 0; width: 100%; box-sizing: border-box;
-  display: none;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 14px;
-  background: var(--navy);
+/* Sub-pill row */
+.gl-sub-filter-bar {
+  flex-shrink: 0; display: none; flex-wrap: nowrap; gap: 6px;
+  padding: 7px 14px;
   border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  overflow-x: auto; overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; width: 100%; box-sizing: border-box;
 }
-.gl-active-filter.show { display: flex; }
-.gl-active-filter-name {
-  font-size: 13px; font-weight: 800; color: #fff;
-  letter-spacing: .05em; flex: 1; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.gl-sub-filter-bar.show { display: flex; }
+.gl-sub-filter-bar::-webkit-scrollbar { display: none; }
+.sub-pill {
+  flex-shrink: 0; background: var(--white); border: 1.5px solid var(--border);
+  border-radius: 20px; padding: 5px 13px;
+  font-size: 12px; font-weight: 700; color: var(--navy);
+  cursor: pointer; font-family: inherit; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent; transition: all .15s;
 }
-.gl-active-filter-clear {
-  flex-shrink: 0;
-  background: none; border: 1.5px solid rgba(255,255,255,.4);
-  border-radius: 20px; padding: 4px 12px;
-  font-size: 12px; font-weight: 700; color: #fff;
-  cursor: pointer; font-family: inherit;
-  -webkit-tap-highlight-color: transparent;
-  white-space: nowrap;
-}
+.sub-pill.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+/* gl-active-filter replaced by two-tier pills */
 .filter-pill {
   flex-shrink: 0; background: var(--bg); border: 2px solid var(--border);
   border-radius: 20px; padding: 8px 16px; font-size: 13px; font-weight: 700;
@@ -502,7 +489,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.05</div>
+    <div class="brand-sub">Door Scanner · v6.06</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -518,7 +505,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.05</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.06</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -636,10 +623,10 @@ input::placeholder { color: #999; }
     <button class="gl-refresh" onclick="refreshGuests()" title="Refresh">↻</button>
   </div>
   <!-- event-bar removed — replaced by dynamic event filter pills -->
-  <div class="gl-active-filter" id="gl-active-filter">
-    <div class="gl-active-filter-name" id="gl-active-filter-name"></div>
-    <button class="gl-active-filter-clear" onclick="clearEventFilter()">See all</button>
-  </div>
+  <!-- legacy active-filter hidden -->
+  <div class="gl-active-filter" id="gl-active-filter" style="display:none!important"></div>
+  <!-- sub-pill row -->
+  <div class="gl-sub-filter-bar" id="gl-sub-filter-bar"></div>
   <div class="gl-filter-bar" id="gl-filter-bar">
     <button class="filter-pill" onclick="setFilter('comp',this)">🎁 Comp</button>
     <!-- Event pills injected dynamically by renderFilterPills() -->
@@ -868,6 +855,7 @@ let idMap      = {};  // wc order id → guest
 let scanLog  = [];
 let stats    = { admitted:0, total:0, dupe:0, invalid:0 };
 let glFilter = 'all';
+let glSubFilter = 'all'; // sub-pill: all/tickets/guests/djs/staff/remenham
 let scanner  = null;
 let lastCode = ''; let lastAt = 0; let isScanning = false;
 let pendingTMCode = null;
@@ -1892,7 +1880,6 @@ function renderFilterPills() {
     pill.className = 'filter-pill event-pill';
     pill.dataset.eventId = String(ev.id);
 
-    // Strip noise AND dates from pill label
     const cleanTitle = (ev.title || 'Event')
       .replace(/copy of /i, '')
       .replace(/funky dory\s*/i, '')
@@ -1910,28 +1897,70 @@ function renderFilterPills() {
     pill.textContent = (isHistoric ? '📁 ' : '') + cleanTitle;
     if (isHistoric) pill.style.opacity = '0.6';
     pill.dataset.eventColour = col.bg;
-    pill.onclick = function() { setFilter('event:' + ev.id, this); };
-    // Insert event pills after Comp but before Ticketmaster — in sorted order
+    pill.dataset.cleanTitle = cleanTitle;
+    pill.onclick = function() { setEventFilter(ev.id, cleanTitle, col, this); };
+
     const tmBtn = bar.querySelector('[onclick*="setFilter(\'tm\'"]');
     tmBtn ? bar.insertBefore(pill, tmBtn) : bar.appendChild(pill);
 
-    // Auto-select first event pill if nothing selected yet
+    // Auto-select first event pill
     if (!bar.querySelector('.filter-pill.active')) {
       pill.classList.add('active');
       pill.style.background = col.bg;
       pill.style.color = '#fff';
       pill.style.borderColor = col.bg;
       glFilter = 'event:' + ev.id;
-      const activeBar  = document.getElementById('gl-active-filter');
-      const activeName = document.getElementById('gl-active-filter-name');
-      if (activeBar && activeName) {
-        bar.style.display = 'none';
-        activeBar.classList.add('show');
-        activeBar.style.background = col.bg;
-        activeName.style.color = '#fff';
-        activeName.textContent = '📅 ' + cleanTitle;
-      }
+      glSubFilter = 'all';
+      renderSubPills(ev.id, col);
     }
+  });
+}
+
+function setEventFilter(evId, cleanTitle, col, el) {
+  glFilter = 'event:' + evId;
+  glSubFilter = 'all';
+  // Update event pill highlight
+  document.querySelectorAll('.filter-pill').forEach(p => {
+    p.classList.remove('active');
+    p.style.background = '';
+    p.style.color = '';
+    p.style.borderColor = '';
+  });
+  if (el) {
+    el.classList.add('active');
+    el.style.background = col.bg;
+    el.style.color = '#fff';
+    el.style.borderColor = col.bg;
+  }
+  renderSubPills(evId, col);
+  renderGuestList();
+}
+
+function renderSubPills(evId, col) {
+  const subBar = document.getElementById('gl-sub-filter-bar');
+  if (!subBar) return;
+  subBar.innerHTML = '';
+  subBar.classList.add('show');
+
+  const cats = [
+    { key: 'all',       label: 'All' },
+    { key: 'tickets',   label: '🎫 Tickets' },
+    { key: 'guests',    label: '🎁 Guests' },
+    { key: 'djs',       label: '🎧 DJs' },
+    { key: 'staff',     label: '👷 Staff' },
+    { key: 'remenham',  label: '🏡 Remenham' },
+  ];
+  cats.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'sub-pill' + (glSubFilter === c.key ? ' active' : '');
+    btn.textContent = c.label;
+    btn.onclick = () => {
+      glSubFilter = c.key;
+      subBar.querySelectorAll('.sub-pill').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      renderGuestList();
+    };
+    subBar.appendChild(btn);
   });
 }
 
@@ -1959,64 +1988,26 @@ function hideOldGuests() {
 }
 
 function setFilter(f, el) {
+  // For non-event filters (comp, tm, in, pending) — hide sub-pills, update highlight
   glFilter = f;
+  glSubFilter = 'all';
   document.querySelectorAll('.filter-pill').forEach(p => {
     p.classList.remove('active');
     p.style.background = '';
     p.style.color = '';
     p.style.borderColor = '';
   });
-  if (el) {
-    el.classList.add('active');
-    // If it's an event pill, colour it with the wristband colour
-    if (el.dataset.eventColour) {
-      el.style.background = el.dataset.eventColour;
-      el.style.color = '#fff';
-      el.style.borderColor = el.dataset.eventColour;
-    }
-  }
-
-  const bar        = document.getElementById('gl-filter-bar');
-  const activeBar  = document.getElementById('gl-active-filter');
-  const activeName = document.getElementById('gl-active-filter-name');
-
-  if (f.startsWith('event:')) {
-    bar.style.display = 'none';
-    activeBar.classList.add('show');
-    const evId = f.replace('event:', '');
-    const ev   = upcomingEvents.find(e => String(e.id) === evId);
-    const name = ev ? (ev.title || 'Event')
-      .replace(/copy of /i, '')
-      .replace(/funky dory\s*/i, '')
-      .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
-      .replace(/\(SCAN TEST[^)]*\)/i, '')
-      .replace(/\s*[-–]\s*\d{2}\.\d{2}\.\d{2,4}/g, '')
-      .replace(/meets\s*/i, '× ')
-      .replace(/\s{2,}/g, ' ')
-      .trim() : 'Event';
-    // Apply wristband colour
-    const col = getEventColour(ev ? ev.title : '');
-    activeBar.style.background = col.bg;
-    activeName.style.color = col.text;
-    document.querySelector('.gl-active-filter-clear').style.borderColor = 'rgba(255,255,255,.5)';
-    document.querySelector('.gl-active-filter-clear').style.color = col.text;
-    activeName.textContent = '📅 ' + name;
-  } else {
-    // Show pill bar, hide active filter banner
-    bar.style.display = '';
-    activeBar.classList.remove('show');
-  }
-
+  if (el) { el.classList.add('active'); }
+  const subBar = document.getElementById('gl-sub-filter-bar');
+  if (subBar) { subBar.classList.remove('show'); subBar.innerHTML = ''; }
   renderGuestList();
 }
 
 function clearEventFilter() {
-  glFilter = 'none'; // no filter — show pill bar to pick event
-  const bar       = document.getElementById('gl-filter-bar');
-  const activeBar = document.getElementById('gl-active-filter');
-  bar.style.display = '';
-  activeBar.classList.remove('show');
-  activeBar.style.background = '';
+  glFilter = 'none';
+  glSubFilter = 'all';
+  const subBar = document.getElementById('gl-sub-filter-bar');
+  if (subBar) { subBar.classList.remove('show'); subBar.innerHTML = ''; }
   document.querySelectorAll('.filter-pill').forEach(p => {
     p.classList.remove('active');
     p.style.background = '';
@@ -2057,24 +2048,35 @@ function renderGuestList() {
     // If there's a search query, show results across all current events
     if (q) return true;
     // Apply type filters
-    // Dynamic event filter — show only MEC attendees for this specific event
-    // WC-only comps appear under All but not under specific event pills
     if (glFilter.startsWith('event:')) {
       const evId = glFilter.replace('event:', '');
-      // MEC bookings — match by eventId
-      if (b._eventId) return b._eventId === evId;
-      // Comp/WC guests — match by event name keywords since dates may differ between MEC and WC
-      if (b.isComp || b.source === 'wc') {
+      // First: does this booking belong to this event?
+      let inEvent = false;
+      if (b._eventId) {
+        inEvent = b._eventId === evId;
+      } else if (b.isComp || b.source === 'wc') {
         const ev = upcomingEvents.find(e => String(e.id) === evId);
-        if (!ev) return false;
-        const bTitle = (b.eventTitle || '').toLowerCase();
-        const evTitle = (ev.title || '').toLowerCase();
-        // Match by distinctive event name words
-        const SKIP = ['funky','dory','during','henley','royal','regatta','meets','general','admission','access','release','early','bird','final','full','2026','scan','test','party'];
-        const evWords = evTitle.split(/\W+/).filter(w => w.length > 3 && !SKIP.includes(w));
-        return evWords.length > 0 && evWords.some(w => bTitle.includes(w));
+        if (ev) {
+          const bTitle = (b.eventTitle || '').toLowerCase();
+          const evTitle = (ev.title || '').toLowerCase();
+          const SKIP = ['funky','dory','during','henley','royal','regatta','meets','general','admission','access','release','early','bird','final','full','2026','scan','test','party'];
+          const evWords = evTitle.split(/\W+/).filter(w => w.length > 3 && !SKIP.includes(w));
+          inEvent = evWords.length > 0 && evWords.some(w => bTitle.includes(w));
+        }
       }
-      return false;
+      if (!inEvent) return false;
+
+      // Then: apply sub-pill category filter (ignored when searching)
+      if (!q && glSubFilter !== 'all') {
+        const src = b.source || '';
+        const key = b.bookingId || '';
+        if (glSubFilter === 'tickets')  return src === 'mec';
+        if (glSubFilter === 'guests')   return key.startsWith('gs-');
+        if (glSubFilter === 'djs')      return key.startsWith('dj-');
+        if (glSubFilter === 'staff')    return key.startsWith('res-');
+        if (glSubFilter === 'remenham') return !!b.isRemenham;
+      }
+      return true;
     }
     if (glFilter === 'vip')        return b.tickets.some(t => t.isVip);
     if (glFilter === 'comp')       return b.isComp;
