@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.17</title>
+<title>FD Door Scanner v6.18</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -508,7 +508,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.17</div>
+    <div class="brand-sub">Door Scanner · v6.18</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -524,7 +524,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.17</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.18</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1249,11 +1249,13 @@ async function loadGuestList() {
     console.log(`bulk2: ${(bulkData.checkins||[]).length} records, MEC attendees: ${Object.keys(mecGuests).length}`);
 
     // 2b. Pre-populate bookingMap from bulk endpoint (catches bookings missed by occurrence API)
+    // Only process current HRR 2026 events — skip years of historical data
     const currentEventIds = new Set(upcomingEvents.map(e => String(e.id)));
+    console.log('Current event IDs:', [...currentEventIds]);
     // Group bulk checkins by booking_id first
     const bulkByBooking = {};
     (bulkData.checkins || []).forEach(c => {
-      if (!currentEventIds.has(String(c.event_id))) return;
+      if (currentEventIds.size > 0 && !currentEventIds.has(String(c.event_id))) return;
       const bid = String(c.booking_id);
       if (!bulkByBooking[bid]) bulkByBooking[bid] = { inv: String(c.invoice_id), eventId: String(c.event_id), attendees: [] };
       bulkByBooking[bid].attendees.push(c);
