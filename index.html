@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.07</title>
+<title>FD Door Scanner v6.08</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -521,7 +521,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.07</div>
+    <div class="brand-sub">Door Scanner · v6.08</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -537,7 +537,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.07</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.08</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -3101,7 +3101,7 @@ function renderLogs() {
     <span class="log-name">${e.name} <span class="log-sub">${e.ticket||''}${e.note?' ('+e.note+')':''}</span></span>
     <span class="log-time">${e.time}</span>
   </li>`;
-  document.getElementById('scan-log').innerHTML = scanLog.slice(0,6).map(row).join('');
+  document.getElementById('scan-log').innerHTML = scanLog.slice(0,1).map(row).join('');
   document.getElementById('full-log').innerHTML = scanLog.map(row).join('');
 }
 function exportCSV() {
