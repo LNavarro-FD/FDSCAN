@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.21</title>
+<title>FD Door Scanner v6.22</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -508,7 +508,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.21</div>
+    <div class="brand-sub">Door Scanner · v6.22</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -524,7 +524,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.21</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.22</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1233,11 +1233,12 @@ async function loadGuestList() {
   document.getElementById('gl-list').innerHTML = '<div class="gl-loading"><span class="spin"></span>&nbsp; Loading…</div>';
   guestMap = {}; bookingMap = {}; invoiceMap = {}; emailMap = {}; idMap = {};
   if (cfg.demo) { loadDemoGuests(); renderFilterPills(); renderGuestList(); updateGLStats(); return; }
+
   try {
-    // Step 1 — fetch MEC events (best-effort, non-blocking)
+    // ── SOURCE 1: MEC via bulk2 ──────────────────────────────────────────────
+    // Fetch upcoming events first (for event pill labels and ID mapping)
     await fetchUpcomingEvents();
 
-    // Step 2 — fetch bulk2 (primary guest source)
     const bulkData = await fetchWithTimeout(`${cfg.siteUrl}/wp-json/fd2/v1/bulk2`, {}, 15000)
       .then(r => r.ok ? r.json() : {checkins:[]})
       .catch(() => ({checkins:[]}));
@@ -1245,21 +1246,19 @@ async function loadGuestList() {
     const allCheckins = bulkData.checkins || [];
     console.log(`bulk2: ${allCheckins.length} total records`);
 
-    // Step 3 — decide which event_ids to keep
-    // If MEC gave us events, filter to those IDs.
-    // If MEC failed (upcomingEvents empty), keep records from the 5 most recent event_ids.
+    // Decide which event_ids to keep.
+    // MEC events loaded → use their IDs.
+    // MEC failed → take the 5 highest event_ids from bulk2 (most recent events).
     let keepEventIds;
     if (upcomingEvents.length > 0) {
       keepEventIds = new Set(upcomingEvents.map(e => String(e.id)));
-      console.log('Filtering bulk2 to MEC event IDs:', [...keepEventIds]);
     } else {
-      // No MEC events — infer from bulk2: take the highest event_ids (most recent)
-      const allIds = [...new Set(allCheckins.map(c => c.event_id))].sort((a,b) => b - a);
-      keepEventIds = new Set(allIds.slice(0, 5).map(String));
-      console.log('No MEC events — using top bulk2 event IDs:', [...keepEventIds]);
+      const sortedIds = [...new Set(allCheckins.map(c => c.event_id))].sort((a,b) => b - a);
+      keepEventIds = new Set(sortedIds.slice(0, 5).map(String));
     }
+    console.log('Keeping event IDs:', [...keepEventIds]);
 
-    // Step 4 — build bookingMap from bulk2
+    // Group by booking_id
     const bulkByBooking = {};
     allCheckins.forEach(c => {
       if (!keepEventIds.has(String(c.event_id))) return;
@@ -1267,37 +1266,82 @@ async function loadGuestList() {
       if (!bulkByBooking[bid]) bulkByBooking[bid] = { inv: String(c.invoice_id), eventId: String(c.event_id), attendees: [] };
       bulkByBooking[bid].attendees.push(c);
     });
-
-    console.log(`bulk2 bookings after filter: ${Object.keys(bulkByBooking).length}`);
+    console.log(`MEC bookings: ${Object.keys(bulkByBooking).length}`);
 
     Object.entries(bulkByBooking).forEach(([bid, data]) => {
-      const leadName = data.attendees[0]?.name || 'Guest';
-      // Find matching MEC event title for display
-      const mecEv = upcomingEvents.find(e => String(e.id) === data.eventId);
-      const evTitle = mecEv ? (mecEv.title || '').replace(/copy of /i,'').replace(/funky dory\s*/i,'').replace(/during henley\s*(royal\s*)?regatta\s*/i,'').replace(/\s{2,}/g,' ').trim() : '';
+      const mecEv    = upcomingEvents.find(e => String(e.id) === data.eventId);
+      const evTitle  = mecEv
+        ? (mecEv.title||'').replace(/copy of /i,'').replace(/funky dory\s*/i,'')
+            .replace(/during henley\s*(royal\s*)?regatta\s*/i,'').replace(/\s{2,}/g,' ').trim()
+        : '';
       bookingMap[bid] = {
         bookingId: bid, invoiceID: data.inv,
-        name: leadName, email: '',
+        name: data.attendees[0]?.name || 'Guest', email: '',
         eventTitle: evTitle, eventDay: '',
         _eventId: data.eventId,
         tickets: data.attendees.map((a, idx) => ({
-          key: `${bid}-${idx+1}`, attendeeKey: String(idx+1),
+          key: `${bid}-${idx+1}`, attendeeKey: String(a.place || idx+1),
           name: a.name || 'Guest', ticketName: evTitle || 'Ticket',
           isVip: false, checkedIn: !!a.checked_in
         })),
         source: 'mec', isComp: false, isTM: false
       };
       invoiceMap[data.inv] = bookingMap[bid];
-      invoiceMap[bid] = bookingMap[bid];
+      invoiceMap[bid]      = bookingMap[bid];
     });
 
-    console.log(`bookingMap: ${Object.keys(bookingMap).length} bookings`);
+    // ── SOURCE 2: WooCommerce orders ─────────────────────────────────────────
+    // Covers comp guests, £0 orders, Ticketmaster, and anything not in MEC
+    let wcGuests = [];
+    try {
+      wcGuests = await fetchWooOrders();
+      console.log(`WC orders: ${wcGuests.length}`);
+    } catch(e) {
+      console.warn('WC fetch failed:', e.message);
+    }
 
+    const mecInvoiceIds = new Set(Object.values(bookingMap).map(b => String(b.invoiceID)));
+    wcGuests.forEach(g => {
+      // Skip if already covered by MEC bulk2
+      if (mecInvoiceIds.has(String(g.orderNumber))) return;
+      // If MEC events loaded, only include orders that match HRR keywords
+      if (upcomingEvents.length > 0) {
+        const tl = (g.ticketName || '').toLowerCase();
+        const KEYWORDS = ['ladies day','ibiza','white party','studio 54','brunch on the banks','henley royal regatta','henley regatta'];
+        if (!KEYWORDS.some(kw => tl.includes(kw))) return;
+      }
+      g._source = 'wc';
+      guestMap[`wc-${g.orderNumber}`] = g;
+      if (g.email && !emailMap[g.email]) emailMap[g.email] = g;
+      if (g.id) idMap[g.id] = g;
+      const wcKey = `wc-${g.orderNumber}`;
+      if (!bookingMap[wcKey]) {
+        bookingMap[wcKey] = {
+          bookingId: wcKey, invoiceID: g.orderNumber,
+          name: g.name, email: g.email,
+          eventTitle: g.ticketName, eventDay: g.eventDay,
+          _eventId: '',
+          tickets: Array.from({length: g.qty || 1}, (_, i) => ({
+            key: `${wcKey}-${i+1}`, attendeeKey: String(i+1),
+            name: g.name, ticketName: g.ticketName,
+            isVip: g.isVip,
+            checkedIn: g.checkedInTickets.includes(String(i)) || g.checkedInTickets.includes(String(i+1))
+          })),
+          source: 'wc', isComp: g.isComp, isTM: g.isTM
+        };
+        if (g.orderNumber) invoiceMap[String(g.orderNumber)] = bookingMap[wcKey];
+      }
+    });
+
+    console.log(`bookingMap total: ${Object.keys(bookingMap).length} (MEC: ${Object.keys(bulkByBooking).length}, WC: ${wcGuests.length})`);
+
+    // Render immediately with MEC + WC data
     renderFilterPills();
     renderGuestList();
     updateGLStats();
 
-    // Sheet loads in background
+    // ── SOURCE 3: Google Sheet ────────────────────────────────────────────────
+    // DJs, staff, Remenham Farm, additional comps — loads in background
     setTimeout(() => {
       loadCompGuests().then(() => {
         renderFilterPills();
@@ -1306,7 +1350,7 @@ async function loadGuestList() {
       }).catch(e => console.warn('Sheet load failed:', e));
     }, 100);
 
-    // Sync check-in state from DB
+    // Sync check-in state from DB proxy
     await loadCheckinState();
 
   } catch(e) {
