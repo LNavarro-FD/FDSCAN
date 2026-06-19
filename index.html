@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.14</title>
+<title>FD Door Scanner v6.15</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -508,7 +508,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.14</div>
+    <div class="brand-sub">Door Scanner · v6.15</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -524,7 +524,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.14</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.15</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1045,26 +1045,29 @@ async function fetchUpcomingEvents() {
       `${cfg.siteUrl}/wp-json/mec-utility/v1/event-list?date_filter=upcoming&start_date=${fmt(now)}&end_date=${fmt(in10)}&per_page=50`,
     ];
 
+    // Try all combinations in parallel — first one with data wins
+    const attempts = [];
     for (const hdrs of authHeaders) {
       for (const url of baseUrls) {
-        try {
-          const r = await fetchWithTimeout(url, { headers: hdrs }, 10000);
-          console.log('MEC events:', url.split('?')[0], 'auth:', Object.keys(hdrs)[0], 'status:', r.status);
-          if (!r.ok) continue;
-          const data = await r.json();
-          console.log('MEC events response keys:', Object.keys(data));
-          const events = Array.isArray(data) ? data : (data.events || data.data || data.results || []);
-          console.log('Events found in response:', events.length);
-          if (events.length > 0) {
-            upcomingEventNames = events.map(e => (e.title || e.name || e.post_title || '').toLowerCase());
-            upcomingEvents = events;
-            console.log('✓ Upcoming events loaded:', upcomingEventNames.length, upcomingEventNames);
-            return;
-          }
-        } catch(e) {
-          console.warn('MEC endpoint failed:', e.message);
-        }
+        attempts.push(
+          fetchWithTimeout(url, { headers: hdrs }, 5000)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+              if (!data) return null;
+              const events = Array.isArray(data) ? data : (data.events || data.data || data.results || []);
+              return events.length > 0 ? events : null;
+            })
+            .catch(() => null)
+        );
       }
+    }
+    const results = await Promise.all(attempts);
+    const found = results.find(r => r && r.length > 0);
+    if (found) {
+      upcomingEventNames = found.map(e => (e.title || e.name || e.post_title || '').toLowerCase());
+      upcomingEvents = found;
+      console.log('✓ Upcoming events loaded:', upcomingEvents.length);
+      return;
     }
     console.warn('✗ No upcoming events found — check MEC API key and permissions');
   } catch(e) {
