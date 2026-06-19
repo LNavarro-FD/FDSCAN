@@ -1785,18 +1785,18 @@ async function refreshGuests() {
 let showAll = false;
 
 function showWristbandToast(booking, ticket) {
-  const evId = String(booking._eventId || '');
-  const evColours = {
+  const toastEvId = String(booking._eventId || '');
+  const toastCols = {
     '30589': { bg: '#5BB8E8', name: 'Sky Blue · Ladies Day' },
     '30590': { bg: '#F04E30', name: 'Coral · Ibiza' },
     '30591': { bg: '#E91E8C', name: 'Hot Pink · Studio 54' },
   };
-  let evCol = evColours[evId];
+  let evCol = toastCols[toastEvId];
   if (!evCol) {
     const t = ((ticket.ticketName||'') + ' ' + (booking.eventTitle||'')).toLowerCase();
-    if (t.includes('ladies')) evCol = evColours['30589'];
-    else if (t.includes('ibiza') || t.includes('white party')) evCol = evColours['30590'];
-    else if (t.includes('studio')) evCol = evColours['30591'];
+    if (t.includes('ladies')) evCol = toastCols['30589'];
+    else if (t.includes('ibiza') || t.includes('white party')) evCol = toastCols['30590'];
+    else if (t.includes('studio')) evCol = toastCols['30591'];
   }
   const entryType = ticket.entryType || booking.entryType || (ticket.isVip ? 'VIP' : 'GE');
   let msg = '';
@@ -1804,16 +1804,13 @@ function showWristbandToast(booking, ticket) {
   else if (entryType === 'AAA') msg = '🎫 AAA — Lanyard + Wristband';
   else msg = `🎽 Wristband${evCol ? ' — ' + evCol.name : ''}`;
 
-  const toast   = document.getElementById('wb-toast');
-  const dot     = document.getElementById('wb-toast-dot');
-  const span    = document.getElementById('wb-toast-msg');
-  const imgEl   = document.getElementById('wb-toast-img');
-  const evId2   = String(booking._eventId || '');
-  const wbColours = { '30589': '#5BB8E8', '30590': '#F04E30', '30591': '#E91E8C' };
-  dot.style.background = wbColours[evId2] || '#22224C';
+  const toast = document.getElementById('wb-toast');
+  const dot   = document.getElementById('wb-toast-dot');
+  const span  = document.getElementById('wb-toast-msg');
+  const imgEl = document.getElementById('wb-toast-img');
+  dot.style.background = evCol ? evCol.bg : '#22224C';
   span.textContent = (ticket.name || booking.name) + ' · ' + msg;
-  // Show wristband image if available
-  const wbKey = getWristbandKey(evId2, entryType);
+  const wbKey = getWristbandKey(toastEvId, entryType);
   const wbSrc = wbKey && typeof WRISTBAND_IMGS !== 'undefined' ? WRISTBAND_IMGS[wbKey] : null;
   if (wbSrc && imgEl) { imgEl.src = wbSrc; imgEl.style.display = 'block'; }
   else if (imgEl) { imgEl.style.display = 'none'; }
