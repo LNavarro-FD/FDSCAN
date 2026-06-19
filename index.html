@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.25</title>
+<title>FD Door Scanner v6.26</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.25</div>
+    <div class="brand-sub">Door Scanner · v6.26</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.25</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.26</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.21';
+const APP_VERSION = '6.25';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1125,8 +1125,17 @@ async function fetchUpcomingEvents() {
             const HRR_IDS = new Set(['30589','30590','30591']);
             const hasHRR = events.some(e => HRR_IDS.has(String(e.id)));
             if (hasHRR) {
-              upcomingEventNames = events.map(e => (e.title || e.name || e.post_title || '').toLowerCase());
-              upcomingEvents = events;
+              // Always ensure all 3 HRR events are present — merge MEC results with fallback
+              const HRR_FALLBACK = [
+                { id: 30589, title: 'Henley Ladies Day', mec_data: { start_date: '2026-07-02', end_date: '2026-07-02', start_time: '14:00:00' } },
+                { id: 30590, title: 'Ibiza White Party',  mec_data: { start_date: '2026-07-03', end_date: '2026-07-03', start_time: '14:00:00' } },
+                { id: 30591, title: 'Studio 54',          mec_data: { start_date: '2026-07-04', end_date: '2026-07-04', start_time: '14:00:00' } },
+              ];
+              const returnedIds = new Set(events.map(e => String(e.id)));
+              const merged = [...events];
+              HRR_FALLBACK.forEach(fb => { if (!returnedIds.has(String(fb.id))) merged.push(fb); });
+              upcomingEvents = merged;
+              upcomingEventNames = merged.map(e => (e.title || e.name || e.post_title || '').toLowerCase());
               console.log('✓ Upcoming events loaded:', upcomingEventNames.length, upcomingEventNames);
               return;
             }
@@ -3273,11 +3282,12 @@ function showEnt(g) {
     el.querySelector('.eb-title').textContent = 'VIP — Issue now:';
     items.innerHTML = `Wristband &nbsp;·&nbsp; 🍽️ Food tokens${g.table?' &nbsp;·&nbsp; 🪑 Table '+g.table:''}`;
   } else if (entryType === 'AAA') {
+    const hasLanyard = g.hasLanyard !== false && (g.tickets ? g.tickets.some(t => t.hasLanyard !== false) : true);
     el.className = 'ent-banner std';
     el.style.borderColor = '#22224C';
-    iconEl.innerHTML = imgHtml || '🎫';
-    el.querySelector('.eb-title').textContent = 'AAA — Issue now:';
-    items.innerHTML = `Lanyard &nbsp;·&nbsp; Wristband`;
+    iconEl.innerHTML = imgHtml || (hasLanyard ? '🎫' : '🎽');
+    el.querySelector('.eb-title').textContent = hasLanyard ? 'AAA — Issue now:' : 'AAA — Issue now:';
+    items.innerHTML = hasLanyard ? `Lanyard &nbsp;·&nbsp; Wristband` : `Wristband only`;
   } else if (entryType === 'STAFF') {
     el.className = 'ent-banner std';
     el.style.borderColor = '#22224C';
