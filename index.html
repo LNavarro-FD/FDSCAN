@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.12</title>
+<title>FD Door Scanner v6.13</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -508,7 +508,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.12</div>
+    <div class="brand-sub">Door Scanner · v6.13</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -524,7 +524,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.12</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.13</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1048,7 +1048,7 @@ async function fetchUpcomingEvents() {
     for (const hdrs of authHeaders) {
       for (const url of baseUrls) {
         try {
-          const r = await fetch(url, { headers: hdrs });
+          const r = await fetchWithTimeout(url, { headers: hdrs }, 10000);
           console.log('MEC events:', url.split('?')[0], 'auth:', Object.keys(hdrs)[0], 'status:', r.status);
           if (!r.ok) continue;
           const data = await r.json();
@@ -1583,6 +1583,13 @@ async function loadCheckinState() {
   }
 }
 
+async function fetchWithTimeout(url, options={}, ms=10000) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  try { return await fetch(url, {...options, signal: ctrl.signal}); }
+  finally { clearTimeout(id); }
+}
+
 async function fetchWooOrders() {
   const base  = `${cfg.siteUrl}/wp-json/wc/v3`;
   const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
@@ -1597,7 +1604,7 @@ async function fetchWooOrders() {
       const word = (ev.title||'').split(/\W+/).find(w => w.length > 3 && !SKIP.includes(w.toLowerCase()));
       if (!word) return [];
       try {
-        const r = await fetch(`${base}/products?search=${encodeURIComponent(word)}&per_page=20&status=publish&_fields=id,name`, {headers: hdrs});
+        const r = await fetchWithTimeout(`${base}/products?search=${encodeURIComponent(word)}&per_page=20&status=publish&_fields=id,name`, {headers: hdrs});
         if (!r.ok) return [];
         return await r.json();
       } catch(e) { return []; }
@@ -1616,7 +1623,7 @@ async function fetchWooOrders() {
     let page = 1, orders = [];
     while (true) {
       const url = `${base}/orders?status=completed,processing,on-hold&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data,date_created&product=${pid}`;
-      const r = await fetch(url, { headers: hdrs });
+      const r = await fetchWithTimeout(url, { headers: hdrs }, 10000);
       if (!r.ok) { console.warn(`WC orders for product ${pid}: ${r.status}`); break; }
       const batch = await r.json();
       if (!batch.length) break;
