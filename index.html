@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.16</title>
+<title>FD Door Scanner v6.17</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.16</div>
+    <div class="brand-sub">Door Scanner · v6.17</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.16</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.17</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1821,6 +1821,15 @@ function admitSpecific(bookingId, attendeeKey) {
   if (!ticket || ticket.checkedIn) return;
 
   ticket.checkedIn = true;
+  // Sync to guestMap so scan tab duplicate detection works
+  const gmKey = b.bookingId.startsWith('wc-') ? b.bookingId : `wc-${b.invoiceID}`;
+  const gmGuest = guestMap[gmKey] || guestMap[b.bookingId] || 
+    Object.values(guestMap).find(g => g.name === b.name && g._eventId === b._eventId);
+  if (gmGuest) {
+    const tKey = ticket.key || ticket.attendeeKey || '0';
+    if (!gmGuest.checkedInTickets.includes(tKey)) gmGuest.checkedInTickets.push(tKey);
+    gmGuest.checkedIn = gmGuest.checkedInTickets.length >= gmGuest.qty;
+  }
   showWristbandToast(b, ticket);
   const admitted = getBookingAdmittedCount(b);
 
@@ -1849,9 +1858,17 @@ function undoSpecific(bookingId, attendeeKey) {
 
   ticket.checkedIn = false;
 
+  // Sync to guestMap
+  const gmKey = bookingId.startsWith('wc-') ? bookingId : `wc-${b.invoiceID}`;
+  const gmGuest = guestMap[gmKey] || guestMap[bookingId] ||
+    Object.values(guestMap).find(g => g.name === b.name && g._eventId === b._eventId);
+  if (gmGuest) {
+    gmGuest.checkedInTickets = gmGuest.checkedInTickets.filter(k => k !== ticket.key && k !== ticket.attendeeKey);
+    gmGuest.checkedIn = gmGuest.checkedInTickets.length >= gmGuest.qty && gmGuest.qty > 0;
+  }
+
   // Write back to source
   if (b.source === 'mec') {
-    // MEC — no undo API, just update local state
     console.warn('MEC undo: local only — MEC API does not support undo');
   } else {
     const wcGuest = guestMap[`wc-${b.invoiceID}`];
@@ -3078,6 +3095,13 @@ function handleGuest(g, code) {
   g.checkedInTickets.push(suffix);
   g.checkedIn = g.checkedInTickets.length >= g.qty;
   writeCheckIn(g.id, suffix, g.checkedInTickets);
+  // Sync to bookingMap so guest tab reflects the change
+  const syncBooking = bookingMap[g.id] || bookingMap[`wc-${g.orderNumber}`] || 
+    Object.values(bookingMap).find(b => b.name === g.name && b._eventId === g._eventId);
+  if (syncBooking) {
+    const syncTicket = syncBooking.tickets.find(t => !t.checkedIn);
+    if (syncTicket) syncTicket.checkedIn = true;
+  }
   vibrate([50, 30, 80]); // success: double pulse
 
   const ticketNum = g.checkedInTickets.length;
