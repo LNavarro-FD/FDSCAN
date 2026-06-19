@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.24</title>
+<title>FD Door Scanner v6.25</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -508,7 +508,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.24</div>
+    <div class="brand-sub">Door Scanner · v6.25</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -524,7 +524,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.24</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.25</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -3488,15 +3488,17 @@ window.addEventListener('DOMContentLoaded', () => {
       const c = JSON.parse(saved);
       if (c.siteUrl && c.wcKey) {
         cfg = c;
-        ['site-url','s-url'].forEach(id => document.getElementById(id).value = c.siteUrl);
-        ['wc-key','s-key'].forEach(id => document.getElementById(id).value = c.wcKey);
-        ['wc-secret','s-secret'].forEach(id => document.getElementById(id).value = c.wcSecret);
-        ['mec-key','s-mec-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = c.mecKey||''; });
-        // Auto-launch if we have saved creds
+        // Safe field population — null-checked so a missing element never blocks launch
+        const setField = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+        setField('site-url', c.siteUrl); setField('s-url', c.siteUrl);
+        setField('wc-key',   c.wcKey);   setField('s-key', c.wcKey);
+        setField('wc-secret',c.wcSecret);setField('s-secret', c.wcSecret);
+        setField('mec-key',  c.mecKey);  setField('s-mec-key', c.mecKey);
+        setField('s-sheet-url', c.sheetUrl);
         launch();
         return;
       }
-    } catch(e){}
+    } catch(e){ console.error('Saved config load failed:', e); }
   }
   // 3. Show setup screen
 });
