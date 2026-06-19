@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.09</title>
+<title>FD Door Scanner v6.10</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -489,7 +489,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.09</div>
+    <div class="brand-sub">Door Scanner · v6.10</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -505,7 +505,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.09</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.10</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -992,7 +992,7 @@ function launch() {
   ['mec-key','s-mec-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.mecKey||''; });
   showTab('guests');
   loadGuestList().then(() => startSync());
-  initCamera();
+  // initCamera() is called by showTab('scan') when user navigates there
 }
 function saveConfig() { localStorage.setItem('fd_cfg', JSON.stringify(cfg)); }
 function saveSettings() {
@@ -3183,17 +3183,9 @@ function showTab(tab) {
 
   const video = document.getElementById('qr-video');
   if (tab === 'scan') {
-    if (!scanner) {
-      // Scanner never initialised — init now
-      initCamera();
-    } else if (!video?.srcObject || video.srcObject.getTracks().every(t => t.readyState === 'ended')) {
-      // Camera stream was released — restart it
-      try {
-        scanner.decodeFromVideoDevice(scanner._deviceId || null, 'qr-video', scanner._onResult);
-      } catch(e) { console.warn('Scanner restart failed:', e.message); initCamera(); }
-    } else if (video?.paused) {
-      video.play().catch(()=>{});
-    }
+    // Always reinit — clean slate every time scan tab is shown
+    if (scanner) { try { scanner.reset(); } catch(e) {} scanner = null; }
+    initCamera();
   } else {
     // Stop ZXing decode loop
     if (scanner) { try { scanner.stopContinuousDecode(); } catch(e) {} }
