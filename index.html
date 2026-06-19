@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.98</title>
+<title>FD Door Scanner v5.99</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -1055,9 +1055,23 @@ async function fetchUpcomingEvents() {
         }
       }
     }
-    console.warn('✗ No upcoming events found — check MEC API key and permissions');
+    console.warn('✗ No upcoming events found from MEC API — using HRR 2026 fallback');
+    // Fallback: hardcode HRR 2026 events so pills always show
+    upcomingEvents = [
+      { id: 30589, title: 'Henley Ladies Day', mec_data: { start_date: '2026-07-02', end_date: '2026-07-02', start_time: '14:00:00' } },
+      { id: 30590, title: 'Ibiza White Party',  mec_data: { start_date: '2026-07-03', end_date: '2026-07-03', start_time: '14:00:00' } },
+      { id: 30591, title: 'Studio 54',           mec_data: { start_date: '2026-07-04', end_date: '2026-07-04', start_time: '14:00:00' } },
+    ];
+    upcomingEventNames = upcomingEvents.map(e => e.title.toLowerCase());
+    console.log('✓ Using HRR 2026 fallback events:', upcomingEventNames);
   } catch(e) {
     console.warn('Could not fetch upcoming events:', e.message);
+    upcomingEvents = [
+      { id: 30589, title: 'Henley Ladies Day', mec_data: { start_date: '2026-07-02', end_date: '2026-07-02', start_time: '14:00:00' } },
+      { id: 30590, title: 'Ibiza White Party',  mec_data: { start_date: '2026-07-03', end_date: '2026-07-03', start_time: '14:00:00' } },
+      { id: 30591, title: 'Studio 54',           mec_data: { start_date: '2026-07-04', end_date: '2026-07-04', start_time: '14:00:00' } },
+    ];
+    upcomingEventNames = upcomingEvents.map(e => e.title.toLowerCase());
   }
 }
 
