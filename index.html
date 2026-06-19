@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.15</title>
+<title>FD Door Scanner v6.16</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -508,7 +508,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.15</div>
+    <div class="brand-sub">Door Scanner · v6.16</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -524,7 +524,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.15</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.16</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1127,9 +1127,9 @@ async function fetchMecAttendees(events) {
           }
         } else {
           // Fetch attendees for this occurrence from API
-          const r = await fetch(
+          const r = await fetchWithTimeout(
             `${cfg.siteUrl}/wp-json/mec-utility/v1/events/${ev.id}/occurrences/${occ.start_timestamp}/attendees?include_details=true`,
-            { headers: { 'X-MEC-KEY': cfg.mecKey } }
+            { headers: { 'X-MEC-KEY': cfg.mecKey } }, 5000
           );
           if (!r.ok) continue;
           const data = await r.json();
@@ -1138,9 +1138,9 @@ async function fetchMecAttendees(events) {
           // Fallback: if attendees empty, try without occurrence timestamp
           if (attendees.length === 0) {
             try {
-              const br = await fetch(
+              const br = await fetchWithTimeout(
                 `${cfg.siteUrl}/wp-json/mec-utility/v1/events/${ev.id}/attendees?include_details=true&per_page=200`,
-                { headers: { 'X-MEC-KEY': cfg.mecKey } }
+                { headers: { 'X-MEC-KEY': cfg.mecKey } }, 5000
               );
               if (br.ok) {
                 const bd = await br.json();
@@ -1556,7 +1556,7 @@ async function loadCheckinState() {
   if (cfg.demo || !cfg.siteUrl) return;
   try {
     // Single bulk call — get all checked-in attendees at once
-    const r = await fetch(`${cfg.siteUrl}/wp-json/fd2/v1/checkins/bulk`);
+    const r = await fetchWithTimeout(`${cfg.siteUrl}/wp-json/fd2/v1/checkins/bulk`, {}, 8000);
     if (!r.ok) {
       console.warn('Bulk checkin load failed:', r.status);
       return;
@@ -2415,7 +2415,7 @@ async function lookupTicket(code) {
         let alreadyInDb = false;
         if (!alreadyInLocal && cfg.siteUrl && invoiceId && place) {
           try {
-            const cr = await fetch(`${cfg.siteUrl}/wp-json/fd2/v1/checkins?invoice_id=${encodeURIComponent(invoiceId)}`);
+            const cr = await fetchWithTimeout(`${cfg.siteUrl}/wp-json/fd2/v1/checkins?invoice_id=${encodeURIComponent(invoiceId)}`, {}, 5000);
             if (cr.ok) {
               const cd = await cr.json();
               if (cd.found && cd.attendees) {
