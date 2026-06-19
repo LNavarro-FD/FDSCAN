@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.16</title>
+<title>FD Door Scanner v6.17</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -508,7 +508,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.16</div>
+    <div class="brand-sub">Door Scanner · v6.17</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -524,7 +524,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.16</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.17</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1237,13 +1237,16 @@ async function loadGuestList() {
     // 1. Fetch upcoming MEC events
     await fetchUpcomingEvents();
 
-    // 2. Fetch MEC attendees and bulk checkins in parallel
-    // WC order fetch skipped — slow and bulk2 covers all bookings
-    const [mecGuests, bulkData] = await Promise.all([
-      upcomingEvents.length > 0 ? fetchMecAttendees(upcomingEvents) : Promise.resolve({}),
-      fetchWithTimeout(`${cfg.siteUrl}/wp-json/fd2/v1/bulk2`, {}, 15000).then(r => r.ok ? r.json() : {checkins:[]}).catch(() => ({checkins:[]}))
-    ]);
-    const wcGuests = []; // WC fetch bypassed — all guests come from MEC bulk2
+    // 2. Fetch bulk2 first — this is the primary guest source
+    const bulkData = await fetchWithTimeout(`${cfg.siteUrl}/wp-json/fd2/v1/bulk2`, {}, 15000)
+      .then(r => r.ok ? r.json() : {checkins:[]}).catch(() => ({checkins:[]}));
+
+    // Only fetch MEC attendees if bulk2 returned nothing
+    const hasBulkGuests = (bulkData.checkins || []).length > 0;
+    const mecGuests = hasBulkGuests ? {} : 
+      (upcomingEvents.length > 0 ? await fetchMecAttendees(upcomingEvents) : {});
+    const wcGuests = [];
+    console.log(`bulk2: ${(bulkData.checkins||[]).length} records, MEC attendees: ${Object.keys(mecGuests).length}`);
 
     // 2b. Pre-populate bookingMap from bulk endpoint (catches bookings missed by occurrence API)
     const currentEventIds = new Set(upcomingEvents.map(e => String(e.id)));
