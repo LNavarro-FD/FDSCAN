@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.05</title>
+<title>FD Door Scanner v6.06</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -520,7 +520,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.05</div>
+    <div class="brand-sub">Door Scanner · v6.06</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -536,7 +536,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.05</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.06</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1398,53 +1398,204 @@ async function loadGuestList() {
   }
 }
 
+// ── Google Sheet integration ────────────────────────────────────────────────
+const SHEET_ID = '1qy9_HFxFZg9L3M2UzV_cSMesZp6UdYJZmlR-k9d3OCc';
+const SHEET_TABS = {
+  guests:    '0',
+  djs:       '1627244189',
+  resources: '734386291',
+  remenham:  '630690329',
+};
+
+function sheetEventToId(eventStr) {
+  if (!eventStr) return [];
+  const s = eventStr.trim().toLowerCase();
+  if (s === 'all') return upcomingEvents.map(e => String(e.id));
+  if (s.includes('ladies')) return ['30589'];
+  if (s.includes('ibiza') || s.includes('white party')) return ['30590'];
+  if (s.includes('studio')) return ['30591'];
+  if (s.includes('brunch')) return ['30592'];
+  return [];
+}
+
+function parseEntryType(val) {
+  if (!val) return 'GE';
+  const v = val.trim().toUpperCase();
+  if (v === 'VIP') return 'VIP';
+  if (v === 'AAA') return 'AAA';
+  if (v === 'STAFF') return 'Staff';
+  return 'GE';
+}
+
+function sectionToEntry(section) {
+  const s = (section || '').trim();
+  switch (s) {
+    case 'Artist':        return { entryType: 'AAA', guestType: 'DJ',            hasLanyard: true  };
+    case 'Visuals':       return { entryType: 'AAA', guestType: 'Production',    hasLanyard: false };
+    case 'Sponsor':       return { entryType: 'AAA', guestType: 'Sponsor',       hasLanyard: false };
+    case 'Caterer':       return { entryType: 'GE',  guestType: 'Caterer',       hasLanyard: false };
+    case 'Retailer':      return { entryType: 'GE',  guestType: 'Retailer',      hasLanyard: false };
+    case 'Entertainment': return { entryType: 'GE',  guestType: 'Entertainment', hasLanyard: false };
+    case 'Bar':           return { entryType: 'GE',  guestType: 'Bar Staff',     hasLanyard: false };
+    case 'Crew':          return { entryType: 'GE',  guestType: 'Crew',          hasLanyard: false };
+    case 'Flyers':        return { entryType: 'GE',  guestType: 'Promoter',      hasLanyard: false };
+    default:              return { entryType: 'GE',  guestType: s || 'Staff',    hasLanyard: false };
+  }
+}
+
+async function fetchSheetTab(gid) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`Sheet fetch failed gid=${gid}: ${r.status}`);
+  return parseCSV(await r.text());
+}
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"' && text[i+1] === '"') { field += '"'; i++; }
+      else if (c === '"') inQ = false;
+      else field += c;
+    } else {
+      if (c === '"') { inQ = true; }
+      else if (c === ',') { row.push(field.trim()); field = ''; }
+      else if (c === '\n') { row.push(field.trim()); rows.push(row); row = []; field = ''; }
+      else if (c === '\r') { /* skip */ }
+      else field += c;
+    }
+  }
+  if (field || row.length) { row.push(field.trim()); rows.push(row); }
+  return rows;
+}
+
+function addSheetBooking({ key, name, email, entryType, guestType, hasLanyard, eventIds, ticketName, isComp, isRemenham, guestOf, source }) {
+  if (!name) return;
+  email = (email || '').toLowerCase().trim();
+  eventIds.forEach((eventId, idx) => {
+    const bKey = `${key}-${idx}`;
+    if (bookingMap[bKey]) return;
+    const ev = upcomingEvents.find(e => String(e.id) === String(eventId));
+    const evTitle = ev ? ev.title : (ticketName || 'Guest');
+    const ticket = {
+      key: `${bKey}-0`, attendeeKey: '0',
+      name, ticketName: ticketName || evTitle,
+      entryType, guestType, hasLanyard,
+      isVip: entryType === 'VIP', checkedIn: false
+    };
+    const booking = {
+      bookingId: bKey, invoiceID: bKey,
+      name, email, eventTitle: evTitle, eventDay: '',
+      _eventId: String(eventId), guestOf: guestOf || '',
+      entryType, guestType, hasLanyard,
+      tickets: [ticket],
+      source: source || 'sheet',
+      isComp: !!isComp, isRemenham: !!isRemenham, isTM: false,
+      orderDate: new Date().toISOString()
+    };
+    bookingMap[bKey] = booking;
+    invoiceMap[bKey] = booking;
+    const gKey = email || bKey;
+    if (!guestMap[gKey]) {
+      guestMap[gKey] = {
+        id: bKey, orderNumber: bKey, name, email,
+        ticketName: ticketName || evTitle,
+        entryType, guestType, hasLanyard,
+        isVip: entryType === 'VIP', isComp: !!isComp, isTM: false,
+        checkedInTickets: [], checkedIn: false,
+        _eventId: String(eventId), guestOf: guestOf || '',
+        orderDate: new Date().toISOString()
+      };
+    }
+    if (email) emailMap[email] = guestMap[gKey];
+  });
+}
+
 async function loadCompGuests() {
+  let total = 0;
   try {
-    const r = await fetch('./fd-comps.json?v=' + Date.now());
-    if (!r.ok) return;
-    const data = await r.json();
-    let added = 0;
-    Object.entries(data.events || {}).forEach(([eventName, ev]) => {
-      (ev.guests || []).forEach((g, i) => {
-        const key = `comp-${eventName.replace(/\s/g,'-').toLowerCase()}-${i}`;
-        if (guestMap[key]) return;
-        const ticketName = `${eventName} - ${g.ticket}`;
-        const matchedEvent = upcomingEvents.find(ev => {
-          const t = (ev.title || '').toLowerCase();
-          const n = eventName.toLowerCase();
-          // Match by first significant word of event name
-          const words = n.split(' ').filter(w => w.length > 3);
-          return words.some(w => t.includes(w));
-        });
-        const eventId = matchedEvent ? String(matchedEvent.id) : '';
-        const guest = {
-          id: key, orderNumber: key,
-          name: g.name, email: (g.email || '').toLowerCase(),
-          ticketName, isVip: !!g.vip, isComp: true, isTM: false,
-          qty: 1, checkedInTickets: [], checkedIn: false,
-          eventDay: '', _source: 'wc',
-          guestOf: g.guestOf || '',
-          _eventId: eventId,
-          orderDate: ev.date ? ev.date + 'T12:00:00' : new Date().toISOString()
-        };
-        guestMap[key] = guest;
-        if (guest.email) emailMap[guest.email] = guest;
-        bookingMap[key] = {
-          bookingId: key, invoiceID: key,
-          name: g.name, email: guest.email,
-          eventTitle: ticketName, eventDay: '',
-          orderDate: guest.orderDate,
-          guestOf: g.guestOf || '',
-          _eventId: eventId,
-          tickets: [{ key: `${key}-0`, attendeeKey: '0', name: g.name, ticketName, isVip: !!g.vip, checkedIn: false }],
-          source: 'wc', isComp: true, isTM: false
-        };
-        added++;
+    // Tab 1: Guests — Name | Email | Event | Entry Type | Guest Type | Notes
+    try {
+      const rows = await fetchSheetTab(SHEET_TABS.guests);
+      let n = 0;
+      rows.slice(1).forEach((r, i) => {
+        const [name, email, event, entryTypeRaw, guestType] = r;
+        if (!name) return;
+        const eventIds = sheetEventToId(event);
+        if (!eventIds.length) return;
+        addSheetBooking({ key: `gs-${i}`, name, email, entryType: parseEntryType(entryTypeRaw), guestType: (guestType||'Comp Guest').trim(), hasLanyard: false, eventIds, ticketName: guestType||'Guest', isComp: true, source: 'sheet' });
+        n++;
       });
-    });
-    if (added > 0) console.log(`✓ Loaded ${added} comp guests from fd-comps.json`);
+      console.log(`✓ Sheet Guests: ${n}`); total += n;
+    } catch(e) { console.warn('Sheet Guests failed:', e.message); }
+
+    // Tab 2: DJs and Guests — First Name(0)|Last Name(1)|Date(2)|Theme(3)|...|Email(6)|...|Guest1(18)|Guest2(20)...
+    try {
+      const rows = await fetchSheetTab(SHEET_TABS.djs);
+      let n = 0;
+      rows.slice(1).forEach((r, i) => {
+        const firstName = (r[0]||'').trim(), lastName = (r[1]||'').trim();
+        const theme = (r[3]||'').trim(), email = (r[6]||'').toLowerCase().trim();
+        const name = [firstName, lastName].filter(Boolean).join(' ');
+        if (!name) return;
+        const eventIds = sheetEventToId(theme);
+        if (!eventIds.length) return;
+        addSheetBooking({ key: `dj-${i}`, name, email, entryType: 'AAA', guestType: 'DJ', hasLanyard: true, eventIds, ticketName: 'DJ', isComp: false, source: 'sheet' });
+        n++;
+        for (let g = 0; g < 10; g++) {
+          const gName = (r[18 + g*2]||'').trim();
+          if (!gName) continue;
+          addSheetBooking({ key: `dj-${i}-g${g}`, name: gName, email: '', entryType: 'GE', guestType: 'DJ Guest', hasLanyard: false, eventIds, ticketName: 'DJ Guest', isComp: true, guestOf: name, source: 'sheet' });
+          n++;
+        }
+      });
+      console.log(`✓ Sheet DJs: ${n}`); total += n;
+    } catch(e) { console.warn('Sheet DJs failed:', e.message); }
+
+    // Tab 3: Resources — Section(0)|Status(1)|First Name(2)|Last Name(3)|...|Thu(11,12,13)|Fri(14,15,16)|Sat(17,18,19)
+    const DAY_COLS = [
+      { eventId: '30589', indices: [11,12,13] },
+      { eventId: '30590', indices: [14,15,16] },
+      { eventId: '30591', indices: [17,18,19] },
+    ];
+    try {
+      const rows = await fetchSheetTab(SHEET_TABS.resources);
+      let n = 0;
+      rows.slice(1).forEach((r, i) => {
+        const section = (r[0]||'').trim();
+        const name = [(r[2]||'').trim(), (r[3]||'').trim()].filter(Boolean).join(' ');
+        if (!name) return;
+        const { entryType, guestType, hasLanyard } = sectionToEntry(section);
+        const eventIds = DAY_COLS.filter(d => d.indices.some(idx => (r[idx]||'').trim() !== '')).map(d => d.eventId);
+        if (!eventIds.length) return;
+        addSheetBooking({ key: `res-${i}`, name, email: '', entryType, guestType, hasLanyard, eventIds, ticketName: guestType, isComp: false, source: 'sheet' });
+        n++;
+      });
+      console.log(`✓ Sheet Resources: ${n}`); total += n;
+    } catch(e) { console.warn('Sheet Resources failed:', e.message); }
+
+    // Tab 4: Remenham Farm — WC order export: First(16)|Last(17)|Email(20)|item_name(40)
+    try {
+      const rows = await fetchSheetTab(SHEET_TABS.remenham);
+      let n = 0;
+      rows.slice(1).forEach((r, i) => {
+        const name = [(r[16]||'').trim(), (r[17]||'').trim()].filter(Boolean).join(' ');
+        const email = (r[20]||'').toLowerCase().trim();
+        const itemName = (r[40]||'').trim();
+        if (!name) return;
+        const eventIds = sheetEventToId(itemName);
+        if (!eventIds.length) return;
+        addSheetBooking({ key: `rf-${i}`, name, email, entryType: 'GE', guestType: 'Remenham Farm', hasLanyard: false, eventIds, ticketName: itemName||'Remenham Farm', isComp: false, isRemenham: true, source: 'sheet' });
+        n++;
+      });
+      console.log(`✓ Sheet Remenham Farm: ${n}`); total += n;
+    } catch(e) { console.warn('Sheet Remenham Farm failed:', e.message); }
+
+    console.log(`✓ Google Sheet total: ${total}`);
   } catch(e) {
-    console.warn('Could not load comp guests:', e.message);
+    console.warn('Google Sheet load failed:', e.message);
   }
 }
 
@@ -1923,11 +2074,11 @@ function renderGuestList() {
       // Sub-pill category filter (ignored when searching)
       if (!q && glSubFilter !== 'all') {
         const key = b.bookingId || '';
-        if (glSubFilter === 'tickets')  return b.source === 'mec';
-        if (glSubFilter === 'guests')   return key.startsWith('comp-');
-        if (glSubFilter === 'djs')      return !!(b.guestOf) || (b.ticketName || '').toLowerCase().includes('dj');
-        if (glSubFilter === 'staff')    return b.source === 'sheet' && !b.isComp;
-        if (glSubFilter === 'remenham') return !!(b.isRemenham);
+        if (glSubFilter === 'tickets')  return b.source === 'mec' || b.source === 'wc';
+        if (glSubFilter === 'guests')   return key.startsWith('gs-');
+        if (glSubFilter === 'djs')      return key.startsWith('dj-');
+        if (glSubFilter === 'staff')    return key.startsWith('res-');
+        if (glSubFilter === 'remenham') return !!b.isRemenham;
       }
       return true;
     }
