@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.13</title>
+<title>FD Door Scanner v6.14</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -537,7 +537,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.13</div>
+    <div class="brand-sub">Door Scanner · v6.14</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -553,7 +553,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.13</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.14</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -3516,9 +3516,33 @@ async function fetchSingleBooking() {
 
   btn.textContent = 'Looking up…';
   btn.disabled = true;
-  resultEl.innerHTML = '<span style="color:var(--muted);">Checking WooCommerce…</span>';
+  resultEl.innerHTML = '<span style="color:var(--muted);">Searching…</span>';
+
+  // First check local bookingMap (covers MEC, sheet guests, RF)
+  const localBooking = invoiceMap[String(input)] ||
+    Object.values(bookingMap).find(b => 
+      String(b.invoiceID) === String(input) || 
+      String(b.bookingId) === String(input) ||
+      (b.isRemenham && String(b.orderNumber || '').replace(/[^0-9]/g,'') === String(input).replace(/[^0-9]/g,''))
+    );
+
+  if (localBooking) {
+    btn.textContent = 'Find Booking'; btn.disabled = false;
+    resultEl.innerHTML = `
+      <div style="background:#f0f7ff;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+        <div style="font-weight:800;font-size:14px;color:var(--navy);">${localBooking.name}</div>
+        ${localBooking.email ? `<div style="font-size:12px;color:var(--muted);">${localBooking.email}</div>` : ''}
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;">${localBooking.tickets.length} ticket${localBooking.tickets.length!==1?'s':''} · ${localBooking.isRemenham ? 'Remenham Farm' : localBooking.source?.toUpperCase() || ''} #${input}</div>
+      </div>
+      <button onclick="viewBookingInList('${localBooking.bookingId}');"
+        style="width:100%;padding:12px;background:var(--navy);color:white;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">
+        👁 View in Guest List
+      </button>`;
+    return;
+  }
 
   try {
+    resultEl.innerHTML = '<span style="color:var(--muted);">Checking WooCommerce…</span>';
     const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
     const r = await fetch(
       `${cfg.siteUrl}/wp-json/wc/v3/orders/${encodeURIComponent(input)}`,
@@ -3526,7 +3550,7 @@ async function fetchSingleBooking() {
     );
 
     if (!r.ok) {
-      resultEl.innerHTML = `<span style="color:var(--err);">Order #${input} not found.</span>`;
+      resultEl.innerHTML = `<span style="color:var(--err);">Order #${input} not found in guest list or WooCommerce.</span>`;
       btn.textContent = 'Find Booking'; btn.disabled = false;
       return;
     }
