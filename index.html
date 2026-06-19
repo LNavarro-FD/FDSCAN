@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.08</title>
+<title>FD Door Scanner v6.09</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -489,7 +489,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.08</div>
+    <div class="brand-sub">Door Scanner · v6.09</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -505,7 +505,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.08</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.09</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1515,18 +1515,32 @@ async function loadGoogleSheet() {
     } catch(e) { console.warn('Sheet Guests failed:', e.message); }
 
     // ── Tab 2: DJs and Guests ──────────────────────────────────────
-    // Name | Email | Event | Entry Type | Guest Type | Guest Of | Set Time | Notes
+    // First Name(0) | Last Name(1) | Date(2) | Theme(3) | Time(4) | SetDuration(5) | Email(6)
+    // Guest 1(18) | Guest 1 Reg(19) | Guest 2(20) | ... | Guest 10(36)
     try {
       const rows = await fetchSheetTab(SHEET_TABS.djs);
       let added = 0;
       rows.slice(1).forEach((r, i) => {
-        const [name, email, event, entryTypeRaw, guestType, guestOf] = r;
+        const firstName = (r[0] || '').trim();
+        const lastName  = (r[1] || '').trim();
+        const theme     = (r[3] || '').trim();
+        const email     = (r[6] || '').toLowerCase().trim();
+        const name = [firstName, lastName].filter(Boolean).join(' ');
         if (!name) return;
-        const entryType = parseEntryType(entryTypeRaw);
-        const eventIds  = sheetEventToId(event);
+        const eventIds = sheetEventToId(theme);
         if (!eventIds.length) return;
-        addSheetBooking({ key: `dj-${i}`, name, email, entryType, guestType: (guestType||'DJ').trim(), hasLanyard: entryType === 'AAA', eventIds, ticketName: guestType || 'DJ', isComp: true, guestOf: guestOf || '', source: 'sheet' });
+
+        // Add DJ booking (AAA)
+        addSheetBooking({ key: `dj-${i}`, name, email, entryType: 'AAA', guestType: 'DJ', hasLanyard: true, eventIds, ticketName: 'DJ', isComp: false, source: 'sheet' });
         added++;
+
+        // Add guest bookings (GE, linked to DJ)
+        for (let g = 0; g < 10; g++) {
+          const guestName = (r[18 + g * 2] || '').trim();
+          if (!guestName) continue;
+          addSheetBooking({ key: `dj-${i}-g${g}`, name: guestName, email: '', entryType: 'GE', guestType: 'DJ Guest', hasLanyard: false, eventIds, ticketName: 'DJ Guest', isComp: true, guestOf: name, source: 'sheet' });
+          added++;
+        }
       });
       console.log(`✓ Sheet DJs: ${added}`);
       totalAdded += added;
