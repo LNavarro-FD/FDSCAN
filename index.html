@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v5.97</title>
+<title>FD Door Scanner v6.14</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -221,8 +221,10 @@ input::placeholder { color: #999; }
   border-radius: 10px; padding: 10px 14px;
   display: flex; align-items: center; gap: 10px; flex-shrink: 0;
 }
-.ent-banner.std { background: #fff; border: 2px solid var(--border); }
-.ent-banner.vip { background: #FFFBE6; border: 2px solid #C89500; }
+.ent-banner.std  { background: #fff; border: 2px solid var(--border); }
+.ent-banner.vip  { background: #FFFBE6; border: 2px solid #C89500; }
+.ent-banner.aaa  { background: #F0F4FF; border: 2px solid #3B6FD4; }
+.ent-banner.staff { background: #F0FAF4; border: 2px solid #2E9E5B; }
 .eb-icon  { font-size: 22px; }
 .eb-title { font-size: 13px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--text); }
 .vip .eb-title { color: #7A5500; }
@@ -437,11 +439,15 @@ input::placeholder { color: #999; }
 .drawer-name   { font-size: 26px; font-weight: 900; color: var(--text); line-height: 1.1; }
 .drawer-ticket { font-size: 14px; color: var(--muted); margin-top: 5px; }
 .drawer-ent    { border-radius: 12px; padding: 16px; }
-.drawer-ent.std { background: var(--bg); border: 2px solid var(--border); }
-.drawer-ent.vip { background: #FFFBE6; border: 2px solid #C89500; }
-.drawer-ent.tm  { background: #E6F0FF; border: 2px solid #0050B3; }
+.drawer-ent.std   { background: var(--bg); border: 2px solid var(--border); }
+.drawer-ent.vip   { background: #FFFBE6; border: 2px solid #C89500; }
+.drawer-ent.tm    { background: #E6F0FF; border: 2px solid #0050B3; }
+.drawer-ent.aaa   { background: #EEF2FF; border: 2px solid #3B6FD4; }
+.drawer-ent.staff { background: #EDFAF3; border: 2px solid #2E9E5B; }
 .drawer-ent-title { font-size: 12px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; margin-bottom: 12px; color: var(--muted); }
-.vip .drawer-ent-title  { color: #7A5500; }
+.vip   .drawer-ent-title { color: #7A5500; }
+.aaa   .drawer-ent-title { color: #2045A0; }
+.staff .drawer-ent-title { color: #1A6B3C; }
 .tm-dr .drawer-ent-title { color: #0050B3; }
 .ent-row { display: flex; align-items: center; gap: 11px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .ent-row:last-child { border-bottom: none; }
@@ -502,7 +508,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v5.97</div>
+    <div class="brand-sub">Door Scanner · v6.14</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -518,7 +524,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v5.97</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.14</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -643,7 +649,7 @@ input::placeholder { color: #999; }
   <div class="gl-filter-bar" id="gl-filter-bar">
     <button class="filter-pill" onclick="setFilter('comp',this)">🎁 Comp</button>
     <!-- Event pills injected dynamically by renderFilterPills() -->
-    <button class="filter-pill" onclick="setFilter('tm',this)">🎫 Ticketmaster</button>
+    <button class="filter-pill" onclick="setFilter('tm',this)">🎟 Remenham Farm</button>
     <button class="filter-pill" onclick="setFilter('in',this)">✓ In</button>
     <button class="filter-pill" onclick="setFilter('pending',this)">👻 No Show</button>
   </div>
@@ -673,7 +679,7 @@ input::placeholder { color: #999; }
       <button onclick="closeFindBooking()" style="background:none;border:none;color:white;font-size:22px;cursor:pointer;padding:0;line-height:1;">×</button>
     </div>
     <div style="padding:18px;">
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Enter the WooCommerce order number from the guest's confirmation email.</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Enter the order number from the guest's confirmation email. Checks FD system first, then Remenham Farm tickets.</p>
       <input id="find-booking-input" type="number" placeholder="e.g. 30602"
         style="width:100%;padding:13px 14px;border:2px solid var(--border);border-radius:10px;font-size:18px;font-family:inherit;outline:none;-webkit-appearance:none;"
         onkeydown="if(event.key==='Enter') fetchSingleBooking()">
@@ -748,6 +754,8 @@ input::placeholder { color: #999; }
     <div class="field-group"><label>Consumer Key</label><input type="text" id="s-key" autocomplete="off"></div>
     <div class="field-group"><label>Consumer Secret</label><input type="password" id="s-secret" autocomplete="off"></div>
     <div class="field-group"><label>MEC API Key</label><input type="password" id="s-mec-key" autocomplete="off"></div>
+    <div class="setup-title" style="margin-top:8px;">Google Sheet (Comps / DJs / Staff / Remenham)</div>
+    <div class="field-group"><label>Sheet URL</label><input type="url" id="s-sheet-url" autocomplete="off" autocapitalize="none" placeholder="https://docs.google.com/spreadsheets/d/..."></div>
     <button class="btn-primary" onclick="saveSettings()">Save &amp; Reload Guest List</button>
     <button class="btn-secondary" onclick="clearLocalCheckins()">Clear local check-ins (testing)</button>
     <button class="btn-secondary" onclick="undoLastCheckin()">↩ Undo last check-in</button>
@@ -842,7 +850,8 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════
-let cfg      = { siteUrl:'', wcKey:'', wcSecret:'', mecKey:'', demo:false };
+let cfg      = { siteUrl:'', wcKey:'', wcSecret:'', mecKey:'', sheetUrl:'https://docs.google.com/spreadsheets/d/1qy9_HFxFZg9L3M2UzV_cSMesZp6UdYJZmlR-k9d3OCc/edit', demo:false };
+let sheetData  = { comps:[], djs:[], staff:[], remenham:[] }; // Google Sheet cache
 let guestMap   = {};  // orderNumber/mec-key → guest (individual)
 let bookingMap = {};  // bookingId → { name, email, tickets:[], source }
 let invoiceMap = {};  // invoiceId → booking (for QR lookup)
@@ -986,6 +995,7 @@ function launch() {
   ['wc-key','s-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.wcKey||''; });
   ['wc-secret','s-secret'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.wcSecret||''; });
   ['mec-key','s-mec-key'].forEach(id => { const el = document.getElementById(id); if(el) el.value = cfg.mecKey||''; });
+  const sheetEl = document.getElementById('s-sheet-url'); if(sheetEl) sheetEl.value = cfg.sheetUrl||'';
   showTab('guests');
   loadGuestList().then(() => startSync());
   initCamera();
@@ -996,6 +1006,7 @@ function saveSettings() {
   cfg.wcKey    = document.getElementById('s-key').value.trim();
   cfg.wcSecret = document.getElementById('s-secret').value.trim();
   cfg.mecKey   = document.getElementById('s-mec-key').value.trim();
+  cfg.sheetUrl = document.getElementById('s-sheet-url').value.trim();
   cfg.demo     = false;
   saveConfig(); loadGuestList(); showTab('guests');
 }
@@ -1037,7 +1048,7 @@ async function fetchUpcomingEvents() {
     for (const hdrs of authHeaders) {
       for (const url of baseUrls) {
         try {
-          const r = await fetch(url, { headers: hdrs });
+          const r = await fetchWithTimeout(url, { headers: hdrs }, 10000);
           console.log('MEC events:', url.split('?')[0], 'auth:', Object.keys(hdrs)[0], 'status:', r.status);
           if (!r.ok) continue;
           const data = await r.json();
@@ -1223,12 +1234,13 @@ async function loadGuestList() {
     // 1. Fetch upcoming MEC events
     await fetchUpcomingEvents();
 
-    // 2. Fetch MEC attendees, WC orders, and bulk checkins in parallel
-    const [mecGuests, wcGuests, bulkData] = await Promise.all([
+    // 2. Fetch MEC attendees and bulk checkins in parallel
+    // WC order fetch skipped — slow and bulk2 covers all bookings
+    const [mecGuests, bulkData] = await Promise.all([
       upcomingEvents.length > 0 ? fetchMecAttendees(upcomingEvents) : Promise.resolve({}),
-      fetchWooOrders(),
-      fetch(`${cfg.siteUrl}/wp-json/fd2/v1/bulk2`).then(r => r.ok ? r.json() : {checkins:[]}).catch(() => ({checkins:[]}))
+      fetchWithTimeout(`${cfg.siteUrl}/wp-json/fd2/v1/bulk2`, {}, 15000).then(r => r.ok ? r.json() : {checkins:[]}).catch(() => ({checkins:[]}))
     ]);
+    const wcGuests = []; // WC fetch bypassed — all guests come from MEC bulk2
 
     // 2b. Pre-populate bookingMap from bulk endpoint (catches bookings missed by occurrence API)
     const currentEventIds = new Set(upcomingEvents.map(e => String(e.id)));
@@ -1318,9 +1330,15 @@ async function loadGuestList() {
     });
 
     console.log(`Guest list: ${Object.keys(guestMap).length} total (MEC: ${Object.keys(mecGuests).length}, WC: ${wcGuests.length})`);
-    await loadCompGuests();
     renderFilterPills();
     renderGuestList(); updateGLStats();
+    // Sheet loads in background — app never waits for it
+    setTimeout(() => {
+      loadCompGuests().then(() => {
+        renderFilterPills();
+        renderGuestList(); updateGLStats();
+      }).catch(e => console.warn('Sheet load failed:', e));
+    }, 100);
 
     // Load real check-in state from our database proxy
     // MEC's API doesn't reflect our direct writes, so we read back from fd2/v1/checkins
@@ -1333,54 +1351,202 @@ async function loadGuestList() {
   }
 }
 
-async function loadCompGuests() {
+// ═══════════════════════════════════════════
+//  GOOGLE SHEET READER
+// ═══════════════════════════════════════════
+
+function extractSheetId(url) {
+  const m = (url || '').match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
+async function fetchSheetTab(sheetId, tabName) {
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000); // 5s timeout per tab
+  let r;
   try {
-    const r = await fetch('./fd-comps.json?v=' + Date.now());
-    if (!r.ok) return;
-    const data = await r.json();
-    let added = 0;
-    Object.entries(data.events || {}).forEach(([eventName, ev]) => {
-      (ev.guests || []).forEach((g, i) => {
-        const key = `comp-${eventName.replace(/\s/g,'-').toLowerCase()}-${i}`;
-        if (guestMap[key]) return;
-        const ticketName = `${eventName} - ${g.ticket}`;
-        const matchedEvent = upcomingEvents.find(ev => {
-          const t = (ev.title || '').toLowerCase();
-          const n = eventName.toLowerCase();
-          // Match by first significant word of event name
-          const words = n.split(' ').filter(w => w.length > 3);
-          return words.some(w => t.includes(w));
-        });
-        const eventId = matchedEvent ? String(matchedEvent.id) : '';
-        const guest = {
-          id: key, orderNumber: key,
-          name: g.name, email: (g.email || '').toLowerCase(),
-          ticketName, isVip: !!g.vip, isComp: true, isTM: false,
-          qty: 1, checkedInTickets: [], checkedIn: false,
-          eventDay: '', _source: 'wc',
-          guestOf: g.guestOf || '',
-          _eventId: eventId,
-          orderDate: ev.date ? ev.date + 'T12:00:00' : new Date().toISOString()
-        };
-        guestMap[key] = guest;
-        if (guest.email) emailMap[guest.email] = guest;
-        bookingMap[key] = {
-          bookingId: key, invoiceID: key,
-          name: g.name, email: guest.email,
-          eventTitle: ticketName, eventDay: '',
-          orderDate: guest.orderDate,
-          guestOf: g.guestOf || '',
-          _eventId: eventId,
-          tickets: [{ key: `${key}-0`, attendeeKey: '0', name: g.name, ticketName, isVip: !!g.vip, checkedIn: false }],
-          source: 'wc', isComp: true, isTM: false
-        };
-        added++;
+    r = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!r.ok) throw new Error(`Sheet tab "${tabName}" returned ${r.status}`);
+  const text = await r.text();
+  const rows = parseSheetCSV(text);
+  if (rows.length < 2) return [];
+  const headers = rows[0].map(h => h.trim());
+  return rows.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (row[i] || '').trim(); });
+    return obj;
+  }).filter(r => Object.values(r).some(v => v));
+}
+
+function parseSheetCSV(text) {
+  const rows = [];
+  let row = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"' && text[i+1] === '"') { field += '"'; i++; }
+      else if (c === '"') inQ = false;
+      else field += c;
+    } else {
+      if (c === '"') { inQ = true; }
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else if (c === '\r') { /* skip */ }
+      else field += c;
+    }
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+function resolveEventId(eventStr) {
+  if (!eventStr) return '';
+  const s = eventStr.toLowerCase();
+  const match = upcomingEvents.find(ev => {
+    const t = (ev.title || '').toLowerCase();
+    if (s.includes('ladies')) return t.includes('ladies');
+    if (s.includes('ibiza')) return t.includes('ibiza');
+    if (s.includes('studio')) return t.includes('studio');
+    if (s.includes('brunch')) return t.includes('brunch');
+    return false;
+  });
+  return match ? String(match.id) : '';
+}
+
+function entryTypeFields(code) {
+  const c = (code || 'GE').toUpperCase();
+  return {
+    entryType: c,
+    isVip:   c === 'VIP',
+    isAAA:   c === 'AAA',
+    isStaff: c === 'STAFF' || c === 'STAFF',
+  };
+}
+
+function addSheetGuest({ key, name, email, eventStr, entryCode, guestType, guestOf, multiDay, isComp, source }) {
+  if (!name) return;
+  if (guestMap[key]) return;
+  const et = entryTypeFields(entryCode);
+  const primaryEventId = eventStr === 'All' ? (upcomingEvents[0] ? String(upcomingEvents[0].id) : '') : resolveEventId(eventStr);
+  const ticketLabel = et.entryType === 'AAA' ? 'AAA — All Areas' :
+                      et.isVip               ? 'VIP Ticket' :
+                      et.isStaff             ? 'Staff Pass' : 'General Admission';
+  const guest = {
+    id: key, orderNumber: key,
+    name, email: (email || '').toLowerCase(),
+    ticketName: ticketLabel,
+    isVip: et.isVip, isAAA: et.isAAA, isStaff: et.isStaff,
+    entryType: et.entryType, guestType: guestType || '',
+    isComp: !!isComp, isTM: false,
+    qty: 1, checkedInTickets: [], checkedIn: false,
+    multiDay: !!multiDay, eventDay: '', _source: source || 'sheet',
+    guestOf: guestOf || '', _eventId: primaryEventId,
+    orderDate: new Date().toISOString()
+  };
+  guestMap[key] = guest;
+  if (guest.email) emailMap[guest.email] = guest;
+  bookingMap[key] = {
+    bookingId: key, invoiceID: key,
+    name, email: guest.email,
+    eventTitle: ticketLabel, eventDay: '',
+    orderDate: guest.orderDate,
+    guestOf: guestOf || '', guestType: guestType || '',
+    entryType: et.entryType, _eventId: primaryEventId,
+    tickets: [{ key: `${key}-0`, attendeeKey: '0', name,
+      ticketName: ticketLabel,
+      isVip: et.isVip, isAAA: et.isAAA, isStaff: et.isStaff,
+      entryType: et.entryType, checkedIn: false }],
+    source: 'sheet', isComp: !!isComp, isTM: false, multiDay: !!multiDay
+  };
+}
+
+async function loadCompGuests() {
+  return; // DISABLED — debug tomorrow
+  const sheetId = extractSheetId(cfg.sheetUrl);
+  if (!sheetId) { console.log('ℹ No Google Sheet configured'); return; }
+  let total = 0;
+  const errors = [];
+
+  try {
+    const rows = await fetchSheetTab(sheetId, 'Guests');
+    rows.forEach((r, i) => {
+      addSheetGuest({ key:`sheet-comp-${i}`, name:r['Name'], email:r['Email'],
+        eventStr:r['Event'], entryCode:r['Entry Type'], guestType:r['Guest Type'],
+        isComp:true, source:'comp' });
+      total++;
+    });
+    console.log(`✓ Sheet Comps: ${rows.length} rows`);
+  } catch(e) { errors.push(`Comps: ${e.message}`); }
+
+  try {
+    const rows = await fetchSheetTab(sheetId, 'DJs & Guests');
+    rows.forEach((r, i) => {
+      addSheetGuest({ key:`sheet-dj-${i}`, name:r['Artist Name'], email:r['Email'],
+        eventStr:r['Event'], entryCode:r['Entry Type']||'AAA', guestType:r['Guest Type']||'DJ',
+        isComp:true, source:'dj' });
+      total++;
+      ['Guest 1','Guest 2','Guest 3'].forEach((col, gi) => {
+        if (!r[col]) return;
+        addSheetGuest({ key:`sheet-dj-${i}-g${gi}`, name:r[col], email:'',
+          eventStr:r['Event'], entryCode:r['Entry Type']||'AAA', guestType:'DJ Guest',
+          guestOf:r['Artist Name'], isComp:true, source:'dj' });
+        total++;
       });
     });
-    if (added > 0) console.log(`✓ Loaded ${added} comp guests from fd-comps.json`);
-  } catch(e) {
-    console.warn('Could not load comp guests:', e.message);
-  }
+    console.log(`✓ Sheet DJs & Artists: ${rows.length} rows`);
+  } catch(e) { errors.push(`DJs & Artists: ${e.message}`); }
+
+  try {
+    const rows = await fetchSheetTab(sheetId, 'Resources');
+    rows.forEach((r, i) => {
+      addSheetGuest({ key:`sheet-staff-${i}`, name:r['Name'], email:r['Email'],
+        eventStr:r['Event'], entryCode:r['Entry Type']||'Staff',
+        guestType:r['Guest Type']||r['Role']||'Staff',
+        multiDay:(r['Multi Day']||'').toLowerCase()==='yes',
+        isComp:false, source:'staff' });
+      total++;
+    });
+    console.log(`✓ Sheet Staff & Crew: ${rows.length} rows`);
+  } catch(e) { errors.push(`Staff & Crew: ${e.message}`); }
+
+  try {
+    const rows = await fetchSheetTab(sheetId, 'Remenham Farm');
+    rows.forEach((r, i) => {
+      const qrCode  = (r['QR Code'] || '').trim();
+      const orderId = String(r['Order ID'] || '').trim();
+      const key     = qrCode || `sheet-rem-${i}`;
+      addSheetGuest({ key, name:r['Name'], email:r['Email'],
+        eventStr:r['Event'], entryCode:r['Entry Type']||'GE',
+        guestType:r['Guest Type']||'Remenham Farm',
+        isComp:true, source:'remenham' });
+      // Wire QR code directly into invoiceMap so scanner resolves it instantly
+      // Register both the full QR (with event title) and the base key (FD-RF-{order}-{ticket})
+      if (qrCode && bookingMap[key]) {
+        invoiceMap[qrCode] = bookingMap[key];
+        // Also register base key (FD-RF-{orderid}-{ticketnum}) in case QR has event title suffix
+        const baseMatch = qrCode.match(/^(FD-RF-\d+-\d+)/i);
+        if (baseMatch && baseMatch[1] !== qrCode) {
+          invoiceMap[baseMatch[1]] = bookingMap[key];
+        }
+        // And register the key itself
+        invoiceMap[key] = bookingMap[key];
+      }
+      // Wire RF order ID for order number search (FD system checked first, RF fallback)
+      if (orderId && bookingMap[key] && !invoiceMap[orderId]) {
+        invoiceMap['rf-' + orderId] = bookingMap[key];
+        bookingMap[key].rfOrderId = orderId;
+      }
+      total++;
+    });
+    console.log(`✓ Sheet Remenham Farm: ${rows.length} rows`);
+  } catch(e) { errors.push(`Remenham Farm: ${e.message}`); }
+
+  if (errors.length) console.warn('Sheet warnings:', errors.join(' | '));
+  console.log(`✓ Google Sheet total: ${total} guests`);
 }
 
 async function loadCheckinState() {
@@ -1418,6 +1584,13 @@ async function loadCheckinState() {
   }
 }
 
+async function fetchWithTimeout(url, options={}, ms=10000) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  try { return await fetch(url, {...options, signal: ctrl.signal}); }
+  finally { clearTimeout(id); }
+}
+
 async function fetchWooOrders() {
   const base  = `${cfg.siteUrl}/wp-json/wc/v3`;
   const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
@@ -1432,7 +1605,7 @@ async function fetchWooOrders() {
       const word = (ev.title||'').split(/\W+/).find(w => w.length > 3 && !SKIP.includes(w.toLowerCase()));
       if (!word) return [];
       try {
-        const r = await fetch(`${base}/products?search=${encodeURIComponent(word)}&per_page=20&status=publish&_fields=id,name`, {headers: hdrs});
+        const r = await fetchWithTimeout(`${base}/products?search=${encodeURIComponent(word)}&per_page=20&status=publish&_fields=id,name`, {headers: hdrs});
         if (!r.ok) return [];
         return await r.json();
       } catch(e) { return []; }
@@ -1451,7 +1624,7 @@ async function fetchWooOrders() {
     let page = 1, orders = [];
     while (true) {
       const url = `${base}/orders?status=completed,processing,on-hold&per_page=100&page=${page}&_fields=id,number,status,billing,line_items,total,meta_data,date_created&product=${pid}`;
-      const r = await fetch(url, { headers: hdrs });
+      const r = await fetchWithTimeout(url, { headers: hdrs }, 10000);
       if (!r.ok) { console.warn(`WC orders for product ${pid}: ${r.status}`); break; }
       const batch = await r.json();
       if (!batch.length) break;
@@ -1859,7 +2032,7 @@ function renderGuestList() {
     }
     if (glFilter === 'vip')        return b.tickets.some(t => t.isVip);
     if (glFilter === 'comp')       return b.isComp;
-    if (glFilter === 'tm')         return b.isTM;
+    if (glFilter === 'tm')         return b.isTM || b.source === 'remenham' || (b.bookingId||'').startsWith('FD-RF-') || (b.bookingId||'').startsWith('sheet-rem-');
     if (glFilter === 'in')         return getBookingAdmittedCount(b) > 0;
     if (glFilter === 'pending')    return getBookingAdmittedCount(b) < b.tickets.length;
 
@@ -2061,6 +2234,21 @@ function openDrawer(bookingId) {
       ${g.isVip ? `<div class="ent-row"><span class="ent-icon">🍽️</span><span class="ent-label">Food tokens</span><span class="ent-val">Issue now</span></div>` : ''}
       ${g.table ? `<div class="ent-row"><span class="ent-icon">🪑</span><span class="ent-label">Table</span><span class="ent-val">${g.table}</span></div>` : ''}
     `;
+  } else if ((g.entryType||'').toUpperCase() === 'AAA' || g.isAAA) {
+    entEl.className   = 'drawer-ent aaa';
+    titleEl.textContent = 'All Areas' + (g.guestType ? ` — ${g.guestType}` : '');
+    rowsEl.innerHTML  = `
+      <div class="ent-row"><span class="ent-icon">🎫</span><span class="ent-label">Lanyard</span><span class="ent-val">Issue now</span></div>
+      <div class="ent-row"><span class="ent-icon">🎽</span><span class="ent-label">Wristband</span><span class="ent-val">AAA band</span></div>
+      ${g.guestOf ? `<div class="ent-row"><span class="ent-icon">🎟</span><span class="ent-label">Guest of</span><span class="ent-val">${g.guestOf}</span></div>` : ''}
+    `;
+  } else if ((g.entryType||'').toUpperCase() === 'STAFF' || g.isStaff) {
+    entEl.className   = 'drawer-ent staff';
+    titleEl.textContent = 'Staff' + (g.guestType ? ` — ${g.guestType}` : '');
+    rowsEl.innerHTML  = `
+      <div class="ent-row"><span class="ent-icon">🎽</span><span class="ent-label">Wristband</span><span class="ent-val">Staff band</span></div>
+      ${g.multiDay ? `<div class="ent-row"><span class="ent-icon">♻️</span><span class="ent-label">Multi-day pass</span><span class="ent-val">Valid all days</span></div>` : ''}
+    `;
   } else if (g.isVip) {
     entEl.className   = 'drawer-ent vip';
     titleEl.textContent = 'VIP Entitlements';
@@ -2071,7 +2259,7 @@ function openDrawer(bookingId) {
     `;
   } else {
     entEl.className   = 'drawer-ent std';
-    titleEl.textContent = 'Entitlements';
+    titleEl.textContent = 'Entitlements' + (g.guestType ? ` — ${g.guestType}` : '');
     rowsEl.innerHTML  = `
       <div class="ent-row"><span class="ent-icon">🎽</span><span class="ent-label">Wristband</span><span class="ent-val">Standard</span></div>
     `;
@@ -2363,9 +2551,16 @@ async function lookupTicket(code) {
       // Continue to WC lookup below
     }
 
-    // 2. Try local guest map (WC orders already loaded)
+    // 2. Try local guest map — FD system first, then RF sheet
+    // FD-RF- codes resolve directly from sheet data loaded at startup
     const guest = resolveGuest(code);
     if (guest) { handleGuest(guest, code); isScanning = false; return; }
+
+    // 2b. FD-RF code not found in local map — reject immediately (no WC lookup needed)
+    if (/^FD-RF-/i.test(code)) {
+      rejectCode(code, 'Remenham Farm ticket not found');
+      isScanning = false; return;
+    }
 
     // 3. Try WC external ticket lookup (Ticketmaster barcodes stored as meta)
     if (!cfg.demo) {
@@ -2396,7 +2591,7 @@ async function lookupTicket(code) {
     }
 
     // 6. Not found anywhere
-    rejectCode(code, 'Not found in MEC or WooCommerce');
+    rejectCode(code, 'Not found in guest list');
 
   } catch(err) {
     vibrate([300, 100, 300]);
@@ -2410,7 +2605,29 @@ async function lookupTicket(code) {
 
 function resolveGuest(code) {
   const clean = code.replace(/^#/,'').trim();
-  return guestMap[clean] || guestMap[code] || emailMap[code.toLowerCase()] || null;
+  // FD-RF- prefix = Remenham Farm ticket — look up directly in invoiceMap
+  if (/^FD-RF-/i.test(clean)) {
+    // QR may contain full event title: FD-RF-{orderid}-{ticket}-{event title}
+    // Strip to base key FD-RF-{orderid}-{ticket} for lookup
+    const baseKey = clean.match(/^(FD-RF-\d+-\d+)/i)?.[1] || clean;
+    const b = invoiceMap[baseKey] || invoiceMap[clean];
+    if (b) {
+      return guestMap[b.bookingId] || guestMap[baseKey] || guestMap[clean] || null;
+    }
+  }
+  return guestMap[clean] || guestMap[code] || invoiceMap[clean] && Object.assign({}, invoiceMap[clean], {
+    id: invoiceMap[clean].bookingId,
+    orderNumber: invoiceMap[clean].invoiceID,
+    qty: invoiceMap[clean].tickets.length,
+    checkedInTickets: [],
+    checkedIn: false,
+    ticketName: (invoiceMap[clean].tickets[0]||{}).ticketName || '',
+    isVip: (invoiceMap[clean].tickets[0]||{}).isVip || false,
+    isComp: invoiceMap[clean].isComp,
+    isTM: false,
+    eventDay: '',
+    _eventId: invoiceMap[clean]._eventId || '',
+  }) || emailMap[code.toLowerCase()] || null;
 }
 
 // ═══════════════════════════════════════════
@@ -2823,15 +3040,27 @@ function setResult(state, icon, name, detail, pulse) {
 function showEnt(g) {
   const el    = document.getElementById('ent-banner');
   const items = document.getElementById('ent-items');
-  if (g.isVip) {
+  const et    = (g.entryType || (g.isVip ? 'VIP' : g.isAAA ? 'AAA' : g.isStaff ? 'Staff' : 'GE')).toUpperCase();
+  const gtBadge = g.guestType ? ` <span style="background:rgba(255,255,255,.25);border-radius:4px;padding:1px 6px;font-size:11px;margin-left:6px;">${g.guestType}</span>` : '';
+  if (et === 'AAA') {
+    el.className = 'ent-banner aaa';
+    el.querySelector('.eb-icon').textContent  = '🎫';
+    el.querySelector('.eb-title').innerHTML   = 'All Areas' + gtBadge;
+    items.innerHTML = '🎫 Lanyard &nbsp;·&nbsp; 🎽 Wristband';
+  } else if (et === 'VIP' || g.isVip) {
     el.className = 'ent-banner vip';
     el.querySelector('.eb-icon').textContent  = '⭐';
-    el.querySelector('.eb-title').textContent = 'VIP — Issue now:';
+    el.querySelector('.eb-title').innerHTML   = 'VIP — Issue now:' + gtBadge;
     items.innerHTML = `🎽 Wristband &nbsp;·&nbsp; 🍽️ Food tokens${g.table?' &nbsp;·&nbsp; 🪑 Table '+g.table:''}`;
+  } else if (et === 'STAFF' || g.isStaff) {
+    el.className = 'ent-banner staff';
+    el.querySelector('.eb-icon').textContent  = '🏷️';
+    el.querySelector('.eb-title').innerHTML   = 'Staff' + gtBadge;
+    items.innerHTML = '🎽 Wristband' + (g.multiDay ? ' &nbsp;·&nbsp; ♻️ Multi-day pass' : '');
   } else {
     el.className = 'ent-banner std';
     el.querySelector('.eb-icon').textContent  = '🎽';
-    el.querySelector('.eb-title').textContent = 'Wristband';
+    el.querySelector('.eb-title').innerHTML   = 'General Entry' + gtBadge;
     items.textContent = 'Standard wristband';
   }
   el.classList.remove('hidden');
@@ -3165,9 +3394,27 @@ async function fetchSingleBooking() {
 
   btn.textContent = 'Looking up…';
   btn.disabled = true;
-  resultEl.innerHTML = '<span style="color:var(--muted);">Checking WooCommerce…</span>';
+  resultEl.innerHTML = '<span style="color:var(--muted);">Searching…</span>';
 
   try {
+    // RF fallback — check Remenham Farm sheet data first (FD system has no record of these)
+    const rfKey = 'rf-' + input;
+    const rfBooking = invoiceMap[rfKey];
+    if (rfBooking) {
+      resultEl.innerHTML = `
+        <div style="background:#FFF4E5;border:2px solid #F04E30;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+          <div style="font-weight:800;font-size:14px;color:var(--navy);">${rfBooking.name}</div>
+          <div style="font-size:12px;color:#F04E30;font-weight:700;margin-top:2px;">Remenham Farm ticket</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">${rfBooking.tickets.length} ticket${rfBooking.tickets.length!==1?'s':''} · RF Order #${input}</div>
+        </div>
+        <button onclick="viewBookingInList('${rfBooking.bookingId}');"
+          style="width:100%;padding:12px;background:var(--navy);color:white;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">
+          👁 View in Guest List
+        </button>`;
+      btn.textContent = 'Find Booking'; btn.disabled = false;
+      return;
+    }
+
     const creds = btoa(`${cfg.wcKey}:${cfg.wcSecret}`);
     const r = await fetch(
       `${cfg.siteUrl}/wp-json/wc/v3/orders/${encodeURIComponent(input)}`,
