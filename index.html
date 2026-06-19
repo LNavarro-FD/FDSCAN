@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.17</title>
+<title>FD Door Scanner v6.18</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.17</div>
+    <div class="brand-sub">Door Scanner · v6.18</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.17</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.18</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -1818,7 +1818,7 @@ function admitSpecific(bookingId, attendeeKey) {
   const b = bookingMap[bookingId];
   if (!b) return;
   const ticket = b.tickets.find(t => String(t.attendeeKey) === String(attendeeKey));
-  if (!ticket || ticket.checkedIn) return;
+  if (!ticket || isTicketCheckedIn(b, ticket)) return;
 
   ticket.checkedIn = true;
   // Sync to guestMap so scan tab duplicate detection works
@@ -2110,8 +2110,21 @@ function clearEventFilter() {
   document.getElementById('gl-count') && (document.getElementById('gl-count').textContent = '');
 }
 
+function isTicketCheckedIn(booking, ticket) {
+  if (ticket.checkedIn) return true;
+  // Also check guestMap — scanner may have admitted via guestMap path
+  const gm = guestMap[booking.bookingId] || guestMap[`wc-${booking.invoiceID}`] ||
+    Object.values(guestMap).find(g => g.name === booking.name && g._eventId === booking._eventId);
+  if (!gm) return false;
+  // For single-ticket bookings just check checkedIn flag
+  if (gm.qty <= 1) return gm.checkedIn || gm.checkedInTickets.length > 0;
+  // For multi-ticket, match by attendeeKey position
+  const idx = booking.tickets.indexOf(ticket);
+  return gm.checkedInTickets.length > idx;
+}
+
 function getBookingAdmittedCount(booking) {
-  return booking.tickets.filter(t => t.checkedIn).length;
+  return booking.tickets.filter(t => isTicketCheckedIn(booking, t)).length;
 }
 
 function renderGuestList() {
