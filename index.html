@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.35</title>
+<title>FD Door Scanner v6.36</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.35</div>
+    <div class="brand-sub">Door Scanner · v6.36</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.35</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.36</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.35';
+const APP_VERSION = '6.36';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1379,51 +1379,7 @@ async function loadGuestList() {
       }
     }).catch(() => {});
 
-    // When bulk2 arrives, process it and re-render
-    bulk2Promise.then(bd => {
-      const keepEventIds = new Set(['30589','30590','30591']);
-      console.log('bulk2 total checkins:', (bd.checkins||[]).length);
-      const bulkByBooking = {};
-      (bd.checkins || []).forEach(c => {
-        if (!keepEventIds.has(String(c.event_id))) return;
-        const bid = String(c.booking_id);
-        if (!bulkByBooking[bid]) bulkByBooking[bid] = { inv: String(c.invoice_id), eventId: String(c.event_id), attendees: [] };
-        bulkByBooking[bid].attendees.push(c);
-      });
-      console.log('bulk2 HRR bookings found:', Object.keys(bulkByBooking).length);
-      Object.entries(bulkByBooking).forEach(([bid, data]) => {
-        if (!bookingMap[bid]) {
-          const leadName = data.attendees[0]?.name || '';
-          bookingMap[bid] = {
-            bookingId: bid, invoiceID: data.inv,
-            name: leadName, email: data.attendees[0]?.email || '',
-            eventTitle: '', eventDay: '',
-            _eventId: data.eventId,
-            tickets: [], source: 'mec', isComp: false, isTM: false
-          };
-          invoiceMap[data.inv] = bookingMap[bid];
-          data.attendees.forEach((a, idx) => {
-            bookingMap[bid].tickets.push({
-              key: `${bid}-${idx+1}`, attendeeKey: String(idx+1),
-              name: a.name || '', ticketName: 'MEC Ticket',
-              isVip: false, checkedIn: !!a.checked_in
-            });
-          });
-        } else {
-          data.attendees.forEach((a, idx) => {
-            const t = bookingMap[bid].tickets[idx];
-            if (t && a.checked_in) t.checkedIn = true;
-            if (t && a.name && !t.name) t.name = a.name;
-          });
-        }
-      });
-      renderGuestList(); updateGLStats();
-      console.log('bulk2 re-render complete, bookingMap size:', Object.keys(bookingMap).length);
-    }).catch(e => console.warn('bulk2 processing error:', e));
-
-    // 2b. Pre-populate bookingMap from bulk endpoint (catches bookings missed by occurrence API)
-    // Group bulk checkins by booking_id first
-    // bulk2 is processed asynchronously in bulk2Promise.then() above — re-renders when ready
+    // 2b. bulk2 is processed inline after main render below
 
     // 2c. Enrich multi-ticket bookings with individual attendee names from MEC
     if (cfg.mecKey) {
@@ -1505,6 +1461,49 @@ async function loadGuestList() {
     await loadCompGuests();
     renderFilterPills();
     renderGuestList(); updateGLStats();
+
+    // Now process bulk2 (may already be resolved or still pending)
+    const bd = await bulk2Promise;
+    const keepEventIds = new Set(['30589','30590','30591']);
+    console.log('bulk2 total checkins:', (bd.checkins||[]).length);
+    const bulkByBooking = {};
+    (bd.checkins || []).forEach(c => {
+      if (!keepEventIds.has(String(c.event_id))) return;
+      const bid = String(c.booking_id);
+      if (!bulkByBooking[bid]) bulkByBooking[bid] = { inv: String(c.invoice_id), eventId: String(c.event_id), attendees: [] };
+      bulkByBooking[bid].attendees.push(c);
+    });
+    console.log('bulk2 HRR bookings found:', Object.keys(bulkByBooking).length);
+    let bulk2Changed = false;
+    Object.entries(bulkByBooking).forEach(([bid, data]) => {
+      if (!bookingMap[bid]) {
+        const leadName = data.attendees[0]?.name || '';
+        bookingMap[bid] = {
+          bookingId: bid, invoiceID: data.inv,
+          name: leadName, email: data.attendees[0]?.email || '',
+          eventTitle: '', eventDay: '',
+          _eventId: data.eventId,
+          tickets: [], source: 'mec', isComp: false, isTM: false
+        };
+        invoiceMap[data.inv] = bookingMap[bid];
+        data.attendees.forEach((a, idx) => {
+          bookingMap[bid].tickets.push({
+            key: `${bid}-${idx+1}`, attendeeKey: String(idx+1),
+            name: a.name || '', ticketName: 'MEC Ticket',
+            isVip: false, checkedIn: !!a.checked_in
+          });
+        });
+        bulk2Changed = true;
+      } else {
+        data.attendees.forEach((a, idx) => {
+          const t = bookingMap[bid].tickets[idx];
+          if (t && a.checked_in) t.checkedIn = true;
+          if (t && a.name && !t.name) t.name = a.name;
+        });
+      }
+    });
+    if (bulk2Changed) { renderGuestList(); updateGLStats(); }
+    console.log('bulk2 processed, bookingMap size:', Object.keys(bookingMap).length);
 
     // Load real check-in state from our database proxy
     // MEC's API doesn't reflect our direct writes, so we read back from fd2/v1/checkins
