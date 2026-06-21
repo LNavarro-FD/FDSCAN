@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.32</title>
+<title>FD Door Scanner v6.33</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.32</div>
+    <div class="brand-sub">Door Scanner · v6.33</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.32</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.33</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.32';
+const APP_VERSION = '6.33';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1329,8 +1329,7 @@ async function loadGuestList() {
     await fetchUpcomingEvents();
 
     // 2. Fetch MEC attendees, WC orders, and bulk checkins in parallel
-    // Fetch bulk2 and WC in parallel but independently
-    // bulk2 gets its own 20s timeout; WC gets 8s then we render without it and re-render when done
+    // bulk2 is large and slow — fetch independently and re-render when it arrives
     const bulk2Promise = fetch(`${cfg.siteUrl}/wp-json/fd2/v1/bulk2`)
       .then(r => { console.log('bulk2 status:', r.status); return r.ok ? r.json() : {checkins:[]}; })
       .catch(e => { console.warn('bulk2 fetch error:', e); return {checkins:[]}; });
@@ -1338,14 +1337,16 @@ async function loadGuestList() {
     const wcTimeout = new Promise(resolve => setTimeout(() => { console.warn('WC fetch timed out'); resolve([]); }, 8000));
     const wcPromise = fetchWooOrders();
 
-    // Wait for bulk2 + either WC or timeout
-    const [mecGuests, wcGuests, bulkData] = await Promise.all([
+    // Wait for WC only (with timeout) — render initial guest list from WC + sheets
+    const [mecGuests, wcGuests] = await Promise.all([
       Promise.resolve({}),
-      Promise.race([wcPromise, wcTimeout]),
-      bulk2Promise
+      Promise.race([wcPromise, wcTimeout])
     ]);
 
-    // If WC timed out, re-render when it eventually completes
+    // Placeholder so bulk2 processing below has a bulkData variable
+    const bulkData = {checkins:[]};
+
+    // When WC completes late, re-render
     wcPromise.then(lateWcGuests => {
       if (lateWcGuests && lateWcGuests.length > wcGuests.length) {
         console.log('WC completed late — re-rendering with', lateWcGuests.length, 'orders');
@@ -1373,49 +1374,70 @@ async function loadGuestList() {
       }
     }).catch(() => {});
 
+    // When bulk2 arrives, process it and re-render
+    bulk2Promise.then(bd => {
+      const keepEventIds = new Set(['30589','30590','30591']);
+      console.log('bulk2 total checkins:', (bd.checkins||[]).length);
+      const bulkByBooking = {};
+      (bd.checkins || []).forEach(c => {
+        if (!keepEventIds.has(String(c.event_id))) return;
+        const bid = String(c.booking_id);
+        if (!bulkByBooking[bid]) bulkByBooking[bid] = { inv: String(c.invoice_id), eventId: String(c.event_id), attendees: [] };
+        bulkByBooking[bid].attendees.push(c);
+      });
+      console.log('bulk2 HRR bookings found:', Object.keys(bulkByBooking).length);
+      Object.entries(bulkByBooking).forEach(([bid, data]) => {
+        if (!bookingMap[bid]) {
+          const leadName = data.attendees[0]?.name || '';
+          bookingMap[bid] = {
+            bookingId: bid, invoiceID: data.inv,
+            name: leadName, email: data.attendees[0]?.email || '',
+            eventTitle: '', eventDay: '',
+            _eventId: data.eventId,
+            tickets: [], source: 'mec', isComp: false, isTM: false
+          };
+          invoiceMap[data.inv] = bookingMap[bid];
+          data.attendees.forEach((a, idx) => {
+            bookingMap[bid].tickets.push({
+              key: `${bid}-${idx+1}`, attendeeKey: String(idx+1),
+              name: a.name || '', ticketName: 'MEC Ticket',
+              isVip: false, checkedIn: !!a.checked_in
+            });
+          });
+        } else {
+          data.attendees.forEach((a, idx) => {
+            const t = bookingMap[bid].tickets[idx];
+            if (t && a.checked_in) t.checkedIn = true;
+            if (t && a.name && !t.name) t.name = a.name;
+          });
+        }
+      });
+      renderGuestList(); updateGLStats();
+      console.log('bulk2 re-render complete, bookingMap size:', Object.keys(bookingMap).length);
+    }).catch(e => console.warn('bulk2 processing error:', e));
+            guestMap[`wc-${g.orderNumber}`] = g;
+            if (g.email && !emailMap[g.email]) emailMap[g.email] = g;
+            bookingMap[wcKey] = {
+              bookingId: wcKey, invoiceID: g.orderNumber,
+              name: g.name, email: g.email,
+              eventTitle: g.ticketName, eventDay: g.eventDay,
+              tickets: Array.from({length: g.qty || 1}, (_, i) => ({
+                key: `${wcKey}-${i+1}`, attendeeKey: String(i+1),
+                name: g.name, ticketName: g.ticketName,
+                isVip: false, checkedIn: false
+              })),
+              source: 'wc', isComp: false, isTM: false
+            };
+            if (g.orderNumber) invoiceMap[String(g.orderNumber)] = bookingMap[wcKey];
+          }
+        });
+        renderGuestList(); updateGLStats();
+      }
+    }).catch(() => {});
+
     // 2b. Pre-populate bookingMap from bulk endpoint (catches bookings missed by occurrence API)
     // Group bulk checkins by booking_id first
-    // Take the 5 highest event_ids (most recent events) — don't filter by MEC event IDs
-    // as MEC API may return different IDs than bulk2 event_ids
-    const allEventIds = [...new Set((bulkData.checkins||[]).map(c => c.event_id))].sort((a,b) => b-a);
-    const keepEventIds = new Set(['30589','30590','30591']);
-    console.log('bulk2 total checkins:', (bulkData.checkins||[]).length);
-    const bulkByBooking = {};
-    (bulkData.checkins || []).forEach(c => {
-      if (!keepEventIds.has(String(c.event_id))) return;
-      const bid = String(c.booking_id);
-      if (!bulkByBooking[bid]) bulkByBooking[bid] = { inv: String(c.invoice_id), eventId: String(c.event_id), attendees: [] };
-      bulkByBooking[bid].attendees.push(c);
-    });
-    console.log('bulk2 HRR bookings found:', Object.keys(bulkByBooking).length);
-    Object.entries(bulkByBooking).forEach(([bid, data]) => {
-      if (!bookingMap[bid]) {
-        // Use lead name (first attendee)
-        const leadName = data.attendees[0]?.name || 'Guest';
-        bookingMap[bid] = {
-          bookingId: bid, invoiceID: data.inv,
-          name: leadName, email: '',
-          eventTitle: '', eventDay: '',
-          _eventId: data.eventId,
-          tickets: [], source: 'mec', isComp: false, isTM: false
-        };
-        invoiceMap[data.inv] = bookingMap[bid];
-        // Add all attendees using sequential index as key
-        data.attendees.forEach((a, idx) => {
-          bookingMap[bid].tickets.push({
-            key: `${bid}-${idx+1}`, attendeeKey: String(idx+1),
-            name: a.name || 'Guest', ticketName: 'MEC Ticket',
-            isVip: false, checkedIn: !!a.checked_in
-          });
-        });
-      } else {
-        // Booking already exists — just sync checkedIn state from bulk
-        data.attendees.forEach((a, idx) => {
-          const t = bookingMap[bid].tickets[idx];
-          if (t && a.checked_in) t.checkedIn = true;
-        });
-      }
-    });
+    // bulk2 is processed asynchronously in bulk2Promise.then() above — re-renders when ready
 
     // 2c. Enrich multi-ticket bookings with individual attendee names from MEC
     if (cfg.mecKey) {
