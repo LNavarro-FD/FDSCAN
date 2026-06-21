@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.30</title>
+<title>FD Door Scanner v6.31</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.30</div>
+    <div class="brand-sub">Door Scanner · v6.31</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.30</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.31</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.30';
+const APP_VERSION = '6.31';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1329,12 +1329,49 @@ async function loadGuestList() {
     await fetchUpcomingEvents();
 
     // 2. Fetch MEC attendees, WC orders, and bulk checkins in parallel
+    // Fetch bulk2 and WC in parallel but independently
+    // bulk2 gets its own 20s timeout; WC gets 8s then we render without it and re-render when done
+    const bulk2Promise = fetch(`${cfg.siteUrl}/wp-json/fd2/v1/bulk2`)
+      .then(r => { console.log('bulk2 status:', r.status); return r.ok ? r.json() : {checkins:[]}; })
+      .catch(e => { console.warn('bulk2 fetch error:', e); return {checkins:[]}; });
+
     const wcTimeout = new Promise(resolve => setTimeout(() => { console.warn('WC fetch timed out'); resolve([]); }, 8000));
+    const wcPromise = fetchWooOrders();
+
+    // Wait for bulk2 + either WC or timeout
     const [mecGuests, wcGuests, bulkData] = await Promise.all([
-      Promise.resolve({}), // skip fetchMecAttendees — bulk2 covers all attendees
-      Promise.race([fetchWooOrders(), wcTimeout]),
-      fetch(`${cfg.siteUrl}/wp-json/fd2/v1/bulk2`).then(r => r.ok ? r.json() : {checkins:[]}).catch(() => ({checkins:[]}))
+      Promise.resolve({}),
+      Promise.race([wcPromise, wcTimeout]),
+      bulk2Promise
     ]);
+
+    // If WC timed out, re-render when it eventually completes
+    wcPromise.then(lateWcGuests => {
+      if (lateWcGuests && lateWcGuests.length > wcGuests.length) {
+        console.log('WC completed late — re-rendering with', lateWcGuests.length, 'orders');
+        lateWcGuests.forEach(g => {
+          const wcKey = `wc-${g.orderNumber}`;
+          if (!bookingMap[wcKey] && !invoiceMap[String(g.orderNumber)]) {
+            g._source = 'wc';
+            guestMap[`wc-${g.orderNumber}`] = g;
+            if (g.email && !emailMap[g.email]) emailMap[g.email] = g;
+            bookingMap[wcKey] = {
+              bookingId: wcKey, invoiceID: g.orderNumber,
+              name: g.name, email: g.email,
+              eventTitle: g.ticketName, eventDay: g.eventDay,
+              tickets: Array.from({length: g.qty || 1}, (_, i) => ({
+                key: `${wcKey}-${i+1}`, attendeeKey: String(i+1),
+                name: g.name, ticketName: g.ticketName,
+                isVip: false, checkedIn: false
+              })),
+              source: 'wc', isComp: false, isTM: false
+            };
+            if (g.orderNumber) invoiceMap[String(g.orderNumber)] = bookingMap[wcKey];
+          }
+        });
+        renderGuestList(); updateGLStats();
+      }
+    }).catch(() => {});
 
     // 2b. Pre-populate bookingMap from bulk endpoint (catches bookings missed by occurrence API)
     // Group bulk checkins by booking_id first
