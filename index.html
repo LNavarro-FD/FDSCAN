@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.52</title>
+<title>FD Door Scanner v6.53</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.52</div>
+    <div class="brand-sub">Door Scanner · v6.53</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.52</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.53</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.52';
+const APP_VERSION = '6.53';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -931,6 +931,8 @@ let drawerOrderNum = null;
 let syncTimer    = null;
 let offlineQueue = [];
 let isSyncing    = false;
+// Cache of attendee names from bulk2: key = 'invoiceID:place', value = name
+const mecAttendeeCache = {};
 const SYNC_INTERVAL = 60000; // 60 seconds — only syncs when app is visible
 const META_KEY = '_fd_checked_in';
 const TICKET_META_KEY = '_fd_checked_in_tickets';
@@ -1502,6 +1504,8 @@ async function loadGuestList() {
             name: a.name || '', ticketName: 'MEC Ticket',
             isVip: false, checkedIn: !!a.checked_in
           });
+          // Cache name by mec_invoice_id + place for fast scan lookup
+          if (data.mecInv && a.name) mecAttendeeCache[`${data.mecInv}:${idx+1}`] = a.name;
         });
         bulk2Changed = true;
       } else {
@@ -2669,6 +2673,12 @@ async function lookupTicket(code) {
         // Always fetch correct attendee name from checkins endpoint
         let alreadyInDb = false;
         let checkinName = null;
+        // First check the fast cache from bulk2
+        const cacheKey = `${invoiceId}:${place}`;
+        if (mecAttendeeCache[cacheKey]) {
+          mecGuest.name = mecAttendeeCache[cacheKey];
+          checkinName = mecAttendeeCache[cacheKey];
+        }
         if (cfg.siteUrl && invoiceId && place) {
           try {
             const cr = await fetch(`${cfg.siteUrl}/wp-json/fd2/v1/checkins?invoice_id=${encodeURIComponent(invoiceId)}`);
