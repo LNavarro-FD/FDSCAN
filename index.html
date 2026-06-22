@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.48</title>
+<title>FD Door Scanner v6.49</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.48</div>
+    <div class="brand-sub">Door Scanner · v6.49</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.48</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.49</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.48';
+const APP_VERSION = '6.49';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -2666,30 +2666,26 @@ async function lookupTicket(code) {
                           || localBooking?.tickets[parseInt(place) - 1];
         const alreadyInLocal = localTicket?.checkedIn === true;
 
-        // If not caught locally, check our database proxy to catch cross-session duplicates
+        // Always fetch correct attendee name from checkins endpoint
         let alreadyInDb = false;
-        if (!alreadyInLocal && cfg.siteUrl && invoiceId && place) {
+        if (cfg.siteUrl && invoiceId && place) {
           try {
             const cr = await fetch(`${cfg.siteUrl}/wp-json/fd2/v1/checkins?invoice_id=${encodeURIComponent(invoiceId)}`);
             if (cr.ok) {
               const cd = await cr.json();
               if (cd.found && cd.attendees) {
                 const att = cd.attendees.find(a => String(a.place) === String(place));
-                if (att && att.checked_in) {
-                  alreadyInDb = true;
-                  if (localTicket) localTicket.checkedIn = true;
-                }
-                // Use the correct attendee name from the database
-                if (att && att.name && att.name !== 'Louise Navarro') {
-                  mecGuest.name = att.name;
-                } else if (att && att.name) {
-                  mecGuest.name = att.name;
+                if (att) {
+                  if (att.name) mecGuest.name = att.name;
+                  if (att.checked_in && !alreadyInLocal) {
+                    alreadyInDb = true;
+                    if (localTicket) localTicket.checkedIn = true;
+                  }
                 }
               }
             }
           } catch(e) {}
         }
-
         // Always enrich mecGuest from bookingMap before displaying result
         const invId   = mecGuest._invoiceID || mecGuest.orderNumber;
         const placeNo = mecGuest._place;
