@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.45</title>
+<title>FD Door Scanner v6.46</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.45</div>
+    <div class="brand-sub">Door Scanner · v6.46</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.45</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.46</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.45';
+const APP_VERSION = '6.46';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1470,7 +1470,7 @@ async function loadGuestList() {
     (bd.checkins || []).forEach(c => {
       if (!keepEventIds.has(String(c.event_id))) return;
       const bid = String(c.booking_id);
-      if (!bulkByBooking[bid]) bulkByBooking[bid] = { inv: String(c.invoice_id), eventId: String(c.event_id), attendees: [] };
+      if (!bulkByBooking[bid]) bulkByBooking[bid] = { inv: String(c.invoice_id), mecInv: String(c.mec_invoice_id || ''), eventId: String(c.event_id), attendees: [] };
       bulkByBooking[bid].attendees.push(c);
     });
     console.log('bulk2 HRR bookings found:', Object.keys(bulkByBooking).length);
@@ -1488,12 +1488,14 @@ async function loadGuestList() {
         const leadName = data.attendees[0]?.name || '';
         bookingMap[bid] = {
           bookingId: bid, invoiceID: data.inv,
+          mecInvoiceID: data.mecInv,
           name: leadName, email: data.attendees[0]?.email || '',
           eventTitle: '', eventDay: '',
           _eventId: data.eventId,
           tickets: [], source: 'mec', isComp: false, isTM: false
         };
         invoiceMap[data.inv] = bookingMap[bid];
+        if (data.mecInv && data.mecInv !== data.inv) invoiceMap[data.mecInv] = bookingMap[bid];
         data.attendees.forEach((a, idx) => {
           bookingMap[bid].tickets.push({
             key: `${bid}-${idx+1}`, attendeeKey: String(idx+1),
