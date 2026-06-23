@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.57</title>
+<title>FD Door Scanner v6.58</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.57</div>
+    <div class="brand-sub">Door Scanner · v6.58</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.57</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.58</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.57';
+const APP_VERSION = '6.58';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -2989,29 +2989,16 @@ function parseMecQrUrl(code) {
 
 async function resolveShortUrl(shortUrl) {
   try {
-    // Extract just the slug from the short URL e.g. "stX4XI0LVK-xw" from ".../invoice/stX4XI0LVK-xw"
-    const slug = shortUrl.split('/invoice/').pop().split('?')[0].trim();
-    if (!slug) return null;
-
-    // Use our WordPress proxy to resolve server-side (avoids CORS)
-    const proxyUrl = `${cfg.siteUrl}/wp-json/fd/v1/resolve-invoice?url=${encodeURIComponent(slug)}`;
-    const r = await fetch(proxyUrl, { headers: { 'Accept': 'application/json' } });
-    if (!r.ok) {
-      console.warn('Proxy resolve failed:', r.status);
-      return null;
-    }
-    const data = await r.json();
-    if (data.invoiceID) {
-      return {
-        invoiceID: String(data.invoiceID),
-        place:     data.place ? String(data.place) : null,
-        hash:      data.hash  || null,
-        email:     data.email || null,
-        shortUrl
-      };
+    // Follow the MEC short URL redirect directly to get the full ticket URL
+    const r = await fetch(shortUrl, { method: 'GET', redirect: 'follow' });
+    if (r.ok || r.redirected) {
+      const finalUrl = r.url;
+      console.log('Short URL resolved to:', finalUrl);
+      const p = parseMecQrUrl(finalUrl);
+      if (p && p.invoiceID) return p;
     }
   } catch(e) {
-    console.warn('Short URL resolve failed:', e.message);
+    console.warn('Short URL direct resolve failed:', e.message);
   }
   return null;
 }
