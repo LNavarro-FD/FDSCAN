@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.64</title>
+<title>FD Door Scanner v6.65</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -207,7 +207,7 @@ input::placeholder { color: #999; }
   border-radius: 14px; padding: 0; overflow: hidden;
   display: flex; flex-direction: column;
   box-shadow: 0 4px 20px rgba(0,0,0,.4);
-  z-index: 9999; opacity: 0; pointer-events: none;
+  z-index: 10001; opacity: 0; pointer-events: none;
   transition: opacity .2s; cursor: pointer;
 }
 .wb-toast.show { opacity: 1; pointer-events: auto; }
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.64</div>
+    <div class="brand-sub">Door Scanner · v6.65</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.64</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.65</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.64';
+const APP_VERSION = '6.65';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1951,6 +1951,7 @@ function admitSpecific(bookingId, attendeeKey) {
   if (!ticket || isTicketCheckedIn(b, ticket)) return;
 
   ticket.checkedIn = true;
+  if (!ticket.isVip && /vip/i.test(ticket.ticketName || b.eventTitle || '')) ticket.isVip = true;
   // Sync to guestMap so scan tab duplicate detection works
   const gmKey = b.bookingId.startsWith('wc-') ? b.bookingId : `wc-${b.invoiceID}`;
   const gmGuest = guestMap[gmKey] || guestMap[b.bookingId] || 
@@ -2558,7 +2559,8 @@ function admitFromDrawer() {
   writeCheckIn(g.id, nextSuffix, g.checkedInTickets);
   // Show wristband toast — build a minimal booking/ticket object
   const drawerBooking = bookingMap[Object.keys(bookingMap).find(k => bookingMap[k].name === g.name)] || { _eventId: g._eventId, eventTitle: g.ticketName, entryType: g.isVip ? 'VIP' : 'GE' };
-  showWristbandToast(drawerBooking, { name: g.name, ticketName: g.ticketName, entryType: g.isVip ? 'VIP' : 'GE', isVip: g.isVip });
+  const isVip = g.isVip || /vip/i.test(g.ticketName || '');
+  showWristbandToast(drawerBooking, { name: g.name, ticketName: g.ticketName, entryType: isVip ? 'VIP' : 'GE', isVip: isVip });
   addLog({ name:g.name, ticket:`${g.ticketName} (${g.checkedInTickets.length} of ${g.qty})`, status:'ok', note:'Manual' });
   stats.admitted++; stats.total++;
   document.getElementById('hdr-count').textContent = stats.admitted;
