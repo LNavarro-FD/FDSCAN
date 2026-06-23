@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.56</title>
+<title>FD Door Scanner v6.57</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.56</div>
+    <div class="brand-sub">Door Scanner · v6.57</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.56</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.57</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.56';
+const APP_VERSION = '6.57';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -934,6 +934,8 @@ let isSyncing    = false;
 // Cache of attendee names from bulk2: key = 'invoiceID:place', value = name
 const mecAttendeeCache = {};
 window.mecAttendeeCache = mecAttendeeCache;
+// Pending checkins to apply when bulk2 loads: key = 'invoiceID:place', value = {name, ticketName, isVip}
+const pendingCheckins = {};
 const SYNC_INTERVAL = 60000; // 60 seconds — only syncs when app is visible
 const META_KEY = '_fd_checked_in';
 const TICKET_META_KEY = '_fd_checked_in_tickets';
@@ -1518,7 +1520,24 @@ async function loadGuestList() {
       }
     });
     console.log('bulk2Changed:', bulk2Changed, 'bookingMap size:', Object.keys(bookingMap).length);
-    renderGuestList(); updateGLStats();
+
+    // Apply any pending checkins from scans that happened before bulk2 loaded
+    let pendingApplied = false;
+    Object.entries(pendingCheckins).forEach(([key, pc]) => {
+      const booking = invoiceMap[pc.invId] || bookingMap[pc.invId];
+      if (booking) {
+        const ticket = booking.tickets.find(t => String(t.attendeeKey) === String(pc.placeNo))
+                    || booking.tickets[parseInt(pc.placeNo) - 1];
+        if (ticket && !ticket.checkedIn) {
+          ticket.checkedIn = true;
+          if (pc.name) ticket.name = pc.name;
+          pendingApplied = true;
+        }
+        delete pendingCheckins[key];
+      }
+    });
+    if (pendingApplied) { renderGuestList(); updateGLStats(); }
+    else { renderGuestList(); updateGLStats(); }
     console.log('bulk2 processed, bookingMap size:', Object.keys(bookingMap).length);
 
     // Load real check-in state from our database proxy
@@ -2801,7 +2820,12 @@ async function lookupTicket(code) {
               }
               renderGuestList(); updateGLStats();
             } else {
-              // Booking wasn't in initial load — add it now so duplicate detection works
+              // Booking not yet in bookingMap (bulk2 still loading) — store pending checkin
+              pendingCheckins[`${invId}:${placeNo}`] = {
+                name: mecGuest.name, ticketName: mecGuest.ticketName || '',
+                isVip: mecGuest.isVip, invId, placeNo
+              };
+              // Also add a temporary booking so duplicate detection works next scan
               const newTicket = {
                 key: `${invId}-${placeNo}`, attendeeKey: String(placeNo),
                 name: mecGuest.name, ticketName: mecGuest.ticketName || 'General Admission',
@@ -3072,13 +3096,20 @@ async function mecLookupAndCheckin(code) {
                           || bookingMapEntry?.tickets?.[parseInt(parsed.place) - 1];
     const bookingMapName  = bookingMapTicket?.name || (bookingMapEntry ? bookingMapEntry.name : '');
 
+    // Check mecAttendeeCache — populated from bulk2, keyed by mec_invoice_id:place
+    // This gives us the correct per-attendee name even before/instead of bookingMap
+    const cachedName = mecAttendeeCache[`${parsed.invoiceID}:${parsed.place}`];
+
     // Use bookingMap name as primary source if available (it has per-attendee names from mec_attendees)
     // Fall back to MEC API attendee fields only if bookingMap has no name
     const apiName = [attendee.first_name || '', attendee.last_name || ''].filter(Boolean).join(' ').trim()
                   || attendee.name || '';
-    const name = (bookingMapName && bookingMapName !== bookingMapEntry?.name) 
-                  ? bookingMapName   // ticket-level name (e.g. "George Michael")
-                  : apiName || bookingMapName || 'Guest';
+    // Priority: 1) cachedName from bulk2 (most reliable), 2) ticket-level bookingMap name, 3) API name, 4) booking lead name
+    const name = cachedName
+                  || (bookingMapName && bookingMapName !== bookingMapEntry?.name ? bookingMapName : null)
+                  || apiName
+                  || bookingMapName
+                  || 'Guest';
     
     // Get ticket name — try attendee field first, then always fall back to bookingMap
     let ticketName = attendee.ticket_name || attendee.ticket_label || attendee.type || '';
