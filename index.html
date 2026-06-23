@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.79</title>
+<title>FD Door Scanner v6.80</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.79</div>
+    <div class="brand-sub">Door Scanner · v6.80</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.79</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.80</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.79';
+const APP_VERSION = '6.80';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1750,29 +1750,12 @@ async function loadCompGuests() {
         const name = [(r[2]||'').trim(), (r[3]||'').trim()].filter(Boolean).join(' ');
         if (!name) return;
         const { entryType, guestType, hasLanyard } = sectionToEntry(section);
-        const workingDays = DAY_COLS.filter(d => d.indices.some(idx => (r[idx]||'').trim() !== ''));
-        if (!workingDays.length) return;
-
-        // One booking per person, one ticket per day
-        const tickets = workingDays.map((d, idx) => ({
-          key: `res-${i}-${d.eventId}`, attendeeKey: String(idx + 1),
-          name, ticketName: `${guestType} · ${d.label}`,
-          isVip: entryType === 'VIP', checkedIn: false,
-          hasLanyard, entryType, _eventId: d.eventId
-        }));
-
-        const bKey = `res-${i}`;
-        bookingMap[bKey] = {
-          bookingId: bKey, invoiceID: bKey,
-          name, email: '',
-          eventTitle: guestType, eventDay: '',
-          _eventId: workingDays[0].eventId, // primary event for pill display
-          _eventIds: workingDays.map(d => d.eventId), // all events
-          entryType, guestType, hasLanyard,
-          tickets, source: 'sheet', isComp: false, isTM: false,
-          orderDate: new Date().toISOString()
-        };
-        n++;
+        // Add one entry per day they work — appears only in that day's event pill
+        DAY_COLS.forEach((d, di) => {
+          if (!d.indices.some(idx => (r[idx]||'').trim() !== '')) return;
+          addSheetBooking({ key: `res-${i}-${di}`, name, email: '', entryType, guestType, hasLanyard, eventIds: [d.eventId], ticketName: guestType, isComp: false, source: 'sheet' });
+          n++;
+        });
       });
       console.log(`✓ Sheet Resources: ${n}`); total += n;
     } catch(e) { console.warn('Sheet Resources failed:', e.message); }
@@ -2337,7 +2320,7 @@ function renderGuestList() {
       // Check event membership
       let inEvent = false;
       if (b._eventId) {
-        inEvent = b._eventId === evId || (b._eventIds && b._eventIds.includes(evId));
+        inEvent = b._eventId === evId;
       } else if (b.isComp || b.source === 'wc') {
         const ev = upcomingEvents.find(e => String(e.id) === evId);
         if (ev) {
