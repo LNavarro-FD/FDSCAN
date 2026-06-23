@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.75</title>
+<title>FD Door Scanner v6.76</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.75</div>
+    <div class="brand-sub">Door Scanner · v6.76</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.75</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.76</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.75';
+const APP_VERSION = '6.76';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1768,7 +1768,7 @@ async function loadCompGuests() {
         if (!name) return;
         const eventIds = sheetEventToId(itemName);
         if (!eventIds.length) return;
-        addSheetBooking({ key: `rf-${i}`, name, email, entryType: 'GE', guestType: 'Remenham Farm', hasLanyard: false, eventIds, ticketName: itemName||'Remenham Farm', isComp: false, isRemenham: true, source: 'sheet' });
+        addSheetBooking({ key: `rf-${i}`, name, email, entryType: 'GE', guestType: 'Remenham Farm', hasLanyard: false, eventIds, ticketName: itemName||'Remenham Farm', isComp: false, isRemenham: true, rfItemId: (r[38]||'').trim(), source: 'sheet' });
         n++;
       });
       console.log(`✓ Sheet Remenham Farm: ${n}`); total += n;
@@ -2709,6 +2709,36 @@ async function lookupTicket(code) {
   setResult('','⏳','Checking…','');
 
   try {
+    // 0. Check if it's an RF (Remenham Farm) QR code
+    const rfParsed = parseMecQrUrl(code);
+    if (rfParsed && rfParsed.rf) {
+      const rfId = String(rfParsed.rf);
+      // Find booking by item_id (stored as bookingId rf-ITEMID or in invoiceMap)
+      const rfBooking = bookingMap[`rf-item-${rfId}`] ||
+        Object.values(bookingMap).find(b => b.source === 'sheet' && b.isRemenham && String(b.rfItemId) === rfId);
+      if (!rfBooking) {
+        vibrate([300, 100, 300]);
+        setResult('err', '🚫', 'Not Found', `RF ticket ${rfId} not on guest list`);
+        isScanning = false; return;
+      }
+      const ticket = rfBooking.tickets[0];
+      if (ticket && isTicketCheckedIn(rfBooking, ticket)) {
+        vibrate([200, 100, 200]);
+        setResult('warn', '⚠️', rfBooking.name, 'Already scanned');
+        isScanning = false; return;
+      }
+      if (ticket) ticket.checkedIn = true;
+      addLog({ name: rfBooking.name, ticket: `${rfBooking.eventTitle} (RF)`, status:'ok', code });
+      stats.admitted++; stats.total++;
+      document.getElementById('hdr-count').textContent = stats.admitted;
+      updateStats(); renderGuestList(); updateGLStats();
+      vibrate([80]);
+      const now = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+      setResult('ok', '✓', rfBooking.name, `RF · ${rfBooking.eventTitle} · ${now}`, true);
+      showWristbandToast(rfBooking, ticket || { ticketName: 'RF Ticket', isVip: false, hasLanyard: false, entryType: 'GE' });
+      isScanning = false; return;
+    }
+
     // 1. Try MEC API first — covers all native MEC/WooCommerce tickets
     if (cfg.mecKey && !cfg.demo) {
       // Clear any stale result before API call
@@ -3023,6 +3053,11 @@ function parseMecQrUrl(code) {
   try {
     if (code.startsWith('http')) {
       const url = new URL(code);
+
+      // RF (Remenham Farm) QR code
+      const rf = url.searchParams.get('rf');
+      if (rf) return { rf, invoiceID: null, place: '1', hash: null, email: null, shortUrl: null };
+
       const invoiceID = url.searchParams.get('invoiceID');
       const place     = url.searchParams.get('place');
       const hash      = url.searchParams.get('Hash');
