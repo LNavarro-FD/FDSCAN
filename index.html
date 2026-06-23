@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.81</title>
+<title>FD Door Scanner v6.82</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.81</div>
+    <div class="brand-sub">Door Scanner · v6.82</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.81</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.82</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.81';
+const APP_VERSION = '6.82';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1628,7 +1628,7 @@ function parseCSV(text) {
   return rows;
 }
 
-function addSheetBooking({ key, name, email, entryType, guestType, hasLanyard, eventIds, ticketName, isComp, isRemenham, guestOf, source, rfItemId }) {
+function addSheetBooking({ key, name, email, entryType, guestType, hasLanyard, eventIds, ticketName, isComp, isRemenham, isEntertainment, guestOf, source, rfItemId }) {
   if (!name) return;
   email = (email || '').toLowerCase().trim();
   eventIds.forEach((eventId, idx) => {
@@ -1649,7 +1649,7 @@ function addSheetBooking({ key, name, email, entryType, guestType, hasLanyard, e
       entryType, guestType, hasLanyard,
       tickets: [ticket],
       source: source || 'sheet',
-      isComp: !!isComp, isRemenham: !!isRemenham, isTM: false,
+      isComp: !!isComp, isRemenham: !!isRemenham, isEntertainment: !!isEntertainment, isTM: false,
       rfItemId: rfItemId || null,
       orderDate: new Date().toISOString()
     };
@@ -1760,7 +1760,7 @@ async function loadCompGuests() {
           const dedupKey = `${name}|${d.eventId}`;
           if (staffAdded.has(dedupKey)) return;
           staffAdded.add(dedupKey);
-          addSheetBooking({ key: `res-${i}-${di}`, name, email: '', entryType, guestType, hasLanyard, eventIds: [d.eventId], ticketName: guestType, isComp: false, source: 'sheet' });
+          addSheetBooking({ key: `res-${i}-${di}`, name, email: '', entryType, guestType, hasLanyard, eventIds: [d.eventId], ticketName: guestType, isComp: false, isEntertainment: guestType === 'Entertainment', source: 'sheet' });
           n++;
         });
       });
@@ -2205,12 +2205,13 @@ function renderSubPills(evId, col) {
   subBar.innerHTML = '';
   subBar.classList.add('show');
   const cats = [
-    { key: 'all',      label: 'All' },
-    { key: 'tickets',  label: '🎫 Tickets' },
-    { key: 'guests',   label: '🎁 Guests' },
-    { key: 'djs',      label: '🎧 DJs' },
-    { key: 'staff',    label: '👷 Staff' },
-    { key: 'remenham', label: '🏡 Remenham' },
+    { key: 'all',           label: 'All' },
+    { key: 'tickets',       label: '🎫 Tickets' },
+    { key: 'guests',        label: '🎁 Guests' },
+    { key: 'djs',           label: '🎧 DJs' },
+    { key: 'entertainers',  label: '🎭 Entertainers' },
+    { key: 'staff',         label: '👷 Staff' },
+    { key: 'remenham',      label: '🏡 Remenham' },
   ];
   cats.forEach(c => {
     const btn = document.createElement('button');
@@ -2342,13 +2343,14 @@ function renderGuestList() {
       // Sub-pill category filter (ignored when searching)
       if (!q && glSubFilter !== 'all') {
         const key = b.bookingId || '';
-        if (glSubFilter === 'tickets')  return b.source === 'mec' || b.source === 'wc';
-        if (glSubFilter === 'guests')   return key.startsWith('gs-');
-        if (glSubFilter === 'djs')      return key.startsWith('dj-');
-        if (glSubFilter === 'staff')    return key.startsWith('res-');
-        if (glSubFilter === 'remenham') return !!b.isRemenham;
+        if (glSubFilter === 'tickets')      return b.source === 'mec' || b.source === 'wc';
+        if (glSubFilter === 'guests')       return key.startsWith('gs-');
+        if (glSubFilter === 'djs')          return key.startsWith('dj-');
+        if (glSubFilter === 'entertainers') return !!b.isEntertainment;
+        if (glSubFilter === 'staff')        return key.startsWith('res-') && !b.isEntertainment;
+        if (glSubFilter === 'remenham')     return !!b.isRemenham;
       }
-      // Hide staff/crew from main event pill unless searching or staff sub-pill active
+      // Hide staff/crew and entertainers from main event pill unless searching or their sub-pill active
       if (!q && glSubFilter === 'all' && (b.bookingId || '').startsWith('res-')) return false;
       return true;
     }
