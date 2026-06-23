@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.78</title>
+<title>FD Door Scanner v6.79</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.78</div>
+    <div class="brand-sub">Door Scanner · v6.79</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.78</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.79</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.78';
+const APP_VERSION = '6.79';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1738,9 +1738,9 @@ async function loadCompGuests() {
 
     // Tab 3: Resources — Section(0)|Status(1)|First Name(2)|Last Name(3)|...|Thu(11,12,13)|Fri(14,15,16)|Sat(17,18,19)
     const DAY_COLS = [
-      { eventId: '30589', indices: [11,12,13] },
-      { eventId: '30590', indices: [14,15,16] },
-      { eventId: '30591', indices: [17,18,19] },
+      { eventId: '30589', indices: [11,12,13], label: 'Thu' },
+      { eventId: '30590', indices: [14,15,16], label: 'Fri' },
+      { eventId: '30591', indices: [17,18,19], label: 'Sat' },
     ];
     try {
       const rows = await fetchSheetTab(SHEET_TABS.resources);
@@ -1750,9 +1750,28 @@ async function loadCompGuests() {
         const name = [(r[2]||'').trim(), (r[3]||'').trim()].filter(Boolean).join(' ');
         if (!name) return;
         const { entryType, guestType, hasLanyard } = sectionToEntry(section);
-        const eventIds = DAY_COLS.filter(d => d.indices.some(idx => (r[idx]||'').trim() !== '')).map(d => d.eventId);
-        if (!eventIds.length) return;
-        addSheetBooking({ key: `res-${i}`, name, email: '', entryType, guestType, hasLanyard, eventIds, ticketName: guestType, isComp: false, source: 'sheet' });
+        const workingDays = DAY_COLS.filter(d => d.indices.some(idx => (r[idx]||'').trim() !== ''));
+        if (!workingDays.length) return;
+
+        // One booking per person, one ticket per day
+        const tickets = workingDays.map((d, idx) => ({
+          key: `res-${i}-${d.eventId}`, attendeeKey: String(idx + 1),
+          name, ticketName: `${guestType} · ${d.label}`,
+          isVip: entryType === 'VIP', checkedIn: false,
+          hasLanyard, entryType, _eventId: d.eventId
+        }));
+
+        const bKey = `res-${i}`;
+        bookingMap[bKey] = {
+          bookingId: bKey, invoiceID: bKey,
+          name, email: '',
+          eventTitle: guestType, eventDay: '',
+          _eventId: workingDays[0].eventId, // primary event for pill display
+          _eventIds: workingDays.map(d => d.eventId), // all events
+          entryType, guestType, hasLanyard,
+          tickets, source: 'sheet', isComp: false, isTM: false,
+          orderDate: new Date().toISOString()
+        };
         n++;
       });
       console.log(`✓ Sheet Resources: ${n}`); total += n;
@@ -2318,7 +2337,7 @@ function renderGuestList() {
       // Check event membership
       let inEvent = false;
       if (b._eventId) {
-        inEvent = b._eventId === evId;
+        inEvent = b._eventId === evId || (b._eventIds && b._eventIds.includes(evId));
       } else if (b.isComp || b.source === 'wc') {
         const ev = upcomingEvents.find(e => String(e.id) === evId);
         if (ev) {
