@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.61</title>
+<title>FD Door Scanner v6.62</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.61</div>
+    <div class="brand-sub">Door Scanner · v6.62</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.61</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.62</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.61';
+const APP_VERSION = '6.62';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -2744,16 +2744,18 @@ async function lookupTicket(code) {
         }
         // Also check ticket name directly
         if (!mecGuest.isVip) mecGuest.isVip = /vip/i.test(mecGuest.ticketName || '');
-        // If ticket name is still generic, try to get it from WC order entry
+        // If ticket name is still generic, try to get VIP status from any WC entry for same event
         if (!mecGuest.isVip || !mecGuest.ticketName || mecGuest.ticketName === 'MEC Ticket') {
-          const wcInvId = booking?.invoiceID || invId;
-          const wcEntry = bookingMap[`wc-${wcInvId}`] || Object.values(bookingMap).find(b => b.source === 'wc' && (String(b.invoiceID) === String(wcInvId) || String(b.invoiceID) === String(invId)));
-          if (wcEntry && wcEntry.tickets && wcEntry.tickets[0]) {
-            const wcTicketName = wcEntry.tickets[0].ticketName || wcEntry.eventTitle || '';
-            if (wcTicketName && wcTicketName !== 'MEC Ticket') {
-              if (!mecGuest.ticketName || mecGuest.ticketName === 'MEC Ticket') mecGuest.ticketName = wcTicketName;
-              if (!mecGuest.isVip) mecGuest.isVip = /vip/i.test(wcTicketName);
-            }
+          const eventId = mecGuest._eventId || booking?._eventId || '';
+          const wcEntry = Object.values(bookingMap).find(b => 
+            b.source === 'wc' && 
+            (b._eventId === eventId || b._eventId === String(eventId)) &&
+            b.tickets && b.tickets[0] && /vip/i.test(b.tickets[0].ticketName || b.eventTitle || '')
+          );
+          if (wcEntry) {
+            const wcTicketName = wcEntry.tickets[0]?.ticketName || wcEntry.eventTitle || '';
+            if (!mecGuest.ticketName || mecGuest.ticketName === 'MEC Ticket') mecGuest.ticketName = wcTicketName;
+            if (!mecGuest.isVip) mecGuest.isVip = true;
           }
         }
         // Final check — look in guestMap by invoiceID+attendeeKey
