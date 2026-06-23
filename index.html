@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.63</title>
+<title>FD Door Scanner v6.64</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.63</div>
+    <div class="brand-sub">Door Scanner · v6.64</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.63</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.64</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.63';
+const APP_VERSION = '6.64';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1922,7 +1922,7 @@ function showWristbandToast(booking, ticket) {
     else if (t.includes('ibiza') || t.includes('white party')) evCol = toastCols['30590'];
     else if (t.includes('studio')) evCol = toastCols['30591'];
   }
-  const entryType = ticket.entryType || booking.entryType || (ticket.isVip ? 'VIP' : 'GE');
+  const entryType = ticket.entryType || booking.entryType || (ticket.isVip ? 'VIP' : (/vip/i.test(ticket.ticketName || booking.eventTitle || '') ? 'VIP' : 'GE'));
   let msg = '';
   if (entryType === 'VIP' || ticket.isVip) msg = '⭐ VIP — Wristband + Food tokens';
   else if (entryType === 'AAA') msg = '🎫 AAA — Lanyard + Wristband';
