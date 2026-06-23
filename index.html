@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.68</title>
+<title>FD Door Scanner v6.69</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.68</div>
+    <div class="brand-sub">Door Scanner · v6.69</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.68</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.69</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.68';
+const APP_VERSION = '6.69';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1589,7 +1589,7 @@ function sectionToEntry(section) {
   switch (s) {
     case 'Artist':        return { entryType: 'AAA', guestType: 'DJ',            hasLanyard: true  };
     case 'Visuals':       return { entryType: 'AAA', guestType: 'Production',    hasLanyard: false };
-    case 'Sponsor':       return { entryType: 'AAA', guestType: 'Sponsor',       hasLanyard: false };
+    case 'Sponsor':       return { entryType: 'GE',  guestType: 'Sponsor',       hasLanyard: false };
     case 'Caterer':       return { entryType: 'GE',  guestType: 'Caterer',       hasLanyard: false };
     case 'Retailer':      return { entryType: 'GE',  guestType: 'Retailer',      hasLanyard: false };
     case 'Entertainment': return { entryType: 'GE',  guestType: 'Entertainment', hasLanyard: false };
@@ -1699,14 +1699,38 @@ async function loadCompGuests() {
         if (!name) return;
         const eventIds = sheetEventToId(theme);
         if (!eventIds.length) return;
-        addSheetBooking({ key: `dj-${i}`, name, email, entryType: 'AAA', guestType: 'DJ', hasLanyard: true, eventIds, ticketName: 'DJ', isComp: false, source: 'sheet' });
-        n++;
+
+        // Build tickets array: DJ first, then guests
+        const tickets = [{
+          key: `dj-${i}-0`, attendeeKey: '1',
+          name: name, ticketName: 'DJ',
+          isVip: false, checkedIn: false, hasLanyard: true, entryType: 'AAA'
+        }];
+        let guestCount = 1;
         for (let g = 0; g < 10; g++) {
           const gName = (r[18 + g*2]||'').trim();
           if (!gName) continue;
-          addSheetBooking({ key: `dj-${i}-g${g}`, name: gName, email: '', entryType: 'GE', guestType: 'DJ Guest', hasLanyard: false, eventIds, ticketName: 'DJ Guest', isComp: true, guestOf: name, source: 'sheet' });
-          n++;
+          guestCount++;
+          tickets.push({
+            key: `dj-${i}-g${g}`, attendeeKey: String(guestCount),
+            name: gName, ticketName: 'DJ Guest',
+            isVip: false, checkedIn: false, hasLanyard: false, entryType: 'GE'
+          });
         }
+
+        // Add as one booking per event with all tickets
+        eventIds.forEach(evId => {
+          const bKey = `dj-${i}-${evId}`;
+          bookingMap[bKey] = {
+            bookingId: bKey, invoiceID: bKey,
+            name, email,
+            eventTitle: 'DJ', eventDay: '',
+            _eventId: evId,
+            tickets, source: 'sheet', isComp: false, isTM: false,
+            entryType: 'AAA', hasLanyard: true
+          };
+        });
+        n += tickets.length;
       });
       console.log(`✓ Sheet DJs: ${n}`); total += n;
     } catch(e) { console.warn('Sheet DJs failed:', e.message); }
