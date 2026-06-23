@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.62</title>
+<title>FD Door Scanner v6.63</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.62</div>
+    <div class="brand-sub">Door Scanner · v6.63</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.62</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.63</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.62';
+const APP_VERSION = '6.63';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -2810,8 +2810,8 @@ async function lookupTicket(code) {
             stats.invalid++; stats.total++;
             updateStats();
           } else {
-            // Valid MEC ticket — write check-in
-            mecWriteCheckin(code, mecGuest);
+            // Valid MEC ticket — write check-in and get ticket info back
+            await mecWriteCheckin(code, mecGuest);
             addLog({ name:mecGuest.name, ticket:`${mecGuest.ticketName} (${code})`, status:'ok', code });
             stats.admitted++; stats.total++;
             document.getElementById('hdr-count').textContent = stats.admitted;
@@ -3173,21 +3173,29 @@ async function mecLookupAndCheckin(code) {
 }
 
 async function mecWriteCheckin(code, mecGuest) {
-  if (!cfg.siteUrl) return;
+  if (!cfg.siteUrl) return null;
   try {
     const invoiceID = mecGuest._invoiceID || mecGuest.orderNumber;
     const place     = mecGuest._place;
-    if (!invoiceID || !place) { console.warn('MEC checkin: missing invoiceID or place'); return; }
+    if (!invoiceID || !place) { console.warn('MEC checkin: missing invoiceID or place'); return null; }
     const url = `${cfg.siteUrl}/wp-json/fd2/v1/checkin?invoice_id=${encodeURIComponent(invoiceID)}&place=${encodeURIComponent(place)}`;
     const r = await fetch(url, { method: 'POST' });
     const data = await r.json();
     if (data.success) {
       console.log('✓ MEC checkin written:', data.attendee_name, 'place', data.place, `(${data.total_checked}/${data.total})`);
+      // Use ticket_name from response for VIP detection if available
+      if (data.ticket_name && (!mecGuest.ticketName || mecGuest.ticketName === 'MEC Ticket')) {
+        mecGuest.ticketName = data.ticket_name;
+        if (/vip/i.test(data.ticket_name)) mecGuest.isVip = true;
+      }
+      return data;
     } else {
       console.warn('MEC checkin proxy failed:', data.message || data);
+      return null;
     }
   } catch(e) {
     console.warn('MEC check-in write failed:', e.message);
+    return null;
   }
 }
 
