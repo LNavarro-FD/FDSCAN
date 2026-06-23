@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v6.82</title>
+<title>FD Door Scanner v6.83</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v6.82</div>
+    <div class="brand-sub">Door Scanner · v6.83</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.82</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v6.83</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '6.82';
+const APP_VERSION = '6.83';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1595,7 +1595,7 @@ function sectionToEntry(section) {
     case 'Entertainment': return { entryType: 'GE',  guestType: 'Entertainment', hasLanyard: false };
     case 'Bar':           return { entryType: 'GE',  guestType: 'Bar Staff',     hasLanyard: false };
     case 'Crew':          return { entryType: 'GE',  guestType: 'Crew',          hasLanyard: false };
-    case 'Flyers':        return { entryType: 'GE',  guestType: 'Promoter',      hasLanyard: false };
+    case 'Supplier':      return { entryType: 'GE',  guestType: 'Supplier',      hasLanyard: false, isSupplier: true };
     default:              return { entryType: 'GE',  guestType: s || 'Staff',    hasLanyard: false };
   }
 }
@@ -1628,7 +1628,7 @@ function parseCSV(text) {
   return rows;
 }
 
-function addSheetBooking({ key, name, email, entryType, guestType, hasLanyard, eventIds, ticketName, isComp, isRemenham, isEntertainment, guestOf, source, rfItemId }) {
+function addSheetBooking({ key, name, email, entryType, guestType, hasLanyard, eventIds, ticketName, isComp, isRemenham, isEntertainment, isSupplier, guestOf, source, rfItemId }) {
   if (!name) return;
   email = (email || '').toLowerCase().trim();
   eventIds.forEach((eventId, idx) => {
@@ -1649,7 +1649,7 @@ function addSheetBooking({ key, name, email, entryType, guestType, hasLanyard, e
       entryType, guestType, hasLanyard,
       tickets: [ticket],
       source: source || 'sheet',
-      isComp: !!isComp, isRemenham: !!isRemenham, isEntertainment: !!isEntertainment, isTM: false,
+      isComp: !!isComp, isRemenham: !!isRemenham, isEntertainment: !!isEntertainment, isSupplier: !!isSupplier, isTM: false,
       rfItemId: rfItemId || null,
       orderDate: new Date().toISOString()
     };
@@ -1753,14 +1753,14 @@ async function loadCompGuests() {
         const lastName  = (r[3]||'').trim();
         const name = [firstName, lastName].filter(Boolean).join(' ');
         if (!name) return;
-        const { entryType, guestType, hasLanyard } = sectionToEntry(section);
+        const { entryType, guestType, hasLanyard, isSupplier } = sectionToEntry(section);
         // Add one entry per day they work — deduplicate by name+day
         DAY_COLS.forEach((d, di) => {
           if (!d.indices.some(idx => (r[idx]||'').trim() !== '')) return;
           const dedupKey = `${name}|${d.eventId}`;
           if (staffAdded.has(dedupKey)) return;
           staffAdded.add(dedupKey);
-          addSheetBooking({ key: `res-${i}-${di}`, name, email: '', entryType, guestType, hasLanyard, eventIds: [d.eventId], ticketName: guestType, isComp: false, isEntertainment: guestType === 'Entertainment', source: 'sheet' });
+          addSheetBooking({ key: `res-${i}-${di}`, name, email: '', entryType, guestType, hasLanyard, eventIds: [d.eventId], ticketName: guestType, isComp: false, isEntertainment: guestType === 'Entertainment', isSupplier: !!isSupplier, source: 'sheet' });
           n++;
         });
       });
@@ -1962,7 +1962,7 @@ function showWristbandToast(booking, ticket) {
   let msg = '';
   if (entryType === 'VIP' || ticket.isVip) msg = '⭐ VIP — Wristband + Food tokens';
   else if (entryType === 'AAA') msg = ticket.hasLanyard !== false ? '🎫 Lanyard + AAA — Wristband' : '🎫 AAA — Wristband';
-  else if (ticket.isDJGuest) msg = '🎽 General Entry + AAA — Wristband';
+  else if (ticket.isDJGuest || booking.isSupplier) msg = '🎽 General Entry + AAA — Wristband';
   else if (isEvening) msg = '🌙 Evening Entry — Wristband';
   else msg = '🎽 General Entry — Wristband';
 
