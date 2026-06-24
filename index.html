@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '7.0';
+const APP_VERSION = '7.1';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -936,7 +936,7 @@ const mecAttendeeCache = {};
 window.mecAttendeeCache = mecAttendeeCache;
 // Pending checkins to apply when bulk2 loads: key = 'invoiceID:place', value = {name, ticketName, isVip}
 const pendingCheckins = {};
-const SYNC_INTERVAL = 60000; // 60 seconds — only syncs when app is visible
+const SYNC_INTERVAL = 15000; // 15 seconds — only syncs when app is visible
 const META_KEY = '_fd_checked_in';
 const TICKET_META_KEY = '_fd_checked_in_tickets';
 
