@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '7.1';
+const APP_VERSION = '7.0';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -913,12 +913,13 @@ let glSubFilter = 'all';
 
 // Door ticket counters (persisted in localStorage)
 const DOOR_TICKETS = {
-  'FD-DOOR-LD-DAY':  { label: 'Ladies Day · Day',      event: '30589', limit: 500 },
-  'FD-DOOR-LD-EVE':  { label: 'Ladies Day · Evening',  event: '30589', limit: 500 },
-  'FD-DOOR-IB-DAY':  { label: 'Ibiza · Day',           event: '30590', limit: 500 },
-  'FD-DOOR-IB-EVE':  { label: 'Ibiza · Evening',       event: '30590', limit: 500 },
-  'FD-DOOR-S54-DAY': { label: 'Studio 54 · Day',       event: '30591', limit: 500 },
-  'FD-DOOR-S54-EVE': { label: 'Studio 54 · Evening',   event: '30591', limit: 500 },
+  'FD-DOOR-LD-DAY':  { label: 'Ladies Day · Day',          event: '30589', limit: 500 },
+  'FD-DOOR-LD-EVE':  { label: 'Ladies Day · Evening',      event: '30589', limit: 500 },
+  'FD-DOOR-IB-DAY':  { label: 'Ibiza · Day',               event: '30590', limit: 500 },
+  'FD-DOOR-IB-EVE':  { label: 'Ibiza · Evening',           event: '30590', limit: 500 },
+  'FD-DOOR-BB':      { label: 'Brunch on the Banks',        event: '30591', limit: 500 },
+  'FD-DOOR-S54-DAY': { label: 'Studio 54 · Day',           event: '30591', limit: 500 },
+  'FD-DOOR-S54-EVE': { label: 'Studio 54 · Evening',       event: '30591', limit: 500 },
 };
 function getDoorCounts() {
   try { return JSON.parse(localStorage.getItem('fd_door_counts') || '{}'); } catch(e) { return {}; }
